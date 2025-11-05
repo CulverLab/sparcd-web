@@ -76,6 +76,9 @@ RUN mv index.html templates/
 
 # Copy the source code over
 COPY ./server/* ./
+COPY ./server/camtrap ./camtrap
+COPY ./server/spd_database ./spd_database
+COPY ./server/spd_types ./spd_types
 COPY ./server/text_formatters ./text_formatters
 
 # Build the default database
@@ -89,10 +92,10 @@ EXPOSE ${PORT_NUMBER}
 # Setup the gunicorn environment
 ENV SERVER_DIR=${WORKDIR} \
     WEB_SITE_URL="0.0.0.0:"${PORT_NUMBER} \
-    SPARCD_DB=${WORKDIR}/sparcd.sqlite 
+    SPARCD_DB=${WORKDIR}/sparcd.sqlite
 
 RUN echo
-RUN echo gunicorn -b "0.0.0.0:${PORT_NUMBER}" --access-logfile '-' sparcd:app --timeout 18000 > ${WORKDIR}/startup_server.sh
+RUN echo gunicorn -w \$\{SERVER_WORKERS\} -b "0.0.0.0:${PORT_NUMBER}" --access-logfile '-' sparcd:app --timeout 18000 > ${WORKDIR}/startup_server.sh
 RUN chmod +x ${WORKDIR}/startup_server.sh
 
 ENTRYPOINT ["sh", "./startup_server.sh"]
