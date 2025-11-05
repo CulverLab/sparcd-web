@@ -108,9 +108,9 @@ let theme = createTheme({
       border: '1px solid black',
     },
     image_sidebar_item_media: {
-      minHeight: '120px',
-      maxHeight: '120px',
-      width: '150px'
+      minHeight: '150px',
+      maxHeight: '150px',
+      width: '200px'
     },
     species_left_sidebar: {
       height: '100%',
@@ -135,8 +135,8 @@ let theme = createTheme({
       border: '1px solid black',
     },
     species_sidebar_item_media: {
-      minHeight: '120px',
-      maxHeight: '120px',
+      minHeight: '150px',
+      maxHeight: '150px',
       width: '200px'
     },
     species_sidebar_item_media_small: {
