@@ -77,7 +77,7 @@ export default function LandingUpload({loadingSandbox, onChange}) {
         )
         : mobileDevice ? <Box>Nothing to do</Box>
             : <Typography gutterBottom sx={{ color: 'text.secondary', fontSize: 14, textAlign: 'center',  }} >
-                No incomplete uploads
+                No incomplete uploads found
               </Typography>
       }
     </React.Fragment>

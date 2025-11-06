@@ -177,6 +177,7 @@ export default function Home() {
           // TODO: transition to MaterialUI sizes          
           const newSize = {'width':window.innerWidth,'height':window.innerHeight};
           setIsNarrow(newSize.width <= 640);
+          console.log('HACK: RESIZED');
           calculateLayoutSizes();
       }
 
@@ -234,7 +235,7 @@ export default function Home() {
    */
   function calculateLayoutSizes() {
     const newSize = {'width':window.innerWidth,'height':window.innerHeight};
-    setSizeWindow(newSize);    
+    setSizeWindow(newSize);
 
     // Get the title size
     let titleSize = {top:0.0, left:0.0, width:newSize.width, height:DEFAULT_HEADER_HEIGHT};
@@ -255,6 +256,7 @@ export default function Home() {
     // Set the workspace size
     const workspaceSize = {top:titleSize.height, left:titleSize.left, width:titleSize.width, 
                             height:newSize.height-titleSize.height-footerSize.height}
+    console.log('HACK:WORKSPACE SIZE',workspaceSize,newSize,titleSize,footerSize);
     setSizeWorkspace(workspaceSize);
   }
 
