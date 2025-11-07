@@ -1159,12 +1159,42 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
             <Typography gutterBottom variant="body2">
               Uploaded created {generateSecondsElapsedText(continueUploadInfo.elapsedSec)} ago
             </Typography>
+            <Grid id="landing-page-upload-continue-options-wrapper" container direction="row" rowSpacing={1} alignItems="center" justifyContent="flex-start"
+                  sx={{paddingTop:'10px'}}>
+              <Grid id="landing-page-upload-continue-options-continue" container direction="row" alignItems="start" justifyContent="flex-start"
+                  sx={{border:'1px solid #c3c3d2', borderRadius:'5px', width:'100%', backgroundColor:'#eaeaf9', padding:'50x 0px'}}>
+                <Button id="sandbox-upload-continue-continue" size="small" onClick={prevUploadContinue}>Resume Upload</Button>
+                <Typography gutterBottom variant="body2" component='div' sx={{width:'70%', marginLeft:'auto'}}>
+                  The upload continues from where it left off and will upload the remaining files. This is helpful when the files to upload haven't changed
+                </Typography>
+              </Grid>
+              <Grid id="landing-page-upload-continue-options-restart" container direction="row" alignItems="start" justifyContent="flex-start"
+                  sx={{border:'1px solid #c3c3d2', borderRadius:'5px', width:'100%', backgroundColor:'#eaeaf9', padding:'50x 0px'}}>
+                <Button id="sandbox-upload-continue-restart" size="small" onClick={prevUploadRestart}>Restart Upload</Button>
+                <Typography gutterBottom variant="body2" component='div' sx={{width:'70%', marginLeft:'auto'}} >
+                  Restart the entire upload starting from the first image until the last. This is helpful if previously loaded images were changed, replaced, 
+                  or added to
+                </Typography>
+              </Grid>
+              <Grid id="landing-page-upload-continue-options-create" container direction="row" alignItems="start" justifyContent="flex-start"
+                  sx={{border:'1px solid #c3c3d2', borderRadius:'5px', width:'100%', backgroundColor:'#eaeaf9', padding:'50x 0px'}}>
+                <Button id="sandbox-upload-continue-create" size="small" onClick={prevUploadCreateNew}>Create New Upload</Button>
+                <Typography gutterBottom variant="body2" component='div' sx={{width:'70%', marginLeft:'auto'}} >
+                  Remove the previous upload attempt and create a new upload. This is helpful if the previous upload was incomplete or incorrect
+                  and you want to restart the whole process
+                </Typography>
+              </Grid>
+              <Grid id="landing-page-upload-continue-options-abandon" container direction="row" alignItems="start" justifyContent="flex-start"
+                  sx={{border:'1px solid #c3c3d2', borderRadius:'5px', width:'100%', backgroundColor:'#eaeaf9', padding:'50x 0px'}}>
+                <Button id="sandbox-upload-continue-abandon" size="small" onClick={prevUploadAbandon}>Abandon Upload</Button>
+                <Typography gutterBottom variant="body2" component='div' sx={{width:'70%', marginLeft:'auto'}} >
+                  Will abandon the previous upload attempt and not try to upload anything else. This is helpful if the upload is no longer needed or
+                  wanted
+                </Typography>
+              </Grid>
+            </Grid>
           </CardContent>
           <CardActions>
-            <Button id="sandbox-upload-continue-continue" sx={{'flex':'1'}} size="small" onClick={prevUploadContinue}>Resume Upload</Button>
-            <Button id="sandbox-upload-continue-restart" sx={{'flex':'1'}} size="small" onClick={prevUploadRestart}>Restart Upload</Button>
-            <Button id="sandbox-upload-continue-create" sx={{'flex':'1'}} size="small" onClick={prevUploadCreateNew}>Create New Upload</Button>
-            <Button id="sandbox-upload-continue-abandon" sx={{'flex':'1'}} size="small" onClick={prevUploadAbandon}>Abandon Upload</Button>
             <Button id="sandbox-upload-continue-cancel" sx={{'flex':'1'}} size="small" onClick={prevUploadCancel}>Cancel</Button>
           </CardActions>
         </Card>

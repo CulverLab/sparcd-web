@@ -33,8 +33,17 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
   const mobileDevice = React.useContext(MobileDeviceContext);
   const uiSizes = React.useContext(SizeContext);
   const [haveNewUpload, setHaveNewUpload] = React.useState(false);
+  const [mapImageSize, setMapImageSize] = React.useState({width:722,height:396})
   const [selUploadInfo, setSelUploadInfo] = React.useState(null);
   const [selCollectionInfo, setSelCollectionInfo] = React.useState(null);
+
+  // Handle the image size
+  React.useLayoutEffect(() => {
+    const el = document.getElementById('landing-page-map-image');
+    if (el) {
+      el.style.width='100%';
+    }
+  }, [uiSizes, mapImageSize]);
 
   /**
    * Set the flag indicating there's a new upload
@@ -80,6 +89,13 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
     onEditUpload(curCollection.id, curUpload.key, "Home");
   }
 
+  const handleMapImageLoad = React.useCallback(() => {
+    let el = document.getElementById('landing-page-map-image');
+    if (el) {
+      setMapImageSize({width:el.width, height:el.height});
+    }
+  }, [setMapImageSize]);
+
   // Render the page depending upon user choices
   return (
     <React.Fragment>
@@ -105,6 +121,9 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
             <LandingCard title="Maps" subtitle="View locations images have been captured on a variety of maps"
                          action={{'title':'Maps', 'onClick':() => {onUserAction(UserActions.Maps, null, false, 'Home');} }}
             >
+              <div id='landing-page-map-image-wrapper' style={{maxHeight:'180px', border:'1px solid grey', borderRadius:'10px', overflow:"clip"}} >
+                <img id='landing-page-map-image' alt='Portion of a map for display purposes only' src='mapImage.png' onLoad={handleMapImageLoad} />
+              </div>
             </LandingCard>
         </Grid>
       </Box>
