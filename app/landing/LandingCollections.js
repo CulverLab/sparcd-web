@@ -57,9 +57,10 @@ export default function LandingCollections({loadingCollections, onChange}) {
               >
                   {
                     collectionItems.map(function(obj, idx) {
+                      const itemTheme = idx & 1 ? theme.palette.landing_collections_list : theme.palette.landing_collections_list_alt
                       return <FormControlLabel value={obj.name} control={<Radio />} label={obj.name} key={obj.name+'-'+idx}
                                                sx={{padding:'0px 5px', 
-                                                    backgroundColor:idx & 1 ? '#D5D7DD':'#E3E5EB',
+                                                    ...itemTheme,
                                                     marginRight:'0px'}}/>
                     })
                   }

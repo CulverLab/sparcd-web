@@ -133,7 +133,8 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
                     size='small'
                     error={!valuesValid.url}
                     sx={{m:5}}
-                    inputProps={{style: {fontSize: 12}}}
+                    type={'url'}
+                    inputProps={{style: {fontSize:12}}}
                     slotProps={{
                       inputLabel: {
                         shrink: true,
@@ -147,7 +148,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
                     size='small'
                     error={!valuesValid.user}
                     sx={{m:5}}
-                    inputProps={{style: {fontSize: 12}}}
+                    inputProps={{style: {fontSize:12}}}
                     slotProps={{
                       inputLabel: {
                         shrink: true,
@@ -161,7 +162,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
                     size='small'
                     error={!valuesValid.password}
                     sx={{m:5}}
-                    inputProps={{style: {fontSize: 12}}}
+                    inputProps={{style: {fontSize:12}}}
                     onKeyPress={((ev) => {if (ev.key === 'Enter') { ev.preventDefault(); callLoginFunc(ev); } })}
                     slotProps={{
                       inputLabel: {

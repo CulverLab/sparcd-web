@@ -41,11 +41,9 @@ export default function LandingCard({title, subtitle, action, children}) {
   // Render the card UI
   return (
     <Card variant="outlined" id={'landing-card-' + title.replace('  ', ' ').replace(' ','-')}
-          sx={{backgroundColor: theme.palette.landing_card.background, 
+          sx={{...theme.palette.landing_card, 
                 minWidth: !narrowWindow ? theme.palette.landing_card.minWidth : '100%',
-                maxWidth: !narrowWindow ? theme.palette.landing_card.maxWidth : '100vw',
-                minHeight: theme.palette.landing_card.minHeight,
-                borderRadius:  theme.palette.landing_card.borderRadius}} >
+                maxWidth: !narrowWindow ? theme.palette.landing_card.maxWidth : '100vw'}} >
       <CardHeader title={<span style={{fontWeight:'bold'}}>{title}</span>} subheader={subtitle} />
       <CardContent sx={{minHeight:theme.palette.landing_card.minHeight}}>
         {children}

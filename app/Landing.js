@@ -13,6 +13,7 @@ import FolderUpload from './landing/FolderUpload';
 import LandingCard from './landing/LandingCard';
 import LandingCollections from './landing/LandingCollections';
 import LandingMaps from './landing/LandingMaps';
+import LandingQuery from './landing/LandingQuery';
 import LandingUpload from './landing/LandingUpload';
 import UserActions from './components/userActions';
 import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, SizeContext } from './serverInfo';
@@ -118,6 +119,7 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
             <LandingCard title="Search Images" subtitle="Quickly find species and their images. Filter on timestamp, locations, and more."
                          action={{'title':'Query', 'onClick':() => {onUserAction(UserActions.Query, null, false, 'Home');} }}
             >
+              <LandingQuery />
             </LandingCard>
             <LandingCard title="Maps" subtitle="View locations images have been captured on a variety of maps"
                          action={{'title':'Maps', 'onClick':() => {onUserAction(UserActions.Maps, null, false, 'Home');} }}

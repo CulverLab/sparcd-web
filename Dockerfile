@@ -75,16 +75,20 @@ RUN mkdir templates
 RUN mv index.html templates/
 
 # Copy the source code over
-COPY ./server/* ./
-COPY ./server/camtrap ./camtrap
-COPY ./server/spd_database ./spd_database
-COPY ./server/spd_types ./spd_types
-COPY ./server/text_formatters ./text_formatters
+COPY --exclude=__pycache__ --exclude=.DS_Store ./server/ ./
+#COPY ./server/camtrap ./camtrap
+#COPY ./server/spd_database ./spd_database
+#COPY ./server/spd_types ./spd_types
+#COPY ./server/text_formatters ./text_formatters
 
 # Build the default database
 RUN rm *.sqlite    # Clean up any testing databases
 RUN ./create_db.py --admin ${ADMIN_NAME} --admin_email ${ADMIN_EMAIL} $PWD sparcd.sqlite
 RUN rm create_db.py
+
+# Setup nginx
+RUN mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig
+COPY ./nginx.conf /etc/nginx/nginx.conf
 
 # Expose the port
 EXPOSE ${PORT_NUMBER}
@@ -95,8 +99,8 @@ ENV SERVER_DIR=${WORKDIR} \
     SPARCD_DB=${WORKDIR}/sparcd.sqlite \
     SERVER_WORKERS=4
 
-RUN echo
-RUN echo gunicorn -w \$\{SERVER_WORKERS\} -b \$\{WEB_SITE_URL\} --access-logfile '-' sparcd:app --timeout 18000 > ${WORKDIR}/startup_server.sh
+RUN echo nginx -g \'daemon on;\' > ${WORKDIR}/startup_server.sh
+RUN echo gunicorn -w \$\{SERVER_WORKERS\} -b \$\{WEB_SITE_URL\} --access-logfile '-' sparcd:app --timeout 18000 >> ${WORKDIR}/startup_server.sh
 RUN chmod +x ${WORKDIR}/startup_server.sh
 
 ENTRYPOINT ["sh", "./startup_server.sh"]

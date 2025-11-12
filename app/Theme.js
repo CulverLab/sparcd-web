@@ -23,6 +23,7 @@ let theme = createTheme({
       alignItems: 'flex-start',
       minHeight: '100vh',
       backgroundColor: '#EFEFEF',
+      background: 'linear-gradient(135deg, #3b5a7d 0%, #9bbdd9 50%, #7a9bc4 100%)',
     },
     login_wrapper: {
       width: '100vw',
@@ -84,15 +85,11 @@ let theme = createTheme({
       left: '0px',
     },
     landing_card: {
-      background: 'rgba(224, 227, 232, 0.8)',
+      backgroundColor: 'rgba(255, 255, 255, 0.78)',
       borderRadius: '15px',
       minHeight: '20vh',
       minWidth: '46vw',
       maxWidth: '46vw',
-      uploadImage: "https://arizona.box.com/shared/static/dcxcm0y8u6cnwcz6tftovo68ixkcd2c0.jpg",
-      collectionsImage: '../public/CollectionsImage.jpg',
-      searchImage: '../public/SearchImage.jpg',
-      mapsImage: '../public/MapsImage.jpg',
     },
     landing_upload: {
       border: '1px solid black',
@@ -122,6 +119,12 @@ let theme = createTheme({
       fontSize: 'x-small', 
       textAlign: 'center'
     },
+    landing_collections_list: {
+      backgroundColor: '#ecf1f4',
+    },
+    landing_collections_list_alt: {
+      backgroundColor: '#d7dee4',
+    },
     landing_page_map_image_wrapper: {
       maxHeight:'180px',
       border:'1px solid grey',
@@ -130,7 +133,9 @@ let theme = createTheme({
     },
     folder_upload: {
       background: 'rgb(240, 240, 255)',
-      padding: '1em 2em 1em 2em'
+      padding: '1em 2em 1em 2em',
+      borderRadius: '15px',
+      backgroundColor: 'rgb(212, 230, 241, 0.95)',
     },
     left_sidebar: {
       height: '100%',
@@ -220,7 +225,7 @@ let theme = createTheme({
       'top': '0px',
       'width': '100vw',
       'height': '100vh',
-      'backgroundColor': 'rgba(128, 128, 128, 0.50)'
+      'backgroundColor': 'rgba(128, 128, 128, 0.65)'
     },
     screen_overlay: {
       'position': 'absolute',
