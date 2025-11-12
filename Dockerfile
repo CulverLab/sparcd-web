@@ -36,7 +36,7 @@ COPY ./app ./app
 RUN npm run build
 
 # Build the final image
-FROM node:current-alpine
+FROM nginx:alpine
 
 ENV WORKDIR=/website
 WORKDIR ${WORKDIR}
@@ -52,6 +52,7 @@ ARG ADMIN_EMAIL=admin@arizona.edu
 
 # Install python stuff
 COPY ./requirements.txt ./
+RUN apk update
 RUN apk add python3 py-pip
 RUN apk add gdal
 RUN apk add gdal-dev && \
@@ -61,6 +62,7 @@ RUN apk add gdal-dev && \
     apk del gcc g++ && \
     apk del python3-dev && \
     apk del gdal-dev
+RUN apk cache clean
 
 # Install additional tools and runtimes
 RUN apk add openjdk21
@@ -99,7 +101,7 @@ ENV SERVER_DIR=${WORKDIR} \
     SPARCD_DB=${WORKDIR}/sparcd.sqlite \
     SERVER_WORKERS=4
 
-RUN echo nginx -g \'daemon on;\' > ${WORKDIR}/startup_server.sh
+RUN echo "nginx -g 'daemon on;'" > ${WORKDIR}/startup_server.sh
 RUN echo gunicorn -w \$\{SERVER_WORKERS\} -b \$\{WEB_SITE_URL\} --access-logfile '-' sparcd:app --timeout 18000 >> ${WORKDIR}/startup_server.sh
 RUN chmod +x ${WORKDIR}/startup_server.sh
 
