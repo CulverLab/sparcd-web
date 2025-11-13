@@ -15,7 +15,8 @@ import { useTheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
-import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext } from '../serverInfo';
+import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, 
+         TokenContext } from '../serverInfo';
 
 /**
  * Returns the UI for uploads on the Landing page
@@ -26,15 +27,51 @@ import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext } from 
  */
 export default function LandingUpload({loadingSandbox, onChange}) {
   const theme = useTheme();
-  const mobileDevice = React.useContext(MobileDeviceContext);
   const curSandboxInfo = React.useContext(SandboxInfoContext);
-  const numPrevUploads = React.useMemo(() => {
-    // TODO: Make this a call to the server
-    return [['Uploads last month TBD', 22], ['Uploads last year TBD', 444], ['Total uploads TBD', 8888]];
-  });
+  const mobileDevice = React.useContext(MobileDeviceContext);
+  const serverURL = React.useContext(BaseURLContext);
+  const uploadToken = React.useContext(TokenContext);
+  const [numPrevUploads, setNumPrevUploads] = React.useState(null);
 
   const sandboxItems = curSandboxInfo;
 
+  /**
+   * Retreives the upload stats from the server
+   * @function
+   */
+  const getUploadStats = React.useCallback(() => {
+    const uploadStatsUrl = serverURL + '/sandboxStats?t=' + encodeURIComponent(uploadToken);
+
+    try {
+      const resp = fetch(uploadStatsUrl, {
+          method: 'GET',
+        }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to get upload statistics: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Process the results
+          setNumPrevUploads(respData);
+        })
+        .catch(function(err) {
+          console.log('Upload Statistics Error: ',err);
+        });
+    } catch (error) {
+      console.log('Upload Statistics Unknown Error: ',err);
+    }
+  }, [serverURL, setNumPrevUploads, uploadToken]);
+
+  // Get the statistics to show
+  React.useLayoutEffect(() => {
+    if (numPrevUploads === null) {
+      getUploadStats();
+    }
+  }, [numPrevUploads, setNumPrevUploads]);
+
+  // Determine if we have unfinished uploads
   const unfinished = React.useMemo(() => {
     let found = null;
     if (sandboxItems && sandboxItems.length > 0) {
@@ -108,9 +145,9 @@ export default function LandingUpload({loadingSandbox, onChange}) {
       }
       <Grid id="sandbox-upload-info-wrapper" container direction="row" alignItems="center" justifyContent="space-around"
             sx={{paddingTop:'30px'}}>
-        { numPrevUploads.map((item) => {
+        { numPrevUploads && numPrevUploads.map((item, idx) => {
           return ( 
-          <Grid id={"sandbox-upload-info-" + item[0]} key={item[0]} container direction="column" alignItems="center" justifyContent="center" columnSpacing={1}
+          <Grid id={"sandbox-upload-info-" + item[0]} key={item[0]+'_'+idx} container direction="column" alignItems="center" justifyContent="center" columnSpacing={1}
                   sx={{background:'rgb(155, 189, 217, 0.3)', border:'2px solid rgb(122, 155, 196, 0.25)', borderRadius:'13px', padding:'7px 12px', minWidth:'30%'}} >
             <Typography variant="h4" sx={{color:'#3b5a7d'}} >
               {item[1]}

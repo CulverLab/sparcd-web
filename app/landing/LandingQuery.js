@@ -15,7 +15,8 @@ import { useTheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
-import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext } from '../serverInfo';
+import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext,
+        TokenContext } from '../serverInfo';
 
 /**
  * Returns the UI for queries on the Landing page
@@ -24,14 +25,55 @@ import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext } from 
  */
 export default function LandingQuery() {
   const theme = useTheme();
-  const numAnimalIds = React.useMemo(() => {
-    // TODO: Make this a call to the server
-    return [['Bears TBD', 22], ['Bobcats TBD', 444], ['Unicorns TBD', 6], ['Narwhals TBD', 0], ['Mosasaurs TBD', 1]];
-  });
+  const serverURL = React.useContext(BaseURLContext);
+  const queryToken = React.useContext(TokenContext);
+  const [animalsNums,setAnimalsNums] = React.useState(null);
+
+  /**
+   * Retreives the species stats from the server
+   * @function
+   */
+  const getSpeciesStats = React.useCallback(() => {
+    const speciesStatsUrl = serverURL + '/speciesStats?t=' + encodeURIComponent(queryToken);
+
+    try {
+      const resp = fetch(speciesStatsUrl, {
+          method: 'GET',
+        }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to get species statistics: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Process the results
+          setAnimalsNums(respData);
+        })
+        .catch(function(err) {
+          console.log('Species Statistics Error: ',err);
+        });
+    } catch (error) {
+      console.log('Species Statistics Unknown Error: ',err);
+    }
+  }, [serverURL, setAnimalsNums, queryToken]);
+
+  // Get the statistics to show
+  React.useLayoutEffect(() => {
+    if (animalsNums === null) {
+      getSpeciesStats();
+    }
+  }, [animalsNums, setAnimalsNums]);
+
+  // TODO: Make animalsNums load from server
   const showAnimalIdx = React.useMemo(() => {
-    let foundIdx = [Math.floor(Math.random() * numAnimalIds.length),
-                    Math.floor(Math.random() * numAnimalIds.length),
-                    Math.floor(Math.random() * numAnimalIds.length)];
+    if (animalsNums === null) {
+      return null;
+    }
+
+    let foundIdx = [Math.floor(Math.random() * animalsNums.length),
+                    Math.floor(Math.random() * animalsNums.length),
+                    Math.floor(Math.random() * animalsNums.length)];
     let fixed = 0;
     while (fixed < 5) {
       let fixedValue = false;
@@ -39,7 +81,7 @@ export default function LandingQuery() {
         const found = foundIdx.filter((item) => item === foundIdx[idx]);
         if (found.length > 1) {
           // We have a duplicate
-          foundIdx[idx] = Math.floor(Math.random() * numAnimalIds.length);
+          foundIdx[idx] = Math.floor(Math.random() * animalsNums.length);
           fixedValue = true;
         }
       }
@@ -52,16 +94,16 @@ export default function LandingQuery() {
     }
 
     return foundIdx;
-  }, [numAnimalIds]);
+  }, [animalsNums]);
 
   // Render the UI
   return (
     <Stack>
       <Grid id="sandbox-upload-info-wrapper" container direction="row" alignItems="center" justifyContent="space-around"
             sx={{paddingTop:'30px'}}>
-        { numAnimalIds.map((item, idx) => 
-          showAnimalIdx && showAnimalIdx.includes(idx) &&
-                  <Grid id={"sandbox-upload-info-" + item[0]} key={item[0]} container direction="column" alignItems="center" justifyContent="center" columnSpacing={1}
+        { animalsNums && animalsNums.map((item, idx) => 
+            showAnimalIdx && showAnimalIdx.includes(idx) &&
+                  <Grid id={"sandbox-upload-info-" + item[0]} key={item[0]+'_'+idx} container direction="column" alignItems="center" justifyContent="center" columnSpacing={1}
                           sx={{background:'rgb(155, 189, 217, 0.3)', border:'2px solid rgb(122, 155, 196, 0.25)', borderRadius:'13px', padding:'7px 12px', minWidth:'30%'}} >
                     <Typography variant="h4" sx={{color:'#3b5a7d'}} >
                       {item[1]}

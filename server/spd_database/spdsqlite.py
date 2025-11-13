@@ -281,7 +281,6 @@ class SPDSQLite:
         tries = 0
         while tries < 10:
             try:
-                print('HACK:COLL: DELETE',tries)
                 cursor.execute('DELETE FROM collections')
                 break
             except sqlite3.Error as ex:
@@ -301,7 +300,6 @@ class SPDSQLite:
         tries = 0
         for one_coll in collections:
             try:
-                print('HACK:COLL: INSERT: ',one_coll['name'])
                 cursor.execute('INSERT INTO collections(name,json) values(?, ?)', \
                                                 (one_coll['name'], one_coll['json']))
                 tries += 1
@@ -315,7 +313,6 @@ class SPDSQLite:
             return False
 
         # Update the timeout table for collections and do some cleanup if needed
-        print('HACK:COLL: TIMEOUT TABLE')
         cursor.execute('SELECT COUNT(1) FROM table_timeout WHERE name="collections"')
         res = cursor.fetchone()
 
@@ -412,7 +409,6 @@ class SPDSQLite:
             except sqlite3.Error as ex:
                 if ex.sqlite_errorcode == sqlite3.SQLITE_BUSY:
                     tries += 1
-                    print('HACK:WAITING',flush=True)
                     sleep(1)
                 else:
                     print(f'Save uploads delete sqlite error detected: {ex.sqlite_errorcode}')

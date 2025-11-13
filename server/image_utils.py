@@ -1,5 +1,6 @@
 """ Utlities for images"""
 
+import os
 import json
 import subprocess
 from typing import Optional
