@@ -42,13 +42,10 @@ export const DefaultImageIconURL = 'https://i.imgur.com/4qz5mI0.png';
 
 /** Allowed image types **/
 export const AllowedImageMime = [
-  'image/jp2',
   'image/jpeg',
-  'image/tiff'
 ];
 
 /** Allowed movie types **/
 export const AllowedMovieMime = [
-  'video/mp4',
-  'video/quicktime',
+  'video/mp4'
 ];
