@@ -513,6 +513,7 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
             component='video'
             image={url}
             autoPlay
+            controls
             onPlay={onImageLoad}
             sx={{width:movieSize.width, height:movieSize.height}}
         />

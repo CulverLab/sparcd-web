@@ -10,7 +10,16 @@ import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-export default function ImageTile({name, species, onClick}) {
+/**
+ * Returns the UI for one image tile
+ * @function
+ * @param {string} name The name of the image to display
+ * @param {string} type The type of image the tile is
+ * @param {object} species Array of species associated with the tile
+ * @param {function} onClick Handler for the user clicking the tile
+ * @return {object} The UI to render
+ */
+export default function ImageTile({name, type, species, onClick}) {
   const theme = useTheme();
 
   if (!species) {
@@ -62,21 +71,26 @@ export default function ImageTile({name, species, onClick}) {
             <Grid>
               {generateImageSvg(haveSpecies ? 'grey':undefined, haveSpecies ? '#68AB68':undefined)}
             </Grid>
-            <Grid>
-              <Box>
+            <Grid container id={name + "-info"} direction="column" alignItems="center" justifyContent="space-between">
+              <Grid container direction="row" alignItems="center" justifyContent="space-between">
                 <Typography variant="body" sx={{textTransform:'uppercase'}}>
                   {name}
-                  {haveSpecies ? <CheckCircleOutlinedIcon size="small" sx={{color:"#68AB68"}}/> : null}
+                </Typography>
+                {haveSpecies ? <CheckCircleOutlinedIcon size="small" sx={{color:"#68AB68", leftMargin:'auto'}}/> : null}
+              </Grid>
+              <Box>
+                <Typography variant="body" sx={{border:'1px solid black', borderRadius:'7px', backgroundColor:haveSpecies ? 'dimgrey' : 'silver', padding:'2px 5px' }}>
+                  {type}
                 </Typography>
               </Box>
-                { species.map((curSpecies,idxSpecies) => 
+              { species.map((curSpecies,idxSpecies) => 
                       <Box key={name+curSpecies.name+idxSpecies} >
                         <Typography variant="body3" sx={{textTransform:'capitalize'}}>
                           {curSpecies.name + ': ' + curSpecies.count}
                         </Typography>
                       </Box>
                 )
-                }
+              }
             </Grid>
           </Grid>
         </CardContent>

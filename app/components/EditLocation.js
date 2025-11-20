@@ -37,6 +37,16 @@ export default function EditLocation({data, onUpdate, onClose}) {
   const [isModified, setIsModified] = React.useState(false);
   const [selectedCoordinate, setSelectedCoordinate] = React.useState(userSettings['coordinatesDisplay']);
   const [selectedMeasure, setSelectedMeasure] = React.useState(userSettings['measurementFormat']);
+  const [curData, setCurData] = React.useState(data || {
+                                                        elevationProperty: 0,
+                                                        idProperty: '',
+                                                        latProperty: 0.0,
+                                                        lngProperty: 0.0,
+                                                        nameProperty: '',
+                                                        utm_code: '',
+                                                        utm_x: 0,
+                                                        utm_y: 0
+                                                      });
 
   /**
    * Handles a change in the user's measurement selection
@@ -66,7 +76,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
     }
 
     // Save the edited location data
-    let updatedData = data ? JSON.parse(JSON.stringify(data)) : {};
+    let updatedData = curData ? JSON.parse(JSON.stringify(curData)) : {};
 
     let el = document.getElementById('edit-location-name');
     if (el) {
@@ -87,7 +97,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
         return;
       }
       const foundId = locationItems.filter((item) => item.idProperty === updatedData.idProperty);
-      if (foundId && !data) {
+      if (foundId && !curData) {
         addMessage(Level.Warning, "The ID is already taken. Please enter an unused ID")
         el.focus();
         return;
@@ -205,9 +215,9 @@ export default function EditLocation({data, onUpdate, onClose}) {
   /*
    * Check if we need to break the UTM code into zone and letter
    */
-  if (data.utm_code && (!data.utm_zone || !data.utm_letter)) {
-    data.utm_zone = parseInt(data.utm_code);
-    data.utm_letter = data.utm_code[data.utm_code.length - 1];
+  if (curData && curData.utm_code && (!curData.utm_zone || !curData.utm_letter)) {
+    curData.utm_zone = parseInt(curData.utm_code);
+    curData.utm_letter = curData.utm_code[curData.utm_code.length - 1];
   }
 
   return (
@@ -249,7 +259,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
           <TextField required
                 id='edit-location-name'
                 label="Name"
-                defaultValue={data ? data.nameProperty : null}
+                defaultValue={curData ? curData.nameProperty : null}
                 size='small'
                 sx={{margin:'10px'}}
                 onChange={() => setIsModified(true)}
@@ -260,10 +270,10 @@ export default function EditLocation({data, onUpdate, onClose}) {
                   },
                 }}
                 />
-          <TextField disabled={!!data}
+          <TextField disabled={!!(curData && curData.idProperty)}
                 id='edit-location-id'
                 label="ID"
-                defaultValue={data ? data.idProperty : null}
+                defaultValue={curData ? curData.idProperty : null}
                 size='small'
                 sx={{margin:'10px'}}
                 onChange={() => setIsModified(true)}
@@ -289,11 +299,11 @@ export default function EditLocation({data, onUpdate, onClose}) {
           <TextField 
                 id='edit-location-elevation'
                 label={"Elevation" + (selectedMeasure === 'feet' ? ' (feet)' : ' (meters)')}
-                defaultValue={data ? data.elevationProperty : null}
+                defaultValue={curData ? curData.elevationProperty : null}
                 size='small'
                 sx={{margin:'10px'}}
                 onChange={() => setIsModified(true)}
-                inputProps={{maxLength:1, style: {fontSize: 12}}}
+                inputProps={{minLength:1, style: {fontSize: 12}}}
                 slotProps={{
                   inputLabel: {
                     shrink: true,
@@ -320,7 +330,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
             <TextField 
                   id='edit-location-lat'
                   label="Latitude"
-                  defaultValue={data ? data.latProperty : null}
+                  defaultValue={curData ? curData.latProperty : null}
                   size='small'
                   sx={{margin:'10px'}}
                   onChange={() => setIsModified(true)}
@@ -334,7 +344,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
             <TextField 
                   id='edit-location-lon'
                   label="Longitude"
-                  defaultValue={data ? data.lngProperty : null}
+                  defaultValue={curData ? curData.lngProperty : null}
                   size='small'
                   sx={{margin:'10px'}}
                   onChange={() => setIsModified(true)}
@@ -352,7 +362,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
             <TextField 
                   id='edit-location-utm-zone'
                   label="UTM Zone"
-                  defaultValue={data && data.utm_zone ? data.utm_zone : null}
+                  defaultValue={curData && curData.utm_zone ? curData.utm_zone : null}
                   size='small'
                   sx={{margin:'10px'}}
                   onChange={() => setIsModified(true)}
@@ -366,7 +376,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
             <TextField 
                   id='edit-location-utm-letter'
                   label="Letter"
-                  defaultValue={data && data.utm_letter ? data.utm_letter : null}
+                  defaultValue={curData && curData.utm_letter ? curData.utm_letter : null}
                   size='small'
                   sx={{margin:'10px'}}
                   onChange={() => setIsModified(true)}
@@ -380,7 +390,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
             <TextField 
                   id='edit-location-utm-x'
                   label="X"
-                  defaultValue={data ? data.utm_x : null}
+                  defaultValue={curData ? curData.utm_x : null}
                   size='small'
                   sx={{margin:'10px'}}
                   onChange={() => setIsModified(true)}
@@ -394,7 +404,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
             <TextField 
                   id='edit-location-utm-y'
                   label="Y"
-                  defaultValue={data ? data.utm_y : null}
+                  defaultValue={curData ? curData.utm_y : null}
                   size='small'
                   sx={{margin:'10px'}}
                   onChange={() => setIsModified(true)}
@@ -410,7 +420,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
           <FormControlLabel key={'edit-location-active'} sx={{paddingLeft:'10px'}}
                             control={<Checkbox id="edit-location-active"
                                                size="small" 
-                                               checked={data ? data.activeProperty : false}
+                                               checked={curData ? curData.activeProperty : false}
                                                onChange={() => setIsModified(true)}
                                       />} 
                             label={<Typography variant="body2">Active location entry</Typography>} />

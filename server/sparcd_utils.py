@@ -668,10 +668,14 @@ def process_upload_changes(s3_url: str, username: str, fetch_password: Callable,
                 continue
 
             # Get the image to work with
-            S3Connection.download_image(s3_url, username, fetch_password(), one_file['bucket'],
-                                                                    one_file['s3_path'], save_path)
-            if not file_ext in UPLOAD_KNOWN_MOVIE_EXT:
+            if file_ext not in UPLOAD_KNOWN_MOVIE_EXT:
+                S3Connection.download_image(s3_url, username, fetch_password(), one_file['bucket'],
+                                                                        one_file['s3_path'], save_path)
                 cur_species, cur_location, _ = image_utils.get_embedded_image_info(save_path)
+                if cur_species is None:
+                    cur_species = []
+                if cur_location is None:
+                    cur_location = []
             else:
                 cur_species, cur_location = ([], [])
 
@@ -715,24 +719,27 @@ def process_upload_changes(s3_url: str, username: str, fetch_password: Callable,
             # Check if we have any changes
             if save_species or save_location:
                 # Update the image file if it's not a movie file and uplooad
-                if file_ext in UPLOAD_KNOWN_MOVIE_EXT or \
-                    image_utils.update_image_file_exif(save_path,
+                if file_ext not in UPLOAD_KNOWN_MOVIE_EXT:
+                    if image_utils.update_image_file_exif(save_path,
                                 loc_id = save_location['loc_id'] if save_location else None,
                                 loc_name = save_location['loc_name'] if save_location else None,
                                 loc_ele = save_location['loc_ele'] if save_location else None,
                                 loc_lat = save_location['loc_lat'] if save_location else None,
                                 loc_lon = save_location['loc_lon'] if save_location else None,
                                 species_data = save_species):
-                    # Put the file back onto S3
-                    S3Connection.upload_file(s3_url, username, fetch_password(), one_file['bucket'],
-                                                                    one_file['s3_path'], save_path)
+                        # Put the file back onto S3
+                        S3Connection.upload_file(s3_url, username, fetch_password(), one_file['bucket'],
+                                                                        one_file['s3_path'], save_path)
 
-                    # Register this file as a success
-                    success_files.append(one_file)
+                        # Register this file as a success
+                        success_files.append(one_file)
+                    else:
+                        # File did not update
+                        failed_files.append(file_info_dict[file_key] if file_key in file_info_dict else\
+                                                one_file|{'species': []})
                 else:
-                    # File did not update
-                    failed_files.append(file_info_dict[file_key] if file_key in file_info_dict else\
-                                            one_file|{'species': []})
+                        # Register this movie file as a success
+                        success_files.append(one_file)
             else:
                 # Register this file as a success
                 success_files.append(one_file)

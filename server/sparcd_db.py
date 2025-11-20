@@ -505,7 +505,8 @@ class SPARCdDatabase:
                                      loc_name, loc_ele)
 
     def add_image_species_edit(self, s3_url: str, bucket: str, file_path: str, username: str, \
-                                timestamp: str, common: str, species: str, count: str) -> None:
+                                timestamp: str, common: str, species: str, count: str, \
+                                request_id: str) -> None:
         """ Adds a species entry for a file to the database
         Arguments:
             s3_url: the URL to the S3 instance
@@ -516,10 +517,11 @@ class SPARCdDatabase:
             common: the common name of the species
             species: the scientific name of the species
             count: the number of individuals of the species
+            request_id: distinct ID of the edit request
         """
         # pylint: disable=too-many-arguments, too-many-positional-arguments
         self._db.add_image_species_edit(s3_url, bucket, file_path, username,  timestamp, common,
-                                        species, count)
+                                        species, count, request_id)
 
     def save_user_species(self, username: str, species: str) -> None:
         """ Saves the species entry for the user
@@ -726,6 +728,8 @@ class SPARCdDatabase:
             Returns a tuple of file information dict containing each image's name, bucket, s3_path,
             and species. The species key contains a tuple of species common (name), 
             scientific (name), and the count. None is returned if there are no records
+        Notes:
+            See add_image_species_edit()
         """
         return self.common_get_next_files_info(s3_url, username, 0, s3_path=s3_path)
 
@@ -774,6 +778,7 @@ class SPARCdDatabase:
                                                            'scientific':one_res[3],
                                                            'count':one_res[4],
                                                          })
+                res_dict[one_res[1]]['request_id'] = one_res[5]
             else:
                 res_dict[one_res[1]] = {'s3_url': s3_url,
                                         'filename': os.path.basename(one_res[1]),
@@ -782,7 +787,8 @@ class SPARCdDatabase:
                                         'species':[{'common':one_res[2],
                                                     'scientific':one_res[3],
                                                     'count':one_res[4],
-                                                  }]
+                                                  }],
+                                        'request_id': one_res[5],
                                        }
 
         return [one_item for _, one_item in res_dict.items()]

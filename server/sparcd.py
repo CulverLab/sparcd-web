@@ -1883,6 +1883,7 @@ def image_species():
     common_name = request.form.get('common', None)
     scientific_name = request.form.get('species', None) # Scientific name
     count = request.form.get('count', None)
+    reqid = request.form.get('reqid', 0)  # Unique request identifier keeps track of requests
 
     # Check what we have from the requestor
     if not all(item for item in [token, timestamp, coll_id, upload_id, path, common_name, \
@@ -1896,7 +1897,7 @@ def image_species():
     bucket = SPARCD_PREFIX + coll_id
 
     db.add_image_species_edit(user_info.url, bucket, path, user_info.name, timestamp,
-                                                                common_name, scientific_name, count)
+                                                common_name, scientific_name, count, str(reqid))
 
     return json.dumps({'success': True})
 
@@ -1927,6 +1928,7 @@ def image_edit_complete():
     coll_id = request.form.get('collection', None)
     upload_id = request.form.get('upload', None)
     path = request.form.get('path', None) # Image path on S3 under bucket
+    last_reqid = request.form.get('lastReqid', None)
 
     # Check what we have from the requestor
     if not all(item for item in [token, coll_id, upload_id, path]):
@@ -1939,26 +1941,41 @@ def image_edit_complete():
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
 
     # Get any changes
-    upload_files_info = db.get_next_files_info(user_info.url, user_info.name, path)
+    edit_files_info = db.get_next_files_info(user_info.url, user_info.name, path)
 
-    if not upload_files_info:
+    if not edit_files_info:
         return {'success': True, 'retry': True, 'message': "No changes found for file", \
                                         'collection':coll_id, 'upload_id': upload_id, \
                                         'path': request.form.get('path', None), \
                                         'filename': os.path.basename(path), \
                                         'error': False}
 
+    # Check that we've received the last editing request
+    have_last_edit = False
+    for one_edit in edit_files_info:
+        if 'request_id' in one_edit and one_edit['request_id'] and one_edit['request_id'] == last_reqid:
+            have_last_edit = True
+            break
+
+    if have_last_edit is False:
+        return {'success': True, 'retry': True,
+                                'message': f"All edits have not been received yet ({last_reqid})", \
+                                'collection':coll_id, 'upload_id': upload_id, \
+                                'path': request.form.get('path', None), \
+                                'filename': os.path.basename(path), \
+                                'error': False}
+
     # Update the image and the observations information
-    upload_files_info = [one_file|{'name': \
+    edit_files_info = [one_file|{'name': \
                     one_file['s3_path'][one_file['s3_path'].index(upload_id)+len(upload_id)+1:]} \
-                                                                for one_file in upload_files_info]
+                                                                for one_file in edit_files_info]
     success_files, errored_files = sdu.process_upload_changes(s3_url,
                                                         user_info.name,
                                                         lambda: get_password(token, db),
                                                         coll_id,
                                                         upload_id,
                                                         hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
-                                                        files_info=upload_files_info)
+                                                        files_info=edit_files_info)
 
     if success_files:
         db.complete_image_edits(user_info.name, success_files)

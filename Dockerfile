@@ -78,10 +78,6 @@ RUN mv index.html templates/
 
 # Copy the source code over
 COPY --exclude=__pycache__ --exclude=.DS_Store ./server/ ./
-#COPY ./server/camtrap ./camtrap
-#COPY ./server/spd_database ./spd_database
-#COPY ./server/spd_types ./spd_types
-#COPY ./server/text_formatters ./text_formatters
 
 # Build the default database
 RUN rm *.sqlite    # Clean up any testing databases

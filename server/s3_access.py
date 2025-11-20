@@ -333,7 +333,8 @@ def get_s3_images(minio: Minio, bucket: str, upload_paths: tuple, need_url: bool
                                    's3_path':one_obj.object_name,
                                    's3_url':s3_url,
                                    'key':uuid.uuid4().hex,
-                                   'type': 'movie' if ext.lower().endswith('.mp4') else 'image'
+                                   'type': 'movie' if ext.lower().endswith('.mp4') else 'image',
+                                   'species': []
                                    })
 
     return images

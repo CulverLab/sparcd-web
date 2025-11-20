@@ -654,6 +654,14 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    */
   const handleLocationEdit = React.useCallback((event, location) => {
     event.stopPropagation();
+
+    // Check if we have a location, if not we're adding a new one
+    if (!location) {
+      setEditingState({type:EditingStates.Location, data:null});
+      return;
+    }
+
+    // Get the location details from the server before editing
     const adminLocationnUrl = serverURL + '/adminLocationDetails?t=' + encodeURIComponent(settingsToken);
     const formData = new FormData();
 

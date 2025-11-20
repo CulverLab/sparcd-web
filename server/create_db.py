@@ -73,7 +73,6 @@ def build_database(path: str, admin_info: tuple=None) -> None:
         admin_info: contains the admin name and email address to add to the DB
     """
     # Loop through and create all the database objects
-    # TODO: add browser local timestamp information to any and all edits?
     stmts = ('CREATE TABLE users(id INTEGER PRIMARY KEY ASC, name TEXT UNIQUE NOT NULL, ' \
                             'email TEXT DEFAULT NULL, settings TEXT DEFAULT "{}", ' \
                             'species TEXT default "{}", administrator INT DEFAULT 0, ' \
@@ -106,34 +105,48 @@ def build_database(path: str, admin_info: tuple=None) -> None:
              'CREATE TABLE sandbox_locations(id INTEGER PRIMARY KEY ASC, '\
                             'sandbox_file_id INTEGER NOT NULL, loc_name TEXT, loc_id TEXT, ' \
                             'loc_elevation REAL)',
-             # TODO: Add db timestamp to help with cleanup
              'CREATE TABLE image_edits(id INTEGER PRIMARY KEY ASC, s3_url TEXT NOT NULL, ' \
                             'bucket TEXT NOT NULL, ' \
-                            's3_file_path TEXT NOT NULL, username TEXT NOT NULL, ' \
-                            'edit_timestamp TEXT NOT NULL, obs_common TEXT NOT NULL, ' \
-                            'obs_scientific TEXT NOT NULL, obs_count INTEGER DEFAULT 0, '\
-                            'updated INTEGER DEFAULT 0)',
-             # TODO: Add db timestamp to help with cleanup
+                            's3_file_path TEXT NOT NULL,' \
+                            'username TEXT NOT NULL, ' \
+                            'edit_timestamp TEXT NOT NULL,' # Browser reported timestamp \
+                            'obs_common TEXT NOT NULL, ' \
+                            'obs_scientific TEXT NOT NULL,' \
+                            'obs_count INTEGER DEFAULT 0, '\
+                            'updated INTEGER DEFAULT 0,' # Various stages of update (including S3) \
+                            'request_id TEXT, ' # Used to keep track of requests \
+                            'timestamp INTEGER)',
              'CREATE TABLE collection_edits(id INTEGER PRIMARY KEY ASC, s3_url TEXT NOT NULL, ' \
                             'bucket TEXT NOT NULL, ' \
-                            's3_base_path TEXT NOT NULL, username TEXT NOT NULL, ' \
-                            'edit_timestamp TEXT NOT NULL, loc_id TEXT DEFAULT NULL, '\
-                            'loc_name TEXT NOT NULL, loc_ele REAL NOT NULL, ' \
-                            'updated INTEGER DEFAULT 0)',
-             # TODO: Add edit timestamp
+                            's3_base_path TEXT NOT NULL,'\
+                            'username TEXT NOT NULL, ' \
+                            'edit_timestamp TEXT NOT NULL,'\
+                            'loc_id TEXT DEFAULT NULL, '\
+                            'loc_name TEXT NOT NULL,'\
+                            'loc_ele REAL NOT NULL, ' \
+                            'updated INTEGER DEFAULT 0, ' \
+                            'timestamp INTEGER)',
              'CREATE TABLE admin_species_edits(id INTEGER PRIMARY KEY ASC, s3_url TEXT NOT NULL, ' \
-                            'user_id INTEGER NOT NULL, timestamp INTEGER, '\
-                            'old_scientific_name TEXT, new_scientific_name TEXT NOT NULL, ' \
-                            'name TEXT NOT NULL, keybind NOT NULL, iconURL TEXT NOT NULL, ' \
-                            's3_updated INTEGER DEFAULT 0)',
-             # TODO: Add edit timestamp
+                            'user_id INTEGER NOT NULL,'\
+                            'old_scientific_name TEXT,'\
+                            'new_scientific_name TEXT NOT NULL, ' \
+                            'name TEXT NOT NULL,'\
+                            'keybind NOT NULL,'\
+                            'iconURL TEXT NOT NULL, ' \
+                            's3_updated INTEGER DEFAULT 0,' \
+                            'timestamp INTEGER)',
              'CREATE TABLE admin_location_edits(id INTEGER PRIMARY KEY ASC, s3_url TEXT NOT NULL, '\
-                            'user_id INTEGER NOT NULL, timestamp INTEGER, '\
-                            'loc_name TEXT NOT NULL, loc_id TEXT NOT NULL, '\
-                            'loc_active INTEGER DEFAULT 0, loc_ele REAL NOT NULL, ' \
-                            'loc_old_lat REAL, loc_old_lng REAL, ' \
-                            'loc_new_lat REAL NOT NULL, loc_new_lng REAL NOT NULL, ' \
-                            'location_updated INTEGER DEFAULT 0)',
+                            'user_id INTEGER NOT NULL,'\
+                            'loc_name TEXT NOT NULL,'\
+                            'loc_id TEXT NOT NULL, '\
+                            'loc_active INTEGER DEFAULT 0,'\
+                            'loc_ele REAL NOT NULL, ' \
+                            'loc_old_lat REAL,'\
+                            'loc_old_lng REAL, ' \
+                            'loc_new_lat REAL NOT NULL,'\
+                            'loc_new_lng REAL NOT NULL, ' \
+                            'location_updated INTEGER DEFAULT 0, ' \
+                            'timestamp INTEGER)',
         )
     add_user_stmt = 'INSERT INTO users(name, email, administrator, auto_added) values(?, ?, 1, 0)'
 
@@ -157,7 +170,8 @@ if __name__ == '__main__':
         if force_overwrite:
             print(f'{SCRIPT_NAME}: Forcing the overwrite of existing database file: ' \
                   f'{database_path}')
-            os.unlink(database_path)
+            if os.path.exists(database_path) and not os.path.isdir(database_path):
+                os.unlink(database_path)
         else:
             print(f'{SCRIPT_NAME}: Creating database file: {database_path}')
         build_database(database_path, admin)
