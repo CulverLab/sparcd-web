@@ -6,6 +6,7 @@ import styles from './page.module.css';
 import { ThemeProvider } from "@mui/material/styles";
 import Typography from '@mui/material/Typography';
 
+import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import CollectionsManage from './CollectionsManage';
 import FooterBar from './components/FooterBar';
@@ -1069,69 +1070,73 @@ export default function Home() {
         <SizeContext.Provider value={{footer:sizeFooter, title:sizeTitle, window:sizeWindow, workspace:sizeWorkspace}}>
         <UserNameContext.Provider value={userSettings.name}>
         <UserSettingsContext.Provider value={userSettings.settings}>
-            <TokenContext.Provider value={lastToken}>
-            <AddMessageContext.Provider value={addMessage}>
-            <CollectionsInfoContext.Provider value={collectionInfo}>
+          <TokenContext.Provider value={lastToken}>
+          <AddMessageContext.Provider value={addMessage}>
+          <CollectionsInfoContext.Provider value={collectionInfo}>
+            <Grid id='sparcd-wrapper' container direction="row" alignItems="start" justifyContent="start" sx={{minWidth:'100vw',minHeight:'100vh'}}>
               <TitleBar searchTitle={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
                         onLogout={handleLogout} size={narrowWindow?"small":"normal"} 
                         breadcrumbs={breadcrumbs} onBreadcrumb={restoreBreadcrumb} onAdminSettings={handleAdminSettings} onOwnerSettings={handleOwnerSettings}/>
-            </CollectionsInfoContext.Provider>
-            </AddMessageContext.Provider>
-            </TokenContext.Provider>
-            {!curLoggedIn ? 
-              <LoginValidContext.Provider value={loginValidStates}>
-                <Login prev_url={dbURL} prev_user={dbUser} prev_remember={dbRemember} onLogin={handleLogin}
-                       onRememberChange={handleRememberChanged} />
-              </LoginValidContext.Provider>
-              :
-                <AddMessageContext.Provider value={addMessage}>
-                  {renderAction(curAction, editing)}
-                </AddMessageContext.Provider>
-              }
-            <FooterBar />
-            <Grid id="login-checking-wrapper" container direction="row" alignItems="center" justifyContent="center"
-                  sx={{...theme.palette.login_checking_wrapper, visibility:checkedToken ? 'hidden':'visible', display:checkedToken ? 'none':'inherit'}}
-            >
-              <div style={{...theme.palette.login_checking}}>
-                <Grid container direction="column" alignItems="center" justifyContent="center" >
-                    <Typography gutterBottom variant="body2" color="lightgrey">
-                      Restoring previous session, please wait...
-                    </Typography>
-                    <CircularProgress variant="indeterminate" />
-                </Grid>
-              </div>
+              <Box id='sparcd-middle-wrapper' sx={{overflow:"scroll"}} >
+                {!curLoggedIn ? 
+                  <LoginValidContext.Provider value={loginValidStates}>
+                    <Login prev_url={dbURL} prev_user={dbUser} prev_remember={dbRemember} onLogin={handleLogin}
+                           onRememberChange={handleRememberChanged} />
+                  </LoginValidContext.Provider>
+                  :
+                    <AddMessageContext.Provider value={addMessage}>
+                      {renderAction(curAction, editing)}
+                    </AddMessageContext.Provider>
+                  }
+                </Box>
+              <FooterBar />
             </Grid>
-            { displayAdminSettings &&
-                  <TokenContext.Provider value={lastToken}>
-                  <CollectionsInfoContext.Provider value={collectionInfo}>
-                  <LocationsInfoContext.Provider value={locationInfo}>
-                  <SpeciesInfoContext.Provider value={speciesInfo}>
-                  <AddMessageContext.Provider value={addMessage}>
-                    <SettingsAdmin loadingCollections={loadingCollections} loadingLocations={loadingLocations}
-                                    onConfirmPassword={confirmAdminPassword} onClose={() => setDisplayAdminSettings(false)}/>
-                  </AddMessageContext.Provider>
-                  </SpeciesInfoContext.Provider>
-                  </LocationsInfoContext.Provider>
-                  </CollectionsInfoContext.Provider>
-                  </TokenContext.Provider>
-            }
-            { displayOwnerSettings &&
-                  <TokenContext.Provider value={lastToken}>
-                  <CollectionsInfoContext.Provider value={collectionInfo}>
-                  <AddMessageContext.Provider value={addMessage}>
-                    <SettingsOwner loadingCollections={loadingCollections}
-                                    onConfirmPassword={confirmOwnerPassword} onClose={() => setDisplayOwnerSettings(false)}/>
-                  </AddMessageContext.Provider>
-                  </CollectionsInfoContext.Provider>
-                  </TokenContext.Provider>
-            }
-            { // Make sure this is is last
-              messages.length > 0 && 
-                <Grid id="messages-wrapper" container direction="row" alignItems="start" justifyContent="center"
-                      sx={{...theme.palette.messages_wrapper, top: workspaceTop}}>
-                  <Messages messages={messages} close_cb={handleCloseMessage}/>
-                </Grid>
-            }
+          </CollectionsInfoContext.Provider>
+          </AddMessageContext.Provider>
+          </TokenContext.Provider>
+          <Grid id="login-checking-wrapper" container direction="row" alignItems="center" justifyContent="center"
+                sx={{...theme.palette.login_checking_wrapper, visibility:checkedToken ? 'hidden':'visible', display:checkedToken ? 'none':'inherit'}}
+          >
+            <div style={{...theme.palette.login_checking}}>
+              <Grid container direction="column" alignItems="center" justifyContent="center" >
+                  <Typography gutterBottom variant="body2" color="lightgrey">
+                    Restoring previous session, please wait...
+                  </Typography>
+                  <CircularProgress variant="indeterminate" />
+              </Grid>
+            </div>
+          </Grid>
+          { displayAdminSettings &&
+                <TokenContext.Provider value={lastToken}>
+                <CollectionsInfoContext.Provider value={collectionInfo}>
+                <LocationsInfoContext.Provider value={locationInfo}>
+                <SpeciesInfoContext.Provider value={speciesInfo}>
+                <AddMessageContext.Provider value={addMessage}>
+                  <SettingsAdmin loadingCollections={loadingCollections} loadingLocations={loadingLocations}
+                                  onConfirmPassword={confirmAdminPassword} onClose={() => setDisplayAdminSettings(false)}/>
+                </AddMessageContext.Provider>
+                </SpeciesInfoContext.Provider>
+                </LocationsInfoContext.Provider>
+                </CollectionsInfoContext.Provider>
+                </TokenContext.Provider>
+          }
+          { displayOwnerSettings &&
+                <TokenContext.Provider value={lastToken}>
+                <CollectionsInfoContext.Provider value={collectionInfo}>
+                <AddMessageContext.Provider value={addMessage}>
+                  <SettingsOwner loadingCollections={loadingCollections}
+                                  onConfirmPassword={confirmOwnerPassword} onClose={() => setDisplayOwnerSettings(false)}/>
+                </AddMessageContext.Provider>
+                </CollectionsInfoContext.Provider>
+                </TokenContext.Provider>
+          }
+          { // Make sure this is is last
+            messages.length > 0 && 
+              <Grid id="messages-wrapper" container direction="row" alignItems="start" justifyContent="center"
+                    sx={{...theme.palette.messages_wrapper, top: workspaceTop}}>
+                <Messages messages={messages} close_cb={handleCloseMessage}/>
+              </Grid>
+          }
         </UserSettingsContext.Provider>
         </UserNameContext.Provider>
         </SizeContext.Provider>

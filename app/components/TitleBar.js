@@ -11,6 +11,7 @@ import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { useTheme } from '@mui/material/styles';
 
 import { Level } from './Messages';
 import Settings from './Settings';
@@ -32,6 +33,7 @@ import { AddMessageContext, TokenContext, UserNameContext, UserSettingsContext }
  * @returns {object} The rendered UI
  */
 export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBreadcrumb, onSettings, onLogout, onAdminSettings, onOwnerSettings}) {
+  const theme = useTheme();
   const searchId = React.useMemo(() => "search-" + (searchTitle ? searchTitle.toLowerCase().replaceAll(' ', '-') : "sparcd"), [searchTitle]);
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const loginToken = React.useContext(TokenContext);  // Login token
@@ -116,11 +118,11 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
 
   // Render the UI
   return (
-    <header id='sparcd-header' className={styles.titlebar} role="banner">
+    <header id='sparcd-header' style={{...theme.palette.title_bar}} role="banner">
       <Box sx={{ flexGrow: 1, 'width': '100vw' }} >
         <Grid id='sparcd-header-items' container direction="column" spacing={0} sx={{flexGrow:1}}>
           <Grid id='sparcd-header-image-wrapper' container direction="row" spacing={3} sx={{flexGrow:1}}>
-            <Grid id='sparcd-header-image-link' size="grow" container direction="row" sx={{cursor:'pointer'}}>
+            <Grid id='sparcd-header-image-link' size="grow" container direction="row" alignItems="center" sx={{cursor:'pointer'}}>
                 <div onClick={() => window.location.href="/"}
                   aria-description="Scientific Photo Analysis for Research & Conservation database"
                   className={styles.titlebar_title}>SPARC&apos;d
@@ -161,8 +163,8 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
                  />
                 }
                 { loginToken !== null && 
-                  <IconButton onClick={() => setShowSettings(true)}>
-                    <MenuOutlinedIcon />
+                  <IconButton size="small" onClick={() => setShowSettings(true)}>
+                    <MenuOutlinedIcon fontSize="small" />
                   </IconButton>
                 }
               </Grid>

@@ -201,15 +201,72 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
     setSelectionIndex(curSelectionIndex);
   }
 
-  // Render the UI
-  const curHeight = (totalHeight || 480) + 'px';
-  const curStart = (workingTop || 25) + 'px';
-  const curCollection = collectionsItems && curSelectionIndex >= 0 ? collectionsItems[curSelectionIndex] : {uploads: []};
-  return (
-    <Box id='image-edit-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative' }} >
-      <div style={{position:'absolute', top:'0px', height:curHeight, minHeight:curHeight, maxHeight:curHeight, right:'-0',
-                   backgroundColor:'#d7e0e7', borderLeft:'1px solid grey', overflow:'scroll'}}
-      >
+
+/*
+
+      <Grid id='collection-workspace' container direction="row" alignItems="start" justifyContent="start"
+            columnSpacing={2}
+            rowSpacing={1}
+            style={{ maxHeight:curHeight,
+                     maxWidth:workspaceWidth + 'px',
+                     minWidth:workspaceWidth + 'px',
+                     paddingTop: '10px',
+                     overflow:'scroll',
+                     margin: '0px',
+                     paddingLeft: '5px',
+                     background:'linear-gradient(135deg, #83a9c8 0%, #bad7ec 50%, #9eb7d8 100%)'}}
+        >
+        { collectionsItems && collectionsItems.map((item, idx) =>
+          <Grid key={'collection-'+item.name+'-'+idx} >
+                <Grid display='flex' justifyContent='left' size='grow' >
+                  <Card id={"collection-"+item.name}
+                        onClick={(event) => onCollectionChange(event, item.bucket, item.id)}
+                        variant="outlined"
+                        data-active={selectionIndex === idx ? '' : undefined}
+                        sx={{border:'2px solid rgba(128, 128, 185, 0.5)', borderRadius:'15px', minWidth:'400px', maxWidth:'400px',
+                              backgroundColor:'rgba(218, 232,242,0.7)',
+                              '&[data-active]': {borderColor:'rgba(155, 175, 202, 0.85)'},
+                              '&:hover':{backgroundColor:'rgba(185, 185, 185, 0.25)'} }}>
+                    <CardActionArea data-active={selectionIndex === idx ? '' : undefined}
+                      sx={{height: '100%',  '&[data-active]': {backgroundColor:'rgba(64, 64, 64, 0.23)'} }}
+                    >
+                      <CardContent>
+                        <Grid container direction="column" spacing={1}>
+                          <Grid>
+                            <Typography variant='body' sx={{fontSize:'larger', fontWeight:(selectionIndex === idx ? 'bold' : 'normal')}}>
+                              {item.name}
+                            </Typography>
+                          </Grid>
+                          <Grid>
+                            <Typography variant="body">
+                              {item.organization}
+                            </Typography>
+                          </Grid>
+                          <Grid>
+                            <Typography variant="body" sx={{whiteSpace:"pre-wrap"}} >
+                              {item.description}
+                            </Typography>
+                          </Grid>
+                          <Grid>
+                            <Typography variant="body">
+                              Uploads - {item.uploads.length}
+                            </Typography>
+                          </Grid>
+                          { item.uploads.length > 0 &&
+                            <Grid>
+                              <Typography variant="body">
+                                Last upload: {getLastUploadDate(item.last_upload_ts)}
+                              </Typography>
+                            </Grid>
+                          }
+                      </Grid>
+                      </CardContent>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
+          </Grid>
+        )}
+      </Grid>
       <Grid id='collection-workspace-details' ref={sidebarRef} container direction="column" alignItems="start" justifyContent="start" wrap="nowrap"
             sx={{minWidth:'440px', maxWidth:'440px'}}
       >
@@ -283,71 +340,144 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
           </Card>
         )}
       </Grid>
-      </div>
-      <Grid id='collection-workspace' container direction="row" alignItems="start" justifyContent="start"
-            columnSpacing={2}
-            rowSpacing={1}
-            style={{ position:'absolute',
-                     top: '0px',
-                     maxHeight:curHeight,
-                     maxWidth:workspaceWidth + 'px',
-                     minWidth:workspaceWidth + 'px',
-                     paddingTop: '10px',
-                     overflow:'scroll',
-                     margin: '0px',
-                     paddingLeft: '5px',
-                     background:'linear-gradient(135deg, #83a9c8 0%, #bad7ec 50%, #9eb7d8 100%)'}}
-        >
-        { collectionsItems && collectionsItems.map((item, idx) =>
-          <Grid key={'collection-'+item.name+'-'+idx} >
-                <Grid display='flex' justifyContent='left' size='grow' >
-                  <Card id={"collection-"+item.name}
-                        onClick={(event) => onCollectionChange(event, item.bucket, item.id)}
-                        variant="outlined"
-                        data-active={selectionIndex === idx ? '' : undefined}
-                        sx={{border:'2px solid rgba(128, 128, 185, 0.5)', borderRadius:'15px', minWidth:'400px', maxWidth:'400px',
-                              backgroundColor:'rgba(218, 232,242,0.7)',
-                              '&[data-active]': {borderColor:'rgba(155, 175, 202, 0.85)'},
-                              '&:hover':{backgroundColor:'rgba(185, 185, 185, 0.25)'} }}>
-                    <CardActionArea data-active={selectionIndex === idx ? '' : undefined}
-                      sx={{height: '100%',  '&[data-active]': {backgroundColor:'rgba(64, 64, 64, 0.23)'} }}
-                    >
-                      <CardContent>
-                        <Grid container direction="column" spacing={1}>
-                          <Grid>
-                            <Typography variant='body' sx={{fontSize:'larger', fontWeight:(selectionIndex === idx ? 'bold' : 'normal')}}>
-                              {item.name}
-                            </Typography>
+
+*/ 
+
+  // Render the UI
+  const curHeight = (totalHeight || 480) + 'px';
+  const curStart = (workingTop || 25) + 'px';
+  const curCollection = collectionsItems && curSelectionIndex >= 0 ? collectionsItems[curSelectionIndex] : {uploads: []};
+  return (
+    <Box id='collection-manage-workspace-wrapper'>
+      <Grid id='collection-manage-workspace' container direction='row' alignItems='start' justifyContent='start' sx={{ width:'100vw' }} columns={48}>
+        <div id='collection-manage-workspace-collections-wrapper' 
+                style={{minWidth:'calc(100vw - 460px', maxWidth:'calc(100vw - 460px)', maxHeight:curHeight, paddingLeft:'10px', overflowY:'scroll'}}>
+          <Grid id='collection-manage-workspace-collections-details' container direction="row">
+            { collectionsItems && collectionsItems.map((item, idx) =>
+              <Grid key={'collection-'+item.name+'-'+idx} >
+                    <Grid display='flex' justifyContent='left' size='grow' >
+                      <Card id={"collection-"+item.name}
+                            onClick={(event) => onCollectionChange(event, item.bucket, item.id)}
+                            variant="outlined"
+                            data-active={selectionIndex === idx ? '' : undefined}
+                            sx={{border:'2px solid rgba(128, 128, 185, 0.5)', borderRadius:'15px', minWidth:'400px', maxWidth:'400px',
+                                  backgroundColor:'rgba(218, 232,242,0.7)',
+                                  '&[data-active]': {borderColor:'rgba(155, 175, 202, 0.85)'},
+                                  '&:hover':{backgroundColor:'rgba(185, 185, 185, 0.25)'} }}>
+                        <CardActionArea data-active={selectionIndex === idx ? '' : undefined}
+                          sx={{height: '100%',  '&[data-active]': {backgroundColor:'rgba(64, 64, 64, 0.23)'} }}
+                        >
+                          <CardContent>
+                            <Grid container direction="column" spacing={1}>
+                              <Grid>
+                                <Typography variant='body' sx={{fontSize:'larger', fontWeight:(selectionIndex === idx ? 'bold' : 'normal')}}>
+                                  {item.name}
+                                </Typography>
+                              </Grid>
+                              <Grid>
+                                <Typography variant="body">
+                                  {item.organization}
+                                </Typography>
+                              </Grid>
+                              <Grid>
+                                <Typography variant="body" sx={{whiteSpace:"pre-wrap"}} >
+                                  {item.description}
+                                </Typography>
+                              </Grid>
+                              <Grid>
+                                <Typography variant="body">
+                                  Uploads - {item.uploads.length}
+                                </Typography>
+                              </Grid>
+                              { item.uploads.length > 0 &&
+                                <Grid>
+                                  <Typography variant="body">
+                                    Last upload: {getLastUploadDate(item.last_upload_ts)}
+                                  </Typography>
+                                </Grid>
+                              }
                           </Grid>
-                          <Grid>
-                            <Typography variant="body">
-                              {item.organization}
-                            </Typography>
-                          </Grid>
-                          <Grid>
-                            <Typography variant="body" sx={{whiteSpace:"pre-wrap"}} >
-                              {item.description}
-                            </Typography>
-                          </Grid>
-                          <Grid>
-                            <Typography variant="body">
-                              Uploads - {item.uploads.length}
-                            </Typography>
-                          </Grid>
-                          { item.uploads.length > 0 &&
-                            <Grid>
-                              <Typography variant="body">
-                                Last upload: {getLastUploadDate(item.last_upload_ts)}
-                              </Typography>
-                            </Grid>
-                          }
-                      </Grid>
-                      </CardContent>
-                    </CardActionArea>
-                  </Card>
-                </Grid>
+                          </CardContent>
+                        </CardActionArea>
+                      </Card>
+                    </Grid>
+              </Grid>
+            )}
           </Grid>
-        )}
+        </div>
+        <div id='collection-manage-workspace-uploads-wrapper' style={{minWidth:'460px', maxWidth:'446px', maxHeight:curHeight, paddingRight:'10px', overflowY:"scroll"}}>
+          <Grid id='collection-manage-workspace-uploads-details' container direction="column" alignItems='start' justifyContent="start">
+            { curCollection && curCollection.uploads.map((item, idx) =>
+              <Card id={"collection-upload-"+item.name} key={'collection-'+idx} variant="outlined" 
+                    sx={{minWidth:'100%', backgroundColor:'#D3DEE6', borderRadius:'10px', '&:hover':{backgroundColor:'rgba(0, 0, 0, 0.25)'} }}>
+                <CardHeader title={
+                                  <Grid id="collection-card-header-wrapper" container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
+                                    <Grid>
+                                      <Typography gutterBottom variant="h6" component="h4" noWrap="true">
+                                        {item.name}
+                                      </Typography>
+                                    </Grid>
+                                    <Grid sx={{marginLeft:'auto'}}>
+                                      <Tooltip title="Edit this upload">
+                                        <IconButton aria-label="Edit this upload" onClick={() => onEditUpload(curCollection.id, item.key, "Collections")}>
+                                          <BorderColorOutlinedIcon fontSize="small"/>
+                                        </IconButton>
+                                      </Tooltip>
+                                    </Grid>
+                                  </Grid>
+                                  }
+                              style={{paddingBottom:'0px'}}
+                />
+                <CardContent sx={{paddingTop:'0px'}}>
+                  <Accordion expanded={expandedUpload === 'upload-details-'+item.name}
+                             onChange={handleExpandedChange('upload-details-'+item.name)}
+                             sx={{backgroundColor:'#BFCBE1'}}>
+                    <AccordionSummary
+                      id={'summary-'+item.name}
+                      expandIcon={<ExpandMoreIcon />}
+                      aria-controls="upload-details-content"
+                    >
+                      <Typography component="span">
+                        Advanced details
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{backgroundColor:'#C8D2E4'}}>
+                      <Grid container id={'collection-upload-'+item.name} direction="column" alignItems="start" justifyContent="start">
+                        <Grid sx={{padding:'5px 0'}}>
+                          <Typography variant="body2">
+                            {item.imagesWithSpeciesCount + '/' + item.imagesCount + ' images tagged with species'}
+                          </Typography>
+                        </Grid>
+                        <Grid sx={{padding:'5px 0'}}>
+                          <Typography variant="body2">
+                            {item.description}
+                          </Typography>
+                        </Grid>
+                        <Grid sx={{padding:'5px 0'}}>
+                          <Typography variant="body2">
+                            Uploaded folder{item.folders.length > 1 ? 's' : ''}: {item.folders.join(", ")}
+                          </Typography>
+                        </Grid>
+                        <Grid>
+                          <Typography variant="body2" sx={{fontWeight:'500'}}>
+                            Edits
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                      <Box sx={{border:"1px solid black", width:'100%', minHeight:'4em', maxHeight:'4em', overflow:"scroll"}} >
+                        {item.edits.map((editItem, idx) =>
+                          <Typography variant="body2" key={"collection-upload-edits-" + idx} sx={{padding:"0 5px"}} >
+                            {editItem}
+                          </Typography>
+                        )}
+                      </Box>
+                    </AccordionDetails>
+                  </Accordion>
+                </CardContent>
+              </Card>
+            )}
+          </Grid>
+        </div>
       </Grid>
       { loadingCollections && 
           <Grid id="loading-collections-wrapper" container direction="row" alignItems="center" justifyContent="center" 

@@ -42,8 +42,8 @@ export default function LandingCard({title, subtitle, action, children}) {
   return (
     <Card variant="outlined" id={'landing-card-' + title.replace('  ', ' ').replace(' ','-')}
           sx={{...theme.palette.landing_card, 
-                minWidth: !narrowWindow ? theme.palette.landing_card.minWidth : '100%',
-                maxWidth: !narrowWindow ? theme.palette.landing_card.maxWidth : '100vw'}} >
+                minWidth: '100%',
+                maxWidth: '100vw'}} >
       <CardHeader title={<span style={{fontWeight:'bold'}}>{title}</span>} subheader={subtitle} />
       <CardContent sx={{minHeight:theme.palette.landing_card.minHeight}}>
         {children}
