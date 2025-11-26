@@ -10,6 +10,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
+import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
@@ -674,6 +675,8 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
               // Check if most things worked out but a retry is in order
               if (respData.retry === undefined || respData.retry !== true) {
                 setPendingMessage(null);
+                setChangesMade(false);
+                setCurImageModified(false);
               } else {
                 // Things worked out, but there may be a timing issue with the edits, try again if we're not trying too much
                 if (numTries < 4) {
@@ -929,7 +932,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const imageVisibility = (curEditState === editingStates.editImage || curEditState === editingStates.listImages) && !editingLocation ? 'visible' : 'hidden';
   // Return the rendered page
   return (
-    <Box id="upload-edit"sx={{ flexGrow: 1, top:curStart+'px', height: uiSizes.workspace.height+'px', width: uiSizes.workspace.width+'px' }} >
+    <Stack id="upload-edit" direction={{xs:'column', md:"row"}} sx={{ flexGrow: 1, top:curStart+'px', height: uiSizes.workspace.height+'px', width: uiSizes.workspace.width+'px' }} >
       <SpeciesSidebar species={speciesItems}
                       position={narrowWindow?'top':'left'}
                       speciesSidebarRef={sidebarSpeciesRef}
@@ -938,50 +941,55 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                       onKeybind={(event, speciesItem) => {onKeybindClick(event, speciesItem.name, speciesItem.keyBinding);event.preventDefault();}}
                       onZoom={(event, speciesItem) => {setSpeciesZoomName(speciesItem.name);setSpeciesKeybindName(null);event.preventDefault();}}
       />
-      <Grid id='top-sidebar' ref={sidebarTopRef} container direction='row' alignItems='center' justifyContent='center' rows='1'
-          style={{ ...theme.palette.top_sidebar, top:curStart+'px', minWidth:(workspaceWidth-workplaceStartX)+'px', maxWidth:(workspaceWidth-workplaceStartX)+'px',
-                   position:'sticky', marginLeft:workplaceStartX, verticalAlignment:'middle', visibility:topbarVisiblity }} >
-        <Grid>
-          <Typography variant="body" sx={{ paddingLeft: '10px'}}>
-            {curUpload.name}
-          </Typography>
+      <Stack id="upload-edit-details" direction={{xs:"column"}} >
+        <Grid id='top-sidebar' ref={sidebarTopRef} container direction='row' alignItems='center' justifyContent='center' rows='1'
+            style={{ ...theme.palette.top_sidebar, minWidth:(workspaceWidth-workplaceStartX)+'px', maxWidth:(workspaceWidth-workplaceStartX)+'px',
+                     position:'sticky', verticalAlignment:'middle', visibility:topbarVisiblity }} >
+          <Grid>
+            <Typography variant="body" sx={{ paddingLeft: '10px'}}>
+              {curUpload.name}
+            </Typography>
+          </Grid>
+          <Grid sx={{marginLeft:'auto'}}>
+            <Typography variant="body" sx={{ paddingLeft: '10px', fontSize:'larger'}}>
+              {curUploadLocation && curUploadLocation.nameProperty ? curUploadLocation.nameProperty : '<location>'}
+            </Typography>
+            <IconButton aria-label="edit" size="small" color={'lightgrey'} onClick={handleEditLocation}>
+              <BorderColorOutlinedIcon sx={{fontSize:'smaller'}}/>
+            </IconButton>
+          </Grid>
         </Grid>
-        <Grid sx={{marginLeft:'auto'}}>
-          <Typography variant="body" sx={{ paddingLeft: '10px', fontSize:'larger'}}>
-            {curUploadLocation && curUploadLocation.nameProperty ? curUploadLocation.nameProperty : '<location>'}
-          </Typography>
-          <IconButton aria-label="edit" size="small" color={'lightgrey'} onClick={handleEditLocation}>
-            <BorderColorOutlinedIcon sx={{fontSize:'smaller'}}/>
-          </IconButton>
-        </Grid>
-      </Grid>
-      { curEditState == editingStates.listImages || curEditState == editingStates.editImage ? 
-          <Box id="image-edit-wrapper-box"
-                style={{ 'marginTop':'23px', 'marginLeft':'10px', 'marginRight':'10px',
-                         'minHeight':(curHeight-sidebarHeightTop-sidebarHeightSpecies-23)+'px',
-                         'maxHeight':(curHeight-sidebarHeightTop-sidebarHeightSpecies-23)+'px',
-                         'height':(curHeight-sidebarHeightTop-sidebarHeightSpecies-23)+'px',
-                         'top':(curStart+sidebarHeightTop+sidebarHeightSpecies)+'px', 
-                         'left':workplaceStartX,
-                         'minWidth':(workspaceWidth-sidebarWidthLeft-(10*2))+'px',
-                         'maxWidth':(workspaceWidth-sidebarWidthLeft-(10*2))+'px',
-                         'width':(workspaceWidth-sidebarWidthLeft-(10*2))+'px', 
-                         'position':'absolute', overflow:'scroll', 'visibility':imageVisibility }}
-          >
-            {generateImageTiles(handleEditingImage)}
-          </Box>
-        : null
-      }
+        { curEditState == editingStates.listImages || curEditState == editingStates.editImage ? 
+            <Box id="image-edit-wrapper-box"
+                  style={{ marginLeft:'10px',
+                           marginRight:'10px',
+                           paddingTop:'10px',
+                           minHeight:(curHeight-sidebarHeightTop-sidebarHeightSpecies)+'px',
+                           maxHeight:(curHeight-sidebarHeightTop-sidebarHeightSpecies)+'px',
+                           height:(curHeight-sidebarHeightTop-sidebarHeightSpecies)+'px',
+                           minWidth:(workspaceWidth-sidebarWidthLeft-(10*2))+'px',
+                           maxWidth:(workspaceWidth-sidebarWidthLeft-(10*2))+'px',
+                           width:(workspaceWidth-sidebarWidthLeft-(10*2))+'px', 
+                           overflow:'scroll', 'visibility':imageVisibility }}
+            >
+              {generateImageTiles(handleEditingImage)}
+            </Box>
+          : null
+        }
+      </Stack>
       { curEditState === editingStates.editImage ?
         <Grid id='image-edit-edit' container direction="column" alignItems="center" justifyContent="center"
-              style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
-                       'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px',
-                       'top':(curStart)+'px', 
-                       'left':workplaceStartX,
-                       'minWidth':(workspaceWidth-sidebarWidthLeft)+'px',
-                       'maxWidth':(workspaceWidth-sidebarWidthLeft)+'px',
-                       'width':(workspaceWidth-sidebarWidthLeft)+'px', 
-                       'position':'absolute', 'visibility':imageVisibility, backgroundColor:'rgb(0,0,0,0.7)' }}>
+              style={{ paddingTop:'10px',
+                       paddingLeft:'10px',
+                       minHeight:curHeight+'px',
+                       maxHeight:curHeight+'px', 'height':curHeight+'px',
+                       left:workplaceStartX,
+                       minWidth:(workspaceWidth-sidebarWidthLeft)+'px',
+                       maxWidth:(workspaceWidth-sidebarWidthLeft)+'px',
+                       width:(workspaceWidth-sidebarWidthLeft)+'px', 
+                       position:'absolute',
+                       visibility:imageVisibility,
+                       backgroundColor:'rgb(0,0,0,0.7)' }}>
           <Grid id='image-edit-edit-wrapper' sx={{borderLeft:'4px solid white', borderRight:'4px solid white'}} >
             <ImageEdit url={curImageEdit.url}
                        type={curImageEdit.type}
@@ -1085,6 +1093,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
               </div>
             </Grid>
       }
-    </Box>
+    </Stack>
   );
 }

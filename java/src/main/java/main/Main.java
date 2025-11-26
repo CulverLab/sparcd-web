@@ -27,7 +27,7 @@ public class Main {
 		return species;
 	}
 
-	private static Location parseSpeciesParameter(String str)
+	private static Location parseLocationParameter(String str)
 	{
 		String parts[] = str.trim().split(",");
 		System.out.println("DEBUG: Location:" + String.join(" - ", parts));
@@ -61,7 +61,7 @@ public class Main {
 
     					case "-location":
     						String loc_str = mapper.readValue(params[1], String.class);
-    						loc = Main.parseSpeciesParameter(loc_str);
+    						loc = Main.parseLocationParameter(loc_str);
     						break;
 
     					case "-species":

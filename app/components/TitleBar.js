@@ -131,18 +131,24 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
             </Grid>
             <Grid id='sparcd-header-search-wrapper' sx={{marginLeft:'auto'}} style={{paddingLeft:'0px'}}>
               <Grid id='sparcd-header-search' container direction="row">
-                { welcomeTimeoutId !== null && loginToken !== null && 
-                  <Grid container alignItems="center" justifyContent="center" sx={{paddingRight:'10px', color:'dimgrey'}}>
-                    <Typography style={{fontSize:'larger'}}>
-                      Welcome back
-                    </Typography>
-                    <Typography style={{fontSize:'larger', fontFamily:'cursive', fontWeight:'bold'}}>
-                      &nbsp;{userName}
-                    </Typography>
-                    <Typography style={{fontSize:'larger'}}>
-                      !
-                    </Typography>
-                  </Grid>
+                { welcomeTimeoutId !== null && loginToken !== null ? 
+                    <Grid container alignItems="center" justifyContent="center" sx={{paddingRight:'10px', color:'dimgrey'}}>
+                      <Typography style={{fontSize:'larger'}}>
+                        Welcome back
+                      </Typography>
+                      <Typography style={{fontSize:'larger', fontFamily:'cursive', fontWeight:'bold'}}>
+                        &nbsp;{userName}
+                      </Typography>
+                      <Typography style={{fontSize:'larger'}}>
+                        !
+                      </Typography>
+                    </Grid>
+                  : loginToken !== null &&
+                    <Grid container alignItems="center" justifyContent="center" sx={{paddingRight:'10px', color:'dimgrey'}}>
+                      <Typography style={{fontSize:'larger', fontFamily:'cursive', fontWeight:'bold'}}>
+                        &nbsp;{userName}
+                      </Typography>
+                    </Grid>
                 }
                 { searchTitle &&
                   <TextField id={searchId} label={searchTitle} placehoder={searchTitle} size="small" variant="outlined" style={extraInputSX}
@@ -170,9 +176,9 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
               </Grid>
             </Grid>
           </Grid>
-          <Grid size={{xs:12, sm:12, md:12}} style={{paddingTop:'0', visibility:breadcrumbs ? 'visible':'hidden' }}>
+          <Grid size={{xs:12}} style={{paddingTop:'0', visibility:'visible'}} >
             <Typography sx={{fontSize:"xx-small"}}>
-            { breadcrumbs ? 
+            { breadcrumbs && breadcrumbs.length > 0 ? 
                 breadcrumbs.map((item, idx) => {
                               return (<React.Fragment key={"breadcrumb-" + idx + '-' + item.name} >
                                         &nbsp;

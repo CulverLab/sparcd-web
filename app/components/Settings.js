@@ -371,7 +371,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
   // Return the UI
   return (
     <Grid id='settings-wrapper'
-         sx={{position:'absolute', top:(workingRect.y+20)+'px', right:'20px',
+         sx={{position:'absolute', top:(workingRect.y+20)+'px', right:'20px', zIndex:2000,
              border:'1px solid grey', backgroundColor:'silver', boxShadow:'2px 3px 3px #bbbbbb'}}
     >
       <Card id="settings-content">

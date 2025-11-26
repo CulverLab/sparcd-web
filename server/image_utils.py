@@ -12,29 +12,6 @@ EXIF_CODE_SPARCD = "Exif_0x0227"
 EXIF_CODE_SPECIES = "Exif_0x0228"
 EXIF_CODE_LOCATION = "Exif_0x0229"
 
-# exiftool configuration definition
-EXIFTOOL_CONFIG_TEXT = """%Image::ExifTool::UserDefined = (
-    'Image::ExifTool::Exif::Main' => {
-        0x0227 => {
-            Name => 'SanimalFlag',
-            Writable => 'int16u',
-            WriteGroup => 'IFD2'
-        },
-        0x0228 => {
-            Name => 'Species',
-            Writable => 'string',
-            WriteGroup => 'IFD2'
-        },
-        0x0229 => {
-            Name => 'Location',
-            Writable => 'string',
-            WriteGroup => 'IFD2'
-        },
-    },
-);
-1; #end
-"""
-
 def _parse_exiftool_readout(parse_lines: tuple) -> tuple:
     """ Parses the output from an exiftool binary listing
     Arguments:

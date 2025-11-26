@@ -611,7 +611,8 @@ def upload():
 
     app.config['SERVER_NAME'] = request.host
 
-    # Save path
+    # Save path (NOTE: the underscore is used later to seperate bucket from upload name)
+    # See /image
     save_path = os.path.join(tempfile.gettempdir(), SPARCD_PREFIX + collection_id + '_' + \
                                                                 collection_upload + '.json')
 
@@ -798,6 +799,8 @@ def image():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+
     # Check the rest of the parameters
     try:
         image_req = json.loads(crypt.do_decrypt(WORKING_PASSCODE, request.args.get('i')))
@@ -815,7 +818,19 @@ def image():
     # Load the image data
     image_data = sdfu.load_timed_info(image_store_path)
     if image_data is None or not isinstance(image_data, dict):
-        return "Not Found", 422
+        collection_id, collection_upload = os.path.basename(image_store_path).split('_')
+        collection_id = collection_id[len(SPARCD_PREFIX):]
+        # Get the collection information from the server
+        all_images = S3Connection.get_images(s3_url, user_info.name,
+                                                get_password(token, db),
+                                                collection_id, collection_upload)
+
+        # Save the images so we can reload them later
+        if all_images:
+            image_data = {one_image['key']: one_image for one_image in all_images}
+            sdfu.save_timed_info(save_path, image_data)
+        else:
+            return "Not Found", 422
 
     # Get the url from the key
     if not image_key in image_data:
@@ -827,7 +842,6 @@ def image():
                        allow_redirects=False)
 
     response = make_response(res.content)
-    #response.headers.set('Content-Type', 'image/jpeg')
     response.headers.set('Cache-Control', IMAGE_BROWSER_CACHE_TIMEOUT_SEC)
     return response
 
@@ -1454,9 +1468,13 @@ def sandbox_file():
     s3_bucket, s3_path = db.sandbox_get_s3_info(user_info.name, upload_id)
 
     # Upload all the received files and update the database
-    temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
-    os.close(temp_file[0])
     for one_file in request.files:
+        # We always use a JPEG suffix for the temporary file since the uploaded is saved with the
+        # correct name on the server and it makes things easier here (get_embedded_image_info() needs
+        # a JPG extension). Could be confusing on disk however
+        temp_file = tempfile.mkstemp(suffix='.JPG', prefix=SPARCD_PREFIX)
+        os.close(temp_file[0])
+
         file_ext = os.path.splitext(one_file)[1].lower()
         request.files[one_file].save(temp_file[1])
 
@@ -1512,8 +1530,8 @@ def sandbox_file():
             db.sandbox_add_file_info(file_id, cur_species, cur_location, cur_timestamp.isoformat() \
                                                                         if cur_timestamp else None)
 
-    if os.path.exists(temp_file[1]):
-        os.unlink(temp_file[1])
+        if os.path.exists(temp_file[1]):
+            os.unlink(temp_file[1])
 
     return json.dumps({'success': True})
 
@@ -2069,6 +2087,8 @@ def images_all_edited():
                                         f'Edited by {user_info.name} on ' + \
                                                 datetime.datetime.fromisoformat(timestamp).\
                                                         strftime("%Y.%m.%d.%H.%M.%S"))
+    # TODO: update the image counts
+
 
     return {'success': True, 'message': "The images have been successfully updated"}
 

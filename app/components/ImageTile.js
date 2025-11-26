@@ -64,7 +64,7 @@ export default function ImageTile({name, type, species, onClick}) {
     <Card id={name} onClick={onClick} variant={haveSpecies?"soft":"outlined"}
           sx={{minWidth:'200px', '&:hover':{backgroundColor:theme.palette.action.active} }}>
       <CardActionArea data-active={haveSpecies ? '' : undefined}
-        sx={{height: '100%', '&[data-active]': {backgroundColor:theme.palette.action.active} }}
+        sx={{height: '100%', '&[data-active]': {backgroundColor:'rgb(0, 0, 0, 0.35)'} }}
       >
         <CardContent>
           <Grid container spacing={1}>

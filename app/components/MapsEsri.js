@@ -234,7 +234,7 @@ export default function MapsEsri({center, mapName, mapChoices, onChange, top, wi
   // Return the UI
   return (
     <React.Fragment>
-      <div id="viewDiv" style={{width:width+'px', maxWidth:width+'px', height:height+'px', maxHeight:height+'px', position:'absolute', top:top+'px'}} >
+      <div id="viewDiv" style={{width:width+'px', maxWidth:width+'px', height:height+'px', maxHeight:height+'px'}} >
       </div>
     </React.Fragment>
   );

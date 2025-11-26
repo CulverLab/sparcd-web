@@ -288,6 +288,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
           }
           attempts--;
           if (attempts > 0) {
+            // TODO: Split this chunk into single uploads (if not already) in case the problem one or more files
             window.setTimeout(uploadChunk(fileChunk, uploadId, numFiles, attempts), 5000 * (maxAttempts - attempts));
           } else {
             // TODO: Make this a single instance
@@ -376,7 +377,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
       if (one_file.size === undefined || one_file.type === undefined) {
         haveUnknown++;
       }
-      if (one_file.type) {
+      if (one_file.type && one_file.name && one_file.name[0] !== '.') {
         if (type === 'image'  && AllowedImageMime.find((item) => item.toLowerCase() === one_file.type.toLowerCase()) !== undefined) {
           if (!one_file.size || one_file.size <= MAX_FILE_SIZE) {
             allowedFiles.push(one_file);

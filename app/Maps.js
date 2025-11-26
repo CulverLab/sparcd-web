@@ -5,6 +5,7 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import { useTheme } from '@mui/material/styles';
 
+import { SizeContext } from './serverInfo';
 import * as utils from './utils';
 
 // Lazy load the ESRI component because that's the way it needs to be
@@ -18,12 +19,14 @@ const MapsEsriLazyload = React.lazy(() => import('./components/MapsEsri'));
  */
 export default function Maps() {
   const theme = useTheme();
+  const uiSizes = React.useContext(SizeContext);
   const [curMapChoice, setCurMapChoice] = React.useState(null); // The current map to display
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
   const [totalHeight, setTotalHeight] = React.useState(null);  // Default value is recalculated at display time
   const [windowSize, setWindowSize] = React.useState({width: 640, height: 480});  // Default values are recalculated at display time
   const [workingTop, setWorkingTop] = React.useState(null);    // Default value is recalculated at display time
   const [workspaceWidth, setWorkspaceWidth] = React.useState(640);  // Default value is recalculated at display time
+  // TODO: Have these come from the server
   const extent = [{x:-109.0, y:36.0}, {x:-115.0, y:30.0}];
   const center = {x:-110.9742, y:32.2540}
 
@@ -102,10 +105,11 @@ export default function Maps() {
   // Return the UI
   const curHeight = totalHeight + 'px';
   return (
-    <Box id='maps-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative'}} >
+    <Box id='maps-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw'}} >
       {curMapChoice && curMapChoice.provider === 'esri' 
-          && <MapsEsriLazyload id={"map-" + curMapChoice.value} key={"map-" + curMapChoice.value} center={center} top={workingTop} width={workspaceWidth} height={totalHeight}
-                               mapChoices={mapChoices} {...curMapChoice.config} onChange={handleMapChanged}
+          && <MapsEsriLazyload id={"map-" + curMapChoice.value} key={"map-" + curMapChoice.value} center={center}
+                              top={uiSizes.workspace.top} width={uiSizes.workspace.width} height={uiSizes.workspace.height}
+                              mapChoices={mapChoices} {...curMapChoice.config} onChange={handleMapChanged}
               />
       }
    </Box>

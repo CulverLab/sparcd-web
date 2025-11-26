@@ -27,7 +27,7 @@ let theme = createTheme({
     },
     title_bar: {
       width: '100vw',
-      padding: '10px 10px 10px 10px',
+      padding: '5px 10px 5px 10px',
       display: 'flex',
       flexDirection: 'row',
       justifyContent: 'left',

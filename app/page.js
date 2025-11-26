@@ -242,7 +242,7 @@ export default function Home() {
     const titleEl = document.getElementById('sparcd-header');
     if (titleEl) {
       titleSize = titleEl.getBoundingClientRect();
-      setSizeTitle({top:0.0, left:0.0, width:window.width, height:titleSize});
+      setSizeTitle({top:0.0, left:0.0, width:window.width, height:titleSize.height});
     }
 
     // Get the title size

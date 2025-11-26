@@ -114,7 +114,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
   let curWorkspaceTop = workspaceTop ? workspaceTop : 63;
   return (
     <div id="login-wrapper" className={styles.login_background}
-           style={{position:'absolute', top:curWorkspaceTop+'px', height:curWorkspaceHeight+'px'}} >
+           style={{height:curWorkspaceHeight+'px'}} >
     <div style={{...theme.palette.login_wrapper}}>
       <div style={{...theme.palette.login_dialog_wrapper}}>
         <div style={{...theme.palette.login_dialog}}>
