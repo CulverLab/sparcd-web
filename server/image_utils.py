@@ -3,6 +3,7 @@
 import os
 import json
 import subprocess
+from time import sleep
 from typing import Optional
 from dateutil import parser
 
@@ -103,13 +104,22 @@ def get_embedded_image_info(image_path: str) -> Optional[tuple]:
         Retuns a tuple containing the species and location information that was
         embedded in the image
     """
+    MAX_TRIES_GEII = 2
+    # Loop through some tries to get the information
+    tries = 0
+    while tries < MAX_TRIES_GEII:
+        try:
+            cmd = ["exiftool", "-U", "-v3", image_path]
+            res = subprocess.run(cmd, capture_output=True, check=True)
+            break
+        except subprocess.CalledProcessError as ex:
+            if tries == MAX_TRIES_GEII - 1:
+                print(f'ERROR: Exception getting exif information on image {image_path}',flush=True)
+                print(f'       {ex}', flush=True)
+            sleep(0.5)
+        tries += 1
 
-    try:
-        cmd = ["exiftool", "-U", "-v3", image_path]
-        res = subprocess.run(cmd, capture_output=True, check=True)
-    except subprocess.CalledProcessError as ex:
-        print(f'ERROR: Exception getting exif information on image {image_path}', flush=True)
-        print(f'       {ex}', flush=True)
+    if tries >= MAX_TRIES_GEII:
         return None, None, None
 
     location_string, species_string, date_string = \
@@ -125,6 +135,7 @@ def get_embedded_image_info(image_path: str) -> Optional[tuple]:
             common, scientific, count = [val.strip() for val in one_species.split(',')]
             return_species.append({'common': common, 'scientific': scientific, 'count': count})
 
+    return_location = None
     if len(location_string) > 0:
         locs = location_string.rstrip('.').split('.')
         return_location = {"name": locs[0], "id": locs[len(locs)-1]}
@@ -171,16 +182,23 @@ def write_embedded_image_info(image_path: str, location_json: str, species_json:
         cmd.append(f"-location={location_json}")
 
     # Run the command
-    try:
-        _ = subprocess.run(cmd, capture_output=True, check=True)
-    except subprocess.CalledProcessError as ex:
-        print(f'ERROR: Exception setting exif information into image {image_path}', flush=True)
-        print(f'       {ex}', flush=True)
-        print(ex.stdout, flush=True)
-        print(ex.stderr, flush=True)
-        return False
+    MAX_TRIES_WEII = 2
+    tries = 0
+    while tries < MAX_TRIES_WEII:
+        try:
+            _ = subprocess.run(cmd, capture_output=True, check=True)
+            break
+        except subprocess.CalledProcessError as ex:
+            if tries == MAX_TRIES_WEII - 1:
+                print(f'ERROR: Exception setting exif information into image {image_path}',
+                                                                                        flush=True)
+                print(f'       {ex}', flush=True)
+                print(ex.stdout, flush=True)
+                print(ex.stderr, flush=True)
+            sleep(0.5)
+            tries += 1
 
-    return True
+    return tries < MAX_TRIES_WEII
 
 
 def update_image_file_exif(file_path: str, loc_id: str=None, loc_name: str=None, \

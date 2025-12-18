@@ -1991,10 +1991,9 @@ def images_all_edited():
     db.finish_image_edits(user_info.name, edited_files_info)
 
     # Save path for this upload to the collection
-    all_images = sdc.get_upload_images(db, hash2str(s3_url), s3_url, user_info.name,
-                                                                lambda: get_password(token, db),
-                                                                coll_id, upload_id,
-                                                                force_refresh=True)
+    all_images = sdc.get_upload_images(db, hash2str(s3_url), coll_id, upload_id, s3_url,
+                                            user_info.name, lambda: get_password(token, db),
+                                            force_refresh=True)
 
     # Count all the images with species
     image_with_species = 0

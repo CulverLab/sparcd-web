@@ -8,6 +8,7 @@ import datetime
 from io import BytesIO, StringIO
 import json
 import os
+import shutil
 import tempfile
 import traceback
 from typing import Optional, Callable
@@ -622,13 +623,14 @@ class S3Connection:
 
         minio = Minio(url, access_key=user, secret_key=password)
 
-        temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
-        os.close(temp_file[0])
         # Get the uploads and their information
         coll_uploads = []
+        temp_folder = tempfile.mkdtemp(prefix=SPARCD_PREFIX)
         for one_obj in minio.list_objects(bucket, uploads_path):
             if one_obj.is_dir and not one_obj.object_name == uploads_path:
                 # Get the data on this upload
+                temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX, dir=temp_folder)
+                os.close(temp_file[0])
 
                 # Upload information
                 upload_info_path = make_s3_path((one_obj.object_name,S3_UPLOAD_META_JSON_FILE_NAME))
@@ -696,7 +698,10 @@ class S3Connection:
                 meta_info_data['images'] = cur_images
                 coll_uploads.append(meta_info_data)
 
-        os.unlink(temp_file[1])
+                if os.path.exists(temp_file[1]):
+                    os.unlink(temp_file[1])
+
+        shutil.rmtree(temp_folder)
 
         return coll_uploads
 

@@ -698,6 +698,7 @@ def process_upload_changes(s3_url: str, username: str, fetch_password: Callable,
     finally:
         # Remove the downloading folder
         shutil.rmtree(edit_folder)
+        pass
 
     return success_files, failed_files
 
