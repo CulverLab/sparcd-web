@@ -796,7 +796,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
   const submitImageEditComplete = React.useCallback((collectionId, uploadName, imagePath, lastRequestId, cbSuccess, cbFailure, numTries) => {
 
     numTries = numTries ? numTries + 1 : 1;
-    failureFunc = typeof(cbFailure) === 'function' ? cbFailure : (msg) => addMessage(Level.Error, msg);
+    const failureFunc = typeof(cbFailure) === 'function' ? cbFailure : (msg) => addMessage(Level.Error, msg);
 
     const completedUrl = serverURL + '/imageEditComplete?t=' + encodeURIComponent(editToken);
     const formData = new FormData();
