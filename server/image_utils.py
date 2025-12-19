@@ -116,6 +116,8 @@ def get_embedded_image_info(image_path: str) -> Optional[tuple]:
             if tries == MAX_TRIES_GEII - 1:
                 print(f'ERROR: Exception getting exif information on image {image_path}',flush=True)
                 print(f'       {ex}', flush=True)
+                print(ex.stdout, flush=True)
+                print(ex.stderr, flush=True)
             sleep(0.5)
         tries += 1
 

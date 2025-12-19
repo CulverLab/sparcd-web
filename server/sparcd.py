@@ -624,7 +624,7 @@ def species_stats():
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def upload_images():
     """ Returns the list of images from a collection's upload
-    Arguments: (GET)
+    Arguments: (POST)
         token - the session token
         id - the ID of the collection
         up - the name of the upload
@@ -654,7 +654,7 @@ def upload_images():
     # The URL to the S3 instance
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
 
-    all_images = sdc.get_upload_images(db, hash2str(s3_url), collection_id, collection_upload,
+    all_images, _ = sdc.get_upload_images(db, hash2str(s3_url), collection_id, collection_upload,
                                                                 s3_url, user_info.name,
                                                                 lambda: get_password(token, db))
 
@@ -789,7 +789,42 @@ def image():
     response.headers.set('Cache-Control', IMAGE_BROWSER_CACHE_TIMEOUT_SEC)
     return response
 
-    #return res.content
+
+@app.route('/checkChanges', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def check_changes():
+    """ Checks if changes have been made to an upload and are stored in the database
+    Arguments: POST
+        token - the session token
+        id - the ID of the collection
+        up - the name of the upload
+    Return:
+        Returns whether or not the upload has DB stored changes
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('CHECK CHANGES', request, flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Check the rest of the request parameters
+    collection_id = request.form.get('id', None)
+    collection_upload = request.form.get('up', None)
+
+    if not collection_id or not collection_upload:
+        return "Not Found", 406
+
+    have_changes = db.have_upload_changes(user_info.url, SPARCD_PREFIX+collection_id,
+                                                                                collection_upload)
+
+    return json.dumps({'changesMade': have_changes})
 
 
 @app.route('/query', methods = ['POST'])
@@ -1934,6 +1969,7 @@ def images_all_edited():
     # Get the rest of the request parameters
     coll_id = request.form.get('collection', None)
     upload_id = request.form.get('upload', None)
+    last_request_id = request.form.get('requestId', None)
     timestamp = request.form.get('timestamp', datetime.datetime.now().isoformat())
     force_all_changes = request.form.get('force', None)
 
@@ -1947,13 +1983,29 @@ def images_all_edited():
     # Handle the request
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
 
-    # Get any changes
-    edited_files_info = db.get_edited_files_info(user_info.url, user_info.name, upload_id, \
-                                                                                force_all_changes)
+    # Get any and all changes
+    edited_files_info = db.get_edited_files_info(user_info.url, user_info.name, upload_id, True)
 
     if not edited_files_info:
         return {'success': True, 'retry': True, 'foundEdits': 0,  \
                 'message': "No changes found for to the upload", \
+                                                    'collection':coll_id, 'upload_id': upload_id}
+
+    # Check if we have the last known edit yet
+    found = False
+    if last_request_id is None:
+        # Special case to save the changes that we have
+        found = True
+    else:
+        for one_edit in edited_files_info:
+            if one_edit['request_id'] == last_request_id:
+                found = True
+                break
+
+    # If we don't have the last edit and we're not told to force the issue, return try again
+    if found is False and not force_all_changes:
+        return {'success': True, 'retry': True, 'foundEdits': len(edited_files_info),  \
+                'message': "Last change not found for to the upload", \
                                                     'collection':coll_id, 'upload_id': upload_id}
 
     # Update the image and the observations information
@@ -1991,9 +2043,9 @@ def images_all_edited():
     db.finish_image_edits(user_info.name, edited_files_info)
 
     # Save path for this upload to the collection
-    all_images = sdc.get_upload_images(db, hash2str(s3_url), coll_id, upload_id, s3_url,
+    all_images, kept_urls = sdc.get_upload_images(db, hash2str(s3_url), coll_id, upload_id, s3_url,
                                             user_info.name, lambda: get_password(token, db),
-                                            force_refresh=True)
+                                            force_refresh=True, keep_image_url=True)
 
     # Count all the images with species
     image_with_species = 0
@@ -2010,7 +2062,8 @@ def images_all_edited():
                                                         strftime("%Y.%m.%d.%H.%M.%S"),
                                         image_with_species)
 
-    return {'success': True, 'message': "The images have been successfully updated"}
+    return {'success': True, 'message': "The images have been successfully updated", \
+                                                                    'imagesReloaded': not kept_urls}
 
 
 @app.route('/speciesKeybind', methods = ['POST'])

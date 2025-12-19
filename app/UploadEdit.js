@@ -33,9 +33,10 @@ import styles from './page.module.css'
  * @param {object} selectedUpload The active upload to edit
  * @param {function} onCancel Call when finished with the the upload edit
  * @param {function} searchSetup Call when settting up or clearing search elements
+ * @param {function} uploadReload Call when the current upload information needs to be reloaded
  * @returns {object} The UI to render
  */
-export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
+export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploadReload}) {
   const theme = useTheme();
   const sidebarSpeciesRef = React.useRef(null); // Used for sizeing
   const sidebarTopRef = React.useRef(null);     // Used for sizeing
@@ -50,12 +51,14 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const uiSizes = React.useContext(SizeContext);
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
   const [changesMade, setChangesMade] = React.useState(false); // Used to see if there have been changes made
+  const [checkedServerChanges, setCheckedServerChanges] = React.useState(false); // Used for checking the server for changes
   const [curEditState, setCurEditState] = React.useState(editingStates.none); // Working page state
   const [curImageEdit, setCurImageEdit] = React.useState(null);         // The image to edit
   const [curImageModified, setCurImageModified] = React.useState(false);// The image being edited was changed
   const [curLocationInfo, setCurLocationInfo] = React.useState(null);   // Working location when fetching tooltip
   const [editingLocation, setEditingLocation] = React.useState(true);   // Changing collection locations flag
-  const [lastSpeciesRequestId, setLastSpeciesRequestId] = React.useState(0);  // Use to keep track of what was sent to the server
+  const [havePreviousChanges, setHavePreviousChanges] = React.useState(false);// Used to signal that previous changes we found
+  const [lastSpeciesRequestId, setLastSpeciesRequestId] = React.useState(null);  // Use to keep track of what was sent to the server
   const [maxTilesDisplay, setMaxTilesDisplay] = React.useState(40);     // Set the maximum number of tiles to display
   const [navigationRedraw, setNavigationRedraw] = React.useState(null); // Forcing redraw on navigation
   const [nextImageEdit, setNextImageEdit] = React.useState(null);       // The next image in array for editing
@@ -392,7 +395,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
           handlePrevImage(curImageModified);
         } else if (event.key === 'ArrowRight') {
           handleNextImage(curImageModified);
-        } else {
+        } else if (!event.altKey && !event.ctrlKey) {
           const speciesKeyItem = speciesItems.find((item) => item.keyBinding == event.key.toUpperCase());
           if (speciesKeyItem) {
             let requestId = Date.now();
@@ -417,6 +420,43 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       document.removeEventListener("keydown", onKeypress);
     }
   }, [onKeypress]);
+
+
+  // Determine if we already have changes on the server
+  React.useEffect(() => {
+    if (!changesMade && !checkedServerChanges) {
+      const checkChangesUrl = serverURL + '/checkChanges?t=' + encodeURIComponent(editToken);
+      const formData = new FormData();
+
+      formData.append('id', curUpload.collectionId);
+      formData.append('up', curUpload.upload);
+
+      try {
+        const resp = fetch(checkChangesUrl, {
+          method: 'POST',
+          body: formData
+        }).then(async (resp) => {
+              if (resp.ok) {
+                return resp.json();
+              } else {
+                throw new Error(`Failed to check for update server changes: ${resp.status}`, {cause:resp});
+              }
+            })
+          .then((respData) => {
+            setChangesMade(respData.changesMade);
+            setHavePreviousChanges(respData.changesMade);
+            setCheckedServerChanges(true);
+          })
+          .catch(function(err) {
+            console.log('Check Changes Error: ', err);
+            addMessage(Level.Error, 'A problem ocurred while checking for server upload changes');
+        });
+      } catch (error) {
+        console.log('Check Changes Unknown Error: ', err);
+        addMessage(Level.Error, 'An unkown problem ocurred checking for server upload changes');
+      }
+    }
+  }, [addMessage, changesMade, checkedServerChanges, curUpload, editToken, serverURL, setChangesMade, setCheckedServerChanges]);
 
   /**
    * Searches for images that meet the search criteria and scrolls it into view
@@ -491,7 +531,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
               if (resp.ok) {
                 return resp.json();
               } else {
-                throw new Error(`Failed to set settings: ${resp.status}`, {cause:resp});
+                throw new Error(`Failed to upload location: ${resp.status}`, {cause:resp});
               }
             })
           .then((respData) => {
@@ -600,7 +640,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
             if (resp.ok) {
               return resp.json();
             } else {
-              throw new Error(`Failed to set settings: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update species keybind: ${resp.status}`, {cause:resp});
             }
           })
         .then((respData) => {
@@ -649,12 +689,13 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
    * @function
    * @param {string} collectionId The ID of the collection the image belongs to
    * @param {string} uploadName The name of the upload begin edited
+   * @param {string} lastRequestId The last request ID we sent to the server
    * @param {string} timestamp The ISO string of the edit timestamp
    * @param {integer} {numTries} The number of attempted tries
    * @param {bool} {tryHarder} When true sets the try harder flag on the server request. This can't be set too early
    *                            in case there's an edit that has been delayed in being received and processed by the server
    */
-  const submitAllImageEdited = React.useCallback((collectionId, uploadName, timestamp, numTries, tryHarder) => {
+  const submitAllImageEdited = React.useCallback((collectionId, uploadName, lastRequestId, timestamp, numTries, tryHarder) => {
 
     numTries = numTries ? numTries + 1 : 1;
 
@@ -663,6 +704,9 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
 
     formData.append('collection', collectionId);
     formData.append('upload', uploadName);
+    if (lastRequestId !== null) {
+      formData.append('requestId', lastRequestId);
+    }
     formData.append('timestamp', timestamp);
     if (tryHarder === true) {
       formData.append('force', true);
@@ -687,11 +731,15 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                 setPendingMessage(null);
                 setChangesMade(false);
                 setCurImageModified(false);
+                if (respData.imagesReloaded !== undefined && respData.imagesReloaded) {
+                  // Cause the images to be reloaded
+                  uploadReload();
+                }
               } else {
                 // Things worked out, but there may be a timing issue with the edits, try again if we're not trying too much
                 const tryHarder = numTries === 3;
                 if (numTries < 4) {
-                  window.setTimeout(() => submitAllImageEdited(collectionId, uploadName, timestamp, numTries, tryHarder), 1000 * numTries);
+                  window.setTimeout(() => submitAllImageEdited(collectionId, uploadName, lastRequestId, timestamp, numTries, tryHarder), 1000 * numTries);
                 } else {
                   setPendingMessage(null);
                   if (respData.foundEdits > 0) {
@@ -724,8 +772,11 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     setPendingMessage("Finishing any changes made to images");
 
     finishImageEdits(curImageModified, lastSpeciesRequestId,
-        () => {
-                submitAllImageEdited(curUpload.collectionId, curUpload.upload, new Date().toISOString());
+        () => { if (changesMade) {
+                  submitAllImageEdited(curUpload.collectionId, curUpload.upload, lastSpeciesRequestId, new Date().toISOString());
+                } else {
+                  setPendingMessage(null);
+                }
               }
     );
   }, [curImageModified, curUpload, editingStates, finishImageEdits, handleImageSearch, lastSpeciesRequestId, searchSetup,
@@ -745,6 +796,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const submitImageEditComplete = React.useCallback((collectionId, uploadName, imagePath, lastRequestId, cbSuccess, cbFailure, numTries) => {
 
     numTries = numTries ? numTries + 1 : 1;
+    failureFunc = typeof(cbFailure) === 'function' ? cbFailure : (msg) => addMessage(Level.Error, msg);
 
     const completedUrl = serverURL + '/imageEditComplete?t=' + encodeURIComponent(editToken);
     const formData = new FormData();
@@ -783,26 +835,21 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                       cbSuccess();
                     }
                   } else {
-                    const msg = "Unable to complete the editing changes to image " + respData.filename;
-                    if (typeof(cbFailure) === 'function') {
-                      cbFailure(msg);
-                    } else {
-                      addMessage(Level.Error, msg);
-                    }
+                    failureFunc("Unable to complete the editing changes to image " + respData.filename);
                   }
                 }
               }
             } else {
-              addMessage(Level.Error, respData.message);
+              failureFunc(respData.message);
             }
         })
         .catch(function(err) {
           console.log('Update Image Edit Complete Error: ',err);
-          addMessage(Level.Error, 'A problem ocurred while updating the stored image with these changes');
+          failureFunc('A problem ocurred while updating the stored image with these changes');
       });
     } catch (err) {
       console.log('Update Image Edit Commit Complete Error: ',err);
-      addMessage(Level.Error, 'An unkown problem ocurred while updating the stored image with these changes');
+      failureFunc('An unkown problem ocurred while updating the stored image with these changes');
     }
   }, [addMessage, editToken, lastSpeciesRequestId, serverURL]);
 

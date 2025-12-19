@@ -544,7 +544,7 @@ class S3Connection:
 
     @staticmethod
     def get_images(url: str, user: str, password: str, collection_id: str, \
-                   upload_name: str) -> Optional[tuple]:
+                   upload_name: str, need_url: bool=True) -> Optional[tuple]:
         """ Returns the image information for an upload of a collection
         Arguments:
             url: the URL to the s3 instance
@@ -552,6 +552,7 @@ class S3Connection:
             password: the user's password
             collection_id: the ID of the collection of the upload
             upload_name: the name of the upload to get image data on
+            need_url: set to False if a remote URL to the image isn't needed
         Returns:
             Returns the images, or None
         """
@@ -561,7 +562,7 @@ class S3Connection:
 
         minio = Minio(url, access_key=user, secret_key=password)
 
-        images = get_s3_images(minio, bucket, [upload_path])
+        images = get_s3_images(minio, bucket, [upload_path], need_url)
 
         images_dict = {obj['s3_path']: obj for obj in images}
 

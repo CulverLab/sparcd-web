@@ -512,6 +512,17 @@ class SPARCdDatabase:
 
         return {bucket + ':' + upload_path:file_species}
 
+    def have_upload_changes(self, s3_url: str, bucket: str, upload_name: str) -> bool:
+        """ Returns if there are changes stored in the database for the upload
+        Arguments:
+            s3_url: the URL to the S3 instance
+            bucket: the S3 bucket the collection is in
+            upload_name: the upload name to get the edit for
+        Return:
+            Returns True if some image edits for this
+        """
+        return self._db.have_upload_changes(s3_url, bucket, upload_name)
+
     def get_admin_edit_users(self) -> tuple:
         """ Returns the user information for administrative editing
         Return:

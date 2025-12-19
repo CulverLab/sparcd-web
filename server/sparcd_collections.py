@@ -20,6 +20,26 @@ COLL_FETCH_WAIT_INTERVAL_SEC = (MAX_COLL_FETCH_WAIT_SEC) / \
                                                 ((MAX_COLL_FETCH_TRIES+1)*MAX_COLL_FETCH_TRIES/2)
 
 
+def __update_s3_from_db(s3_images, db_images) -> tuple:
+    """ Assigns DB information to the S3 images
+    Arguments:
+        s3_images: the images to update
+        db_images: the database images to use when updating the S3 images
+    Return:
+        Returns the tuple of the updated S3 images
+    Notes:
+        Will only update some of the S3 data for matching images
+    """
+    s3_dicts = {one_image['s3_path']:one_image for one_image in s3_images}
+
+    for one_image in db_images:
+        if one_image['s3_path'] in s3_dicts:
+            s3_dicts[one_image['s3_path']]['s3_url'] = one_image['s3_url']
+            s3_dicts[one_image['s3_path']]['key'] = one_image['key']
+
+    return [s3_dicts[one_key] for one_key in s3_dicts]
+
+
 def __get_loaded_collections(db: SPARCdDatabase, s3_id: str, s3_url: str, user_name: str, \
                                                     fetch_password: Callable) -> Optional[tuple]:
     """ Loads the collections from S3 and saves them in the database
@@ -144,7 +164,7 @@ def collection_update(db: SPARCdDatabase, s3_id: str, collection: dict) -> None:
 
 def get_upload_images(db: SPARCdDatabase, s3_id: str, collection_id: str, upload_name: str, \
                     s3_url: str, user_name: str, fetch_password: Callable, \
-                    force_refresh: bool=False) -> tuple:
+                    force_refresh: bool=False, keep_image_url: bool=False) -> tuple:
     """ Gets the images for the specied collection upload
     Arguments:
         db: the database to access
@@ -154,30 +174,41 @@ def get_upload_images(db: SPARCdDatabase, s3_id: str, collection_id: str, upload
         s3_url: the URL to the S3 instance
         user_name: the S3 user name
         fetch_password: callable that returns the S3 password
-        force_refresh: force the reload of the images
+        force_refresh: when True, will force a refresh of the upload
+        keep_image_url: keeps the image's URLs to S3 (don't overwrite) when True
     Return:
-        Returns the image information associated with the S3 ID, collection ID, and upload name
+        Returns a tuple containing the tuples of the image information and whether the image
+        s3 URL was updated or kept from the DB
     Notes:
         If the desired information is not in the database, the upload information is fetched
         from the S3 endpoint and then stored in the database.
         If one of s3_url, user_name, or fetch_password is None then S3 will not be queried for
         uploaded images
     """
-    all_images = None
+    kept_urls = False
+    db_images = None
+    s3_images = None
 
-    if force_refresh is not True:
-        all_images = db.upload_images_get(s3_id, collection_id, upload_name, TIMEOUT_UPLOAD_SEC)
+    if not force_refresh or (force_refresh and keep_image_url):
+        db_images = db.upload_images_get(s3_id, collection_id, upload_name, TIMEOUT_UPLOAD_SEC)
 
-    if all_images is None and all(item for item in [s3_url, user_name, fetch_password]):
-
+    if (not db_images or force_refresh) and \
+                                        all(item for item in [s3_url, user_name, fetch_password]):
         # Get the upload information from the server
-        all_images = S3Connection.get_images(s3_url, user_name, fetch_password(),
-                                                                collection_id, upload_name)
+        s3_images = S3Connection.get_images(s3_url, user_name, fetch_password(),
+                                                    collection_id, upload_name, not keep_image_url)
 
-        # Save the images so we can reload them later
-        db.upload_images_save(s3_id, collection_id, upload_name, all_images)
+    # Check if we're keeping the image URLs after loading all images from S3
+    if db_images and keep_image_url:
+        kept_urls = True
+        if s3_images:
+            s3_images = __update_s3_from_db(s3_images, db_images)
 
-    return all_images
+    # Save the images so we can reload them later
+    if s3_images:
+        db.upload_images_save(s3_id, collection_id, upload_name, s3_images)
+
+    return s3_images if s3_images else db_images, kept_urls
 
 
 def load_image_data(db: SPARCdDatabase, s3_id: str, collection_id: str, upload_name: str, \

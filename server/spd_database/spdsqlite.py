@@ -1324,7 +1324,7 @@ class SPDSQLite:
         Arguments:
             s3_url: the URL to the S3 instance
             bucket: the S3 bucket the collection is in
-            upload_path: the upload path to get the edit for
+            upload_path: the upload name
         Return:
             Returns a tuple containing the row tuples of the s3 file path, observation scientific
             name, and the observation count
@@ -1344,6 +1344,30 @@ class SPDSQLite:
         cursor.close()
 
         return res
+
+    def have_upload_changes(self, s3_url: str, bucket: str, upload_name: str) -> bool:
+        """ Returns True if there are changes in the database for the upload
+        Arguments:
+            s3_url: the URL to the S3 instance
+            bucket: the S3 bucket the collection is in
+            upload_name: the upload name
+        Return:
+            Returns True if changes are found and False otherwise
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to check for images edits before connecting')
+
+        # Get the edits
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT count(1) FROM image_edits WHERE ' \
+                                    's3_url=? AND bucket=? AND s3_file_path like ? ',
+                            (s3_url, bucket, '%'+upload_name+'%'))
+
+        res = cursor.fetchone()
+        cursor.close()
+
+        return res is not None and len(res) > 0 and int(res[0]) > 0
+
 
     def get_admin_edit_users(self) -> tuple:
         """ Returns the user information for administrative editing

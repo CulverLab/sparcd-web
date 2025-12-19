@@ -632,9 +632,10 @@ export default function Home() {
    * @function
    * @param {string} collectionId The ID of the collection containing the upload 
    * @param {string} uploadId The ID of the upload to edit
-   * @param {string} breadcrumbName The name of the navigation breadcrumb to use
+   * @param {function} {cbSuccess} Function to call upon success
+   * @param {function} {cbFailure} Function to call upon failure
    */
-  function editCollectionUpload(collectionId, uploadId, breadcrumbName) {
+  function editCollectionUpload(collectionId, uploadId, cbSuccess, cbFailure) {
     const uploadUrl = serverURL + '/uploadImages?t=' + encodeURIComponent(lastToken);
     const formData = new FormData();
 
@@ -658,31 +659,47 @@ export default function Home() {
           if (curCollection) {
             const curUpload = curCollection.uploads.find((item) => item.key === uploadId);
             if (curUpload) {
-              console.log('HACK: UPLOAD FETCH:',respData);
               // Add our token in
-              const curImages = respData.map((img) => {img['url'] = img['url'] + '&t=' + lastToken; return img;})
-              setCurrentAction(UserActions.UploadEdit, 
-                               {collectionId, name:curUpload.name, upload:curUpload.key, location:curUpload.location, images:curImages},
-                               true,
-                               breadcrumbName);
+              if (cbSuccess) {
+                const curImages = respData.map((img) => {img['url'] = img['url'] + '&t=' + lastToken; return img;})
+                cbSuccess(curUpload, curImages);
+              }
             } else {
               console.log('ERROR: unable to find upload ID', uploadId, 'for collection ID', collectionId);
               addMessage(Level.Warning, "Unable to find the upload to edit");
+              if (cbFailure) cbFailure();
             }
           } else {
             console.log('ERROR: unable to find collection ID', collectionId);
             addMessage(Level.Warning, "Unable to find the collection for editing");
+            if (cbFailure) cbFailure();
           }
         })
         .catch(function(err) {
           console.log('Error: ',err);
           addMessage(Level.Error, 'A problem ocurred while fetching the upload information');
+          if (cbFailure) cbFailure();
       });
     } catch (error) {
       console.log('Error: ',error);
       addMessage(Level.Error, 'An unknown problem ocurred while fetching the upload information');
+      if (cbFailure) cbFailure();
     }
   }
+
+  /**
+   * Reloads the information on the current upload
+   * @function
+   */
+  const uploadReload = React.useCallback(() => {
+    let actionData = curActionData;
+    editCollectionUpload(actionData.collectionId, actionData.upload, 
+                              (curUpload, curImages) => { // Success callback
+                                        actionData.images = curImages;
+                                        setCurActionData(actionData);
+                                      }
+                        )
+  }, [curActionData, editCollectionUpload, setCurActionData]);
 
   /**
    * Calls the callback to perform a search
@@ -1002,7 +1019,18 @@ export default function Home() {
             <TokenContext.Provider value={lastToken}>
               <AddMessageContext.Provider value={addMessage}>
                 <SandboxInfoContext.Provider value={sandboxInfo}>
-                  <UploadManage selectedUpload={curActionData} onEditUpload={editCollectionUpload} />
+                  <UploadManage selectedUpload={curActionData} 
+                          onEditUpload={(collectionId, uploadId, breadcrumbName) =>
+                                          editCollectionUpload(collectionId, uploadId, 
+                                              (curUpload, curImages) => { // Success callback
+                                                  setCurrentAction(UserActions.UploadEdit, 
+                                                                   {collectionId, name:curUpload.name, upload:curUpload.key, location:curUpload.location, images:curImages},
+                                                                   true,
+                                                                   breadcrumbName);
+                                                  }
+                                              )
+                                        }
+                  />
                 </SandboxInfoContext.Provider>
               </AddMessageContext.Provider>
             </TokenContext.Provider>
@@ -1017,7 +1045,9 @@ export default function Home() {
                   <SpeciesInfoContext.Provider value={speciesInfo}>
                     <UploadEdit selectedUpload={curActionData.uploadName}
                             onCancel={() => setCurrentAction(UserActions.Upload, curActionData, false)} 
-                            searchSetup={setupSearch} />
+                            searchSetup={setupSearch}
+                            uploadReload={uploadReload}
+                    />
                   </SpeciesInfoContext.Provider>
                 </LocationsInfoContext.Provider>
               </UploadEditContext.Provider>
@@ -1031,7 +1061,18 @@ export default function Home() {
               <AddMessageContext.Provider value={addMessage}>
                 <CollectionsInfoContext.Provider value={collectionInfo}>
                   <CollectionsManage loadingCollections={loadingCollections} selectedCollection={curActionData} 
-                                     onEditUpload={editCollectionUpload} searchSetup={setupSearch} />
+                          searchSetup={setupSearch}
+                          onEditUpload={(collectionId, uploadId, breadcrumbName) =>
+                                          editCollectionUpload(collectionId, uploadId, 
+                                              (curUpload, curImages) => { // Success callback
+                                                  setCurrentAction(UserActions.UploadEdit, 
+                                                                   {collectionId, name:curUpload.name, upload:curUpload.key, location:curUpload.location, images:curImages},
+                                                                   true,
+                                                                   breadcrumbName);
+                                                  }
+                                              )
+                                        }
+                  />
                 </CollectionsInfoContext.Provider>
               </AddMessageContext.Provider>
              </TokenContext.Provider>
