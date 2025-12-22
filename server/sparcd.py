@@ -900,7 +900,7 @@ def query():
     for one_filter in filters:
         if one_filter[0] == 'collections':
             filter_colls = filter_colls + \
-                                    [coll for coll in coll_info if coll['name'] in one_filter[1]]
+                                    [coll for coll in coll_info if coll['bucket'] in one_filter[1]]
     if not filter_colls:
         filter_colls = coll_info
 

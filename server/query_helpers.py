@@ -171,7 +171,7 @@ def filter_collections(db: SPARCdDatabase, cur_coll: tuple, s3_id: str, s3_url: 
             uploads_info = [{'bucket':cur_bucket,       \
                              'name':one_upload['name'],                     \
                              'info':json.loads(one_upload['json'])}         \
-                                    for one_upload in uploads_info]
+                                                        for one_upload in uploads_info]
         else:
             s3_uploads.append(cur_bucket)
             continue
@@ -201,8 +201,7 @@ def filter_collections(db: SPARCdDatabase, cur_coll: tuple, s3_id: str, s3_url: 
                                          'info':one_upload,
                                          'json':json.dumps(one_upload)
                                         } for one_upload in uploads_results['uploads_info']]
-                        db.save_uploads(s3_id, uploads_results['bucket'][len(SPARCD_PREFIX):],
-                                                                                    uploads_info)
+                        db.save_uploads(s3_id, uploads_results['bucket'], uploads_info)
 
                         # Filter on current DB uploads
                         if len(uploads_info) > 0:

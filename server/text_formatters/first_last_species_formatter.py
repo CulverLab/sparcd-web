@@ -57,8 +57,12 @@ class FirstLastSpeciesFormatter:
             # Look up the name of the location using the site ID
             if one_species['first_image']['loc'] != cur_location:
                 cur_location = one_species['first_image']['loc']
-                format_location = next(iter([one_loc for one_loc in results.get_locations() if \
-                                    one_loc['idProperty'] == one_species['first_image']['loc']]))
+                try:
+                    format_location = next(iter([one_loc for one_loc in results.get_locations() if \
+                                                            one_loc['idProperty'] == cur_location]))
+                except StopIteration:
+                    format_location = None
+
                 if format_location:
                     format_location = format_location['nameProperty']
                 else:
@@ -101,8 +105,12 @@ class FirstLastSpeciesFormatter:
             # Look up the location name by site ID
             if one_species['last_image']['loc'] != cur_location:
                 cur_location = one_species['last_image']['loc']
-                format_location = next(iter([one_loc for one_loc in results.get_locations() if \
+                try:
+                    format_location = next(iter([one_loc for one_loc in results.get_locations() if \
                                         one_loc['idProperty'] == one_species['last_image']['loc']]))
+                except StopIteration:
+                    format_location = None
+
                 if format_location:
                     format_location = format_location['nameProperty']
                 else:

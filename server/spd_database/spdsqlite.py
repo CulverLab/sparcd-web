@@ -671,7 +671,7 @@ class SPDSQLite:
         cursor = self._conn.cursor()
         cursor.execute('SELECT (strftime("%s", "now")-timestamp) AS elapsed_sec from ' \
                        'table_timeout where name=(?) ORDER BY elapsed_sec DESC LIMIT 1', \
-                       (bucket,))
+                       (s3_id+bucket,))
 
         res = cursor.fetchone()
         if not res or len(res) < 1 or int(res[0]) >= timeout_sec:
@@ -685,11 +685,11 @@ class SPDSQLite:
 
         return res
 
-    def save_uploads(self, s3_id: str, coll_id: str, uploads: tuple) -> bool:
+    def save_uploads(self, s3_id: str, bucket: str, uploads: tuple) -> bool:
         """ Save the upload information into the table
         Arguments:
-            s3_url: the URL associated with this request
-            coll_id: the collection ID to save the uploads under
+            s3_id: the ID of the S3 instance endpoint
+            bucket: The bucket to get uploads for
             uploads: the uploads to save containing the collection name,
                 upload name, and associated JSON
         Return:
@@ -703,8 +703,8 @@ class SPDSQLite:
         tries = 0
         while tries < 10:
             try:
-                cursor.execute('DELETE FROM uploads where s3_id=? AND coll_id=?',
-                                                                                (s3_id, coll_id))
+                cursor.execute('DELETE FROM uploads where s3_id=? AND bucket=?',
+                                                                                (s3_id, bucket))
                 break
             except sqlite3.Error as ex:
                 if ex.sqlite_errorcode == sqlite3.SQLITE_BUSY:
@@ -727,8 +727,9 @@ class SPDSQLite:
         tries = 0
         for one_upload in uploads:
             try:
-                cursor.execute('INSERT INTO uploads(s3_id, coll_id, name, json) values(?,?,?,?)', \
-                                        (s3_id, coll_id, one_upload['name'], one_upload['json']))
+                cursor.execute('INSERT INTO uploads(s3_id, bucket, name, json, timestamp) ' \
+                                'values(?, ?, ?, ?, strftime("%s", "now"))', \
+                                        (s3_id, bucket, one_upload['name'], one_upload['json']))
                 tries += 1
             except sqlite3.Error as ex:
                 print(f'Unable to update uploads: {ex.sqlite_errorcode} {one_upload}')
@@ -745,20 +746,20 @@ class SPDSQLite:
             return False
 
         # Update the timeout table for uploads and do some cleanup if needed
-        cursor.execute('SELECT COUNT(1) FROM table_timeout WHERE name=(?)', (s3_id+coll_id,))
+        cursor.execute('SELECT COUNT(1) FROM table_timeout WHERE name=(?)', (s3_id+bucket,))
         res = cursor.fetchone()
 
         count = int(res[0]) if res and len(res) > 0 else 0
         if count > 1:
             # Remove multiple old entries
-            cursor.execute('DELETE FROM table_timeout WHERE name=(?)', (s3_id+coll_id,))
+            cursor.execute('DELETE FROM table_timeout WHERE name=(?)', (s3_id+bucket,))
             count = 0
         if count <= 0:
             cursor.execute('INSERT INTO table_timeout(name,timestamp) ' \
-                                'VALUES (?,strftime("%s", "now"))', (s3_id+coll_id,))
+                                'VALUES (?,strftime("%s", "now"))', (s3_id+bucket,))
         else:
             cursor.execute('UPDATE table_timeout SET timestamp=strftime("%s", "now") ' \
-                                'WHERE name=(?)', (s3_id+coll_id,))
+                                'WHERE name=(?)', (s3_id+bucket,))
 
         self._conn.commit()
         cursor.close()

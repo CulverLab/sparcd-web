@@ -100,7 +100,7 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                 'timestamp INTEGER NOT NULL)',
              'CREATE TABLE uploads(id INTEGER PRIMARY KEY ASC, ' \
                 's3_id TEXT NOT NULL, ' \
-                'coll_id TEXT NOT NULL, ' \
+                'bucket TEXT NOT NULL, ' \
                 'hash_id TEXT UNIQUE, -- Hash of s3, collection id, upload ' + os.linesep + \
                 'name TEXT NOT NULL, ' \
                 'json TEXT DEFAULT "", -- Non-image data (see upload_images) ' + os.linesep + \
