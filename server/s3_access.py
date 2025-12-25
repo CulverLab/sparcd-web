@@ -314,29 +314,32 @@ def get_s3_images(minio: Minio, bucket: str, upload_paths: tuple, need_url: bool
         Returns the tuple of found images
     """
     images = []
-    cur_paths = upload_paths if not isinstance(upload_paths, str) else [upload_paths]
+    new_paths = upload_paths if not isinstance(upload_paths, str) else [upload_paths]
 
     # Get the image names and urls
-    # pylint: disable=modified-iterating-list
-    for cur_path in cur_paths:
-        for one_obj in minio.list_objects(bucket, cur_path):
-            if one_obj.is_dir:
-                if not one_obj.object_name == cur_path:
-                    cur_paths.append(one_obj.object_name)
-            else:
-                _, file_name = os.path.split(one_obj.object_name)
-                name, ext = os.path.splitext(file_name)
-                if ext.lower().endswith('.jpg') or ext.lower().endswith('.mp4'):
-                    s3_url = minio.presigned_get_object(bucket, one_obj.object_name) if need_url \
-                                                                                        else None
-                    images.append({'name':name,
-                                   'bucket':bucket, \
-                                   's3_path':one_obj.object_name,
-                                   's3_url':s3_url,
-                                   'key':uuid.uuid4().hex,
-                                   'type': 'movie' if ext.lower().endswith('.mp4') else 'image',
-                                   'species': []
-                                   })
+    while len(new_paths) > 0:
+        cur_paths = new_paths
+        new_paths = []
+
+        for one_path in cur_paths:
+            for one_obj in minio.list_objects(bucket, one_path):
+                if one_obj.is_dir:
+                    if not one_obj.object_name == one_path:
+                        new_paths.append(one_obj.object_name)
+                else:
+                    _, file_name = os.path.split(one_obj.object_name)
+                    name, ext = os.path.splitext(file_name)
+                    if ext.lower().endswith('.jpg') or ext.lower().endswith('.mp4'):
+                        s3_url = minio.presigned_get_object(bucket, one_obj.object_name) if need_url \
+                                                                                            else None
+                        images.append({'name':name,
+                                       'bucket':bucket, \
+                                       's3_path':one_obj.object_name,
+                                       's3_url':s3_url,
+                                       'key':uuid.uuid4().hex,
+                                       'type': 'movie' if ext.lower().endswith('.mp4') else 'image',
+                                       'species': []
+                                       })
 
     return images
 
@@ -455,15 +458,14 @@ class S3Connection:
 
     @staticmethod
     def get_upload_info(url: str, user: str, password: str, bucket: str, \
-                                                        upload_path: str=None) -> Optional[dict]:
+                                                        upload_path: str) -> Optional[dict]:
         """ Returns information for one upload in a collection
         Arguments:
             url: the URL to the s3 instance
             user: the name of the user to use when connecting
             password: the user's password
             bucket: the bucket of interest
-            upload_path: a specific upload path to return information on. Otherwise all the uploads
-                        are returned
+            upload_path: a specific upload path to return information on
         Return:
             Returns the information on the collection or None if the collection isn't found
         """
@@ -474,6 +476,11 @@ class S3Connection:
         found_buckets = [one_bucket.name for one_bucket in all_buckets if \
                                                 one_bucket.name == bucket]
         if not found_buckets:
+            #HACK
+            print('HACK: get_upload_info: NO BUCKET FOUND',flush=True)
+            for one_b in all_buckets:
+                print('HACK: get_upload_info:     ',one_b,bucket,flush=True)
+            #HACK
             return None
 
         # Temporary file
