@@ -651,11 +651,16 @@ def upload_images():
     if not collection_id or not collection_upload:
         return "Not Found", 406
 
+    # Get the bucket
+    s3_bucket = collection_id if not collection_id.startswith(SPARCD_PREFIX) else \
+                                                                collection_id[len(SPARCD_PREFIX):]
+
     # The URL to the S3 instance
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
 
-    all_images, _ = sdc.get_upload_images(db, hash2str(s3_url), collection_id, collection_upload,
-                                                                s3_url, user_info.name,
+    all_images, _ = sdc.get_upload_images(db, hash2str(s3_url), s3_bucket, collection_id,
+                                                                collection_upload, s3_url,
+                                                                user_info.name,
                                                                 lambda: get_password(token, db))
 
     if isinstance(all_images, types.GeneratorType):
@@ -2043,8 +2048,9 @@ def images_all_edited():
     db.finish_image_edits(user_info.name, edited_files_info)
 
     # Save path for this upload to the collection
-    all_images, kept_urls = sdc.get_upload_images(db, hash2str(s3_url), coll_id, upload_id, s3_url,
-                                            user_info.name, lambda: get_password(token, db),
+    all_images, kept_urls = sdc.get_upload_images(db, hash2str(s3_url), s3_bucket, coll_id,
+                                            upload_id, s3_url, user_info.name,
+                                            lambda: get_password(token, db),
                                             force_refresh=True, keep_image_url=True)
 
     # Count all the images with species

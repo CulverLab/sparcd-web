@@ -476,11 +476,6 @@ class S3Connection:
         found_buckets = [one_bucket.name for one_bucket in all_buckets if \
                                                 one_bucket.name == bucket]
         if not found_buckets:
-            #HACK
-            print('HACK: get_upload_info: NO BUCKET FOUND',flush=True)
-            for one_b in all_buckets:
-                print('HACK: get_upload_info:     ',one_b,bucket,flush=True)
-            #HACK
             return None
 
         # Temporary file

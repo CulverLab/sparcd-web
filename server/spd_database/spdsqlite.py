@@ -386,11 +386,12 @@ class SPDSQLite:
         self._conn.commit()
         cursor.close()
 
-    def upload_save(self, s3_id: str, collection_id: str, upload_name: str, \
+    def upload_save(self, s3_id: str, bucket: str, collection_id: str, upload_name: str, \
                                                                 upload_json: str) -> Optional[int]:
         """ Saves/replaces the image information associated with a particular collection's upload
         Arguments:
             s3_id: the ID of the S3 endpoint
+            bucket: the bucket where the collection is saved
             collection_id: the ID of the collection the upload belongs to
             upload_name: the name of the upload
             upload_json: the data associated with the upload
@@ -467,9 +468,9 @@ class SPDSQLite:
         # Add the new entry
         success = None
         try:
-            cursor.execute('INSERT INTO uploads(s3_id, coll_id, hash_id, name, json, timestamp) ' \
+            cursor.execute('INSERT INTO uploads(s3_id, bucket, hash_id, name, json, timestamp) ' \
                                             'VALUES(?, ?, ?, ?, ?, strftime("%s", "now"))',
-                                        (s3_id, collection_id, hash_id, upload_name, upload_json))
+                                        (s3_id, bucket, hash_id, upload_name, upload_json))
             success = True
         except sqlite3.Error as ex:
             print(f'upload_save: Unable to update upload: {ex.sqlite_errorcode}')

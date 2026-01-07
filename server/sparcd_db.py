@@ -947,18 +947,19 @@ class SPARCdDatabase:
 
         return (json.loads(one_res[0]) for one_res in self._db.upload_images_get(upload_res[0]))
 
-    def upload_images_save(self, s3_id: str, collection_id: str, upload_name: str, \
+    def upload_images_save(self, s3_id: str, bucket:str, collection_id: str, upload_name: str, \
                                                                             images: tuple) -> bool:
         """ Saves/replaces the images associated with a particular upload
         Arguments:
-            s3_id: The ID of the S3 endpoint
+            s3_id: the ID of the S3 endpoint
+            bucket: the bucket where the collection is saved
             collection_id: collection ID  of the upload
             upload_name: the name of the collection's upload
             images: the images to save
         Return:
             Returns True if the upload images were saved and False if not
         """
-        upload_id = self._db.upload_save(s3_id, collection_id, upload_name, None)
+        upload_id = self._db.upload_save(s3_id, bucket, collection_id, upload_name, None)
         if upload_id is None:
             return False
 

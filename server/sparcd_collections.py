@@ -162,13 +162,14 @@ def collection_update(db: SPARCdDatabase, s3_id: str, collection: dict) -> None:
     db.collection_update(s3_id, collection, TIMEOUT_COLLECTIONS_SEC)
 
 
-def get_upload_images(db: SPARCdDatabase, s3_id: str, collection_id: str, upload_name: str, \
-                    s3_url: str, user_name: str, fetch_password: Callable, \
+def get_upload_images(db: SPARCdDatabase, s3_id: str, bucket:str, collection_id: str, \
+                    upload_name: str, s3_url: str, user_name: str, fetch_password: Callable, \
                     force_refresh: bool=False, keep_image_url: bool=False) -> tuple:
     """ Gets the images for the specied collection upload
     Arguments:
         db: the database to access
         s3_id: the unique ID of the S3 instance
+        bucket: the bucket on the S3 instance
         collection_id: the ID of the collection of the upload
         upload_name: the name of the upload to get images for
         s3_url: the URL to the S3 instance
@@ -206,7 +207,7 @@ def get_upload_images(db: SPARCdDatabase, s3_id: str, collection_id: str, upload
 
     # Save the images so we can reload them later
     if s3_images:
-        db.upload_images_save(s3_id, collection_id, upload_name, s3_images)
+        db.upload_images_save(s3_id, bucket, collection_id, upload_name, s3_images)
 
     return s3_images if s3_images else db_images, kept_urls
 
