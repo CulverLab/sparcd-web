@@ -30,6 +30,8 @@ export const SizeContext = createContext(null);
 export const SpeciesInfoContext = createContext(null);
 /** React context for user login token */
 export const TokenContext = createContext(null);
+/** React context for the unofficial species names */
+export const SpeciesOtherNamesContext = createContext(null);
 /** React context for the current upload edit */
 export const UploadEditContext = createContext(null);
 /** React context for user name */

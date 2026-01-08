@@ -813,6 +813,7 @@ def species_stats(db: SPARCdDatabase, colls: tuple, s3_id: str, s3_url: str, use
 
     # Load the S3 uploads in an aynchronous fashion
     if len(s3_uploads) > 0:
+        # TODO: Change this so that multiple calls get blocked until the first one succeeds
         user_secret = fetch_password()
         with concurrent.futures.ThreadPoolExecutor() as executor:
             cur_futures = {executor.submit(list_uploads_thread, s3_url, user_name, \
@@ -851,8 +852,11 @@ def species_stats(db: SPARCdDatabase, colls: tuple, s3_id: str, s3_url: str, use
                         if species_name:
                             species_name = species_name.strip()
                             if species_name in ret_stats:
-                                ret_stats[species_name] += 1
+                                ret_stats[species_name]['count'] += 1
                             else:
-                                ret_stats[species_name] = 1
+                                ret_stats[species_name] = {}
+                                ret_stats[species_name]['count'] = 1
+                                ret_stats[species_name]['scientificName'] = \
+                                                                    one_species['scientificName']
 
     return ret_stats

@@ -15,7 +15,7 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import FilterCard from './FilterCard';
-import { SpeciesInfoContext } from '../serverInfo';
+import { SpeciesOtherNamesContext, SpeciesInfoContext } from '../serverInfo';
 
 /**
  * Adds species information to form data
@@ -40,9 +40,13 @@ export default function FilterSpecies({data, parentId, onClose, onChange}) {
   const theme = useTheme();
   const cardRef = React.useRef();   // Used for sizeing
   const speciesItems = React.useContext(SpeciesInfoContext);
-  const [displayedSpecies, setDisplayedSpecies] = React.useState(speciesItems); // The visible species
+  const speciesOtherNames = React.useContext(SpeciesOtherNamesContext);
+  const mergedSpecies = React.useMemo(() => speciesItems.map((item) => { return {...item, ...{defaultChecked:true}};}).concat(
+                                                        speciesOtherNames.map((item) => {return {...item, ...{defaultChecked:false}};}) ), 
+                                        [speciesItems, speciesOtherNames]); // Consistant view of data
+  const [displayedSpecies, setDisplayedSpecies] = React.useState(mergedSpecies); // The visible species
   const [listHeight, setListHeight] = React.useState(200);
-  const [selectedSpecies, setSelectedSpecies] = React.useState(data ? data : speciesItems.map((item)=>item.name)); // The user's selections
+  const [selectedSpecies, setSelectedSpecies] = React.useState(data ? data : mergedSpecies.map((item)=>item.defaultChecked ? item.name : null)); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
 
   // Set the default data if not set yet
@@ -73,7 +77,7 @@ export default function FilterSpecies({data, parentId, onClose, onChange}) {
   }, [parentId, cardRef]);
 
   /**
-   * Handles selecting all the species choices
+   * Handles selecting all the species choices from the visible list
    * @function
    */
   function handleSelectAll() {
@@ -132,9 +136,9 @@ export default function FilterSpecies({data, parentId, onClose, onChange}) {
   function handleSearchChange(event) {
     if (event.target.value) {
       const ucSearch = event.target.value.toUpperCase();
-      setDisplayedSpecies(speciesItems.filter((item) => item.name.toUpperCase().includes(ucSearch)));
+      setDisplayedSpecies(mergedSpecies.filter((item) => item.name.toUpperCase().includes(ucSearch)));
     } else {
-      setDisplayedSpecies(speciesItems);
+      setDisplayedSpecies(mergedSpecies);
     }
   }
 
@@ -145,7 +149,7 @@ export default function FilterSpecies({data, parentId, onClose, onChange}) {
     const searchEl = document.getElementById('file-species-search');
     if (searchEl) {
       searchEl.value = '';
-      setDisplayedSpecies(speciesItems);
+      setDisplayedSpecies(mergedSpecies);
     }
   }
 

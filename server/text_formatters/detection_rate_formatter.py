@@ -117,7 +117,7 @@ class DetectionRateFormatter:
             result += 'Total days pics Avg rate    '
 
             result += '  {:3d} {:7d}    {:7.2f}   '.format(total_days, total_pics, \
-                                                    100.0 * (float(total_pics) / float(total_days)))
+                        0.0 if total_days == 0 else 100.0 * (float(total_pics) / float(total_days)))
 
             for species_index in range(0, len(results.get_species_by_name())):
                 result += ' {:5.2f}'.format(0.0 if total_days == 0 else \
@@ -324,7 +324,7 @@ class DetectionRateFormatter:
             result += 'Total days pics Avg rate    '
 
             result += '  {:3d} {:7d}    {:7.2f}    '.format(total_days, total_pics, \
-                                                            float(total_pics) / float(total_days))
+                                0.0 if total_days == 0 else float(total_pics) / float(total_days))
 
             for one_month in range(0, 12):
                 result += ' {:5.2f}  '.format(0.0 if total_days == 0 else \

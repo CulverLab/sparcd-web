@@ -24,8 +24,8 @@ import UploadEdit from './UploadEdit';
 import UserActions from './components/userActions';
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin';
 import { AddMessageContext, BaseURLContext, CollectionsInfoContext, LocationsInfoContext, MobileDeviceContext, 
-         NarrowWindowContext, SandboxInfoContext, SizeContext, SpeciesInfoContext, TokenContext,
-         UploadEditContext, UserNameContext, UserSettingsContext } from './serverInfo';
+         NarrowWindowContext, SandboxInfoContext, SizeContext, SpeciesInfoContext, SpeciesOtherNamesContext,
+         TokenContext, UploadEditContext, UserNameContext, UserSettingsContext } from './serverInfo';
 import * as utils from './utils';
 
 // This is declared here so that it doesn't raise an error on server-side compile
@@ -135,6 +135,7 @@ export default function Home() {
   const [lastToken, setLastToken] = React.useState(null);
   const [loadingCollections, setLoadingCollections] = React.useState(false);
   const [loadingLocations, setLoadingLocations] = React.useState(false);
+  const [loadingOtherSpecies, setLoadingOtherSpecies] = React.useState(false);
   const [loadingSandbox, setLoadingSandbox] = React.useState(false);
   const [loadingSpecies, setLoadingSpecies] = React.useState(false);
   const [locationInfo, setLocationInfo] = React.useState(null);
@@ -156,12 +157,26 @@ export default function Home() {
                                                             height:DEFAULT_DISPLAY_HEIGHT-DEFAULT_HEADER_HEIGHT-DEFAULT_FOOTER_HEIGHT});
   const [serverURL, setServerURL] = React.useState(utils.getServer());
   const [speciesInfo, setSpeciesInfo] = React.useState(null);
+  const [speciesOtherInfo, setSpeciesOtherInfo] = React.useState(null);
   const [userSettings, setUserSettings] =  React.useState(defaultUserSettings);
 
   const loginValidStates = loginValid;
   let settingsTimeoutId = null;   // Used to manage of the settings calls to the server
   let settingsRequestId = 0;        // Used to prevent sending multiple requests to server
   let curLoggedIn = loggedIn;
+
+  /**
+   * Performs pos-login actions
+   * @function
+   * @param {string} token The login token to use
+   */
+  const loginAfterActions = React.useCallback((token) => {
+    loadCollections(token);
+    loadSandbox(token);
+    loadLocations(token);
+    loadSpecies(token);
+    loadOtherSpecies(token);
+  }, [loadCollections, loadLocations, loadOtherSpecies, loadSandbox, loadSpecies]);
 
   // TODO: change dependencies to Theme & use @media to adjust
   // Sets the narrow flag when the window is less than 600 pixels
@@ -198,7 +213,7 @@ export default function Home() {
         loginUserToken(lastLoginToken,
           () => {setCheckedToken(true);
                  // Load collections
-                 window.setTimeout(() => {loadCollections(lastLoginToken);loadSandbox(lastLoginToken);loadLocations(lastLoginToken);loadSpecies(lastLoginToken);}, 500);
+                 window.setTimeout(() => loginAfterActions(lastLoginToken), 500);
                 },
           () => {
             loginStore.clearLoginToken()
@@ -227,7 +242,7 @@ export default function Home() {
         setDbRemember(loInfo.remember === 'true');
       }
     }
-  }, [checkedToken, curLoggedIn, loadCollections, loadSandbox, loadLocations, loadSpecies, loginUserToken, savedTokenFetched, savedLoginFetched]);
+  }, [checkedToken, curLoggedIn, loginAfterActions, loginUserToken, savedTokenFetched, savedLoginFetched]);
 
   /**
    * Calculates the sizes of the window, header, footer, and workspace area (not used by header or footer)
@@ -452,6 +467,7 @@ export default function Home() {
           })
         .then((respData) => {
           // Save response data
+          console.log('HACK: SPECIES',respData);
           setLoadingSpecies(false);
           const curSpecies = respData.sort((first, second) => first.name.localeCompare(second.name, undefined, { sensitivity: "base" }));
           setSpeciesInfo(curSpecies);
@@ -462,9 +478,54 @@ export default function Home() {
           setLoadingSpecies(false);
       });
     } catch (error) {
-      console.log('Species Error: ',error);
+      console.log('Unknown Species Error: ',error);
       addMessage(Level.Error, 'An unknown problem ocurred while fetching species');
       setLoadingSpecies(false);
+    }
+  }
+
+  /**
+   * Fetches the un-official species from the server
+   * @function
+   * @param {string} token The login token to use
+   * @param {int} {retries} The number of times the request has been attempted (don't specify on initial call)
+   */
+  function loadOtherSpecies(token, retries) {
+    const cur_token = token || lastToken;
+    const cur_retries = retries || 0;
+    setLoadingOtherSpecies(true);
+    const othersUrl =  serverURL + '/speciesOther?t=' + encodeURIComponent(cur_token)
+    try {
+      const resp = fetch(othersUrl, {
+        method: 'GET'
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to get additional species: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+          // Save response data
+          console.log('HACK: OTHER SPECIES',respData);
+          if (respData && respData.length > 0) {
+            setLoadingOtherSpecies(false);
+            setSpeciesOtherInfo(respData);
+          } else if (cur_retries < 5) {
+            window.setTimeout(() => loadOtherSpecies(token, cur_retries+1), (cur_retries+1) * 3000);
+          } else {
+            setLoadingOtherSpecies(false);
+          }
+        })
+        .catch((err) => {
+          console.log('Other Species Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while fetching additional species');
+          setLoadingOtherSpecies(false);
+      });
+    } catch (error) {
+      console.log('Unknown Other Species Error: ',error);
+      addMessage(Level.Error, 'An unknown problem ocurred while fetching additional species');
+      setLoadingOtherSpecies(false);
     }
   }
 
@@ -580,7 +641,7 @@ export default function Home() {
    * @param {string} password The user's associated password
    * @param {boolean} remember Set to a truthy value to indicate saving non-sensitive login information
    */
-  function handleLogin(url, user, password, remember) {
+  const handleLogin = React.useCallback((url, user, password, remember) => {
     setDbUser(user);
     setDbURL(url);
     setDbRemember(remember);
@@ -600,13 +661,13 @@ export default function Home() {
           loginStore.clearLoginInfo();
         }
         // Load collections
-        window.setTimeout(() => {loadCollections(new_token);loadSandbox(new_token);loadLocations(new_token);loadSpecies(new_token);}, 500);
+        window.setTimeout(() => loginAfterActions(new_token), 500);
       }, () => {
         // If log in fails
         addMessage(Level.Warn, 'Unable to log in. Please check your username and password before trying again', 'Login Failure');
       });
     }
-  }
+  }, [addMessage, Level, loginAfterActions, LoginCheck, loginStore, loginUser, setDbRemember, setDbUser, setDbURL, setLoginValid]);
 
   /**
    * Logs the user out
@@ -620,6 +681,7 @@ export default function Home() {
     setLocationInfo(null);
     setLoggedIn(false);
     setLoginValid(DefaultLoginValid);
+    setSpeciesOtherInfo(null);
     setSandboxInfo(null);
     setSpeciesInfo(null);
     setLastToken(null);
@@ -1086,7 +1148,9 @@ export default function Home() {
                 <CollectionsInfoContext.Provider value={collectionInfo}>
                   <LocationsInfoContext.Provider value={locationInfo}>
                     <SpeciesInfoContext.Provider value={speciesInfo}>
+                    <SpeciesOtherNamesContext.Provider value={speciesOtherInfo}>
                       <Queries loadingCollections={loadingCollections}  />
+                    </SpeciesOtherNamesContext.Provider>
                     </SpeciesInfoContext.Provider>
                   </LocationsInfoContext.Provider>
                 </CollectionsInfoContext.Provider>

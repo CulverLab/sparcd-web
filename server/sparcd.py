@@ -96,6 +96,9 @@ TEMP_UPLOAD_STATS_FILE_TIMEOUT_SEC = 1 * 60 * 60
 TEMP_SPECIES_STATS_FILE_NAME_POSTFIX = '-' + SPARCD_PREFIX + 'species-stats.json'
 TEMP_SPECIES_STATS_FILE_TIMEOUT_SEC = 12 * 60 * 60
 
+# Name of temporary upload stats file
+TEMP_OTHER_SPECIES_FILE_NAME_POSTFIX = '-' + SPARCD_PREFIX + 'other-species.json'
+
 # UI definitions for serving
 DEFAULT_TEMPLATE_PAGE = 'index.html'
 
@@ -613,11 +616,88 @@ def species_stats():
             if stats is not None:
                 sdfu.save_timed_info(stats_temp_filename, stats)
 
+                # Remove the unofficial species file so that if can be recreated
+                otherspecies_temp_filename = os.path.join(tempfile.gettempdir(),  \
+                                            hash2str(s3_url) +TEMP_OTHER_SPECIES_FILE_NAME_POSTFIX)
+                if os.path.exists(otherspecies_temp_filename):
+                    os.unlink(otherspecies_temp_filename)
+
     if stats is None:
         return "Not Found", 404
 
-    return json.dumps([[key, value] for key, value in stats.items() if key \
+    return json.dumps([[key, value['count']] for key, value in stats.items() if key \
                                                                     not in SPECIES_STATS_EXCLUDE])
+
+
+@app.route('/speciesOther', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def species_other():
+    """ Returns the species that are not part of the official set
+    Arguments:
+        token - the token to check for
+    Return:
+        Returns the found unofficial species
+    """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('SPECIES OTHER', request, flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
+                                                                            SESSION_EXPIRE_SECONDS)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+
+    # Check if we have the unofficial species already
+    # The temporary file expires after 30 days, it will get regenerated when species load again
+    otherspecies_temp_filename = os.path.join(tempfile.gettempdir(), hash2str(s3_url) + \
+                                                            TEMP_OTHER_SPECIES_FILE_NAME_POSTFIX)
+    others = sdfu.load_timed_info(otherspecies_temp_filename, 30 *24 * 60 * 60)
+    if others:
+        return json.dumps(others)
+
+    # Check if we have the stats needed to regenerate the unofficial species
+    stats_temp_filename = os.path.join(tempfile.gettempdir(), hash2str(s3_url) + \
+                                                            TEMP_SPECIES_STATS_FILE_NAME_POSTFIX)
+    cur_stats = sdfu.load_timed_info(stats_temp_filename, TEMP_SPECIES_STATS_FILE_TIMEOUT_SEC)
+    if cur_stats is None:
+        return json.dumps([])
+
+    # Get the official species
+    cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME,
+                                            hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
+                                            s3_url, user_info.name, lambda: get_password(token, db))
+    if not cur_species:
+        return json.dumps([])
+
+    # For each species in the official list, we mark that species
+    for one_species in cur_species:
+        if one_species['name'] in cur_stats:
+            cur_stats[one_species['name']]['count'] = -22
+
+    # Collect the unofficial species names by filtering out our matches
+    other_species = [{'name':one_key, 'scientificName':cur_stats[one_key]['scientificName']} \
+                                    for one_key in cur_stats if cur_stats[one_key]['count'] != -22]
+
+    sdfu.save_timed_info(otherspecies_temp_filename, other_species)
+
+    return json.dumps(other_species)
 
 
 @app.route('/uploadImages', methods = ['POST'])

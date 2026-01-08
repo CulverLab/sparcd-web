@@ -31,7 +31,8 @@ import { FilterYearFormData } from './queries/FilterYear';
 import * as utils from './utils';
 
 import { Level } from './components/Messages';
-import { AddMessageContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, TokenContext, UserSettingsContext } from './serverInfo';
+import { AddMessageContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, SpeciesOtherNamesContext,
+         TokenContext, UserSettingsContext } from './serverInfo';
 
 /**
  * Provides the UI for queries
@@ -50,6 +51,7 @@ export default function Queries({loadingCollections}) {
   const locationItems = React.useContext(LocationsInfoContext); // Locations
   const queryToken = React.useContext(TokenContext);  // Login token
   const speciesItems = React.useContext(SpeciesInfoContext);  // Species
+  const speciesOtherItems = React.useContext(SpeciesOtherNamesContext); // Unofficial species
   const uiSizes = React.useContext(SizeContext);  // UI Dimensions
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
   const [activeTab, setActiveTab] = React.useState(0);
@@ -69,6 +71,8 @@ export default function Queries({loadingCollections}) {
   const [workspaceWidth, setWorkspaceWidth] = React.useState(640);  // Default value is recalculated at display time
 
   let activeQuery = null;
+
+  let mergedSpecies = React.useMemo(() => [].concat(speciesItems).concat(speciesOtherItems), [speciesItems,speciesOtherItems]);
 
   /**
    * Updates fields when a new tab is selected for display
@@ -203,7 +207,7 @@ export default function Queries({loadingCollections}) {
       const filter = queryFilters[filterIdx];
       switch(filter.type) {
         case 'Species Filter':
-          FilterSpeciesFormData(filter.data, formData, speciesItems);
+          FilterSpeciesFormData(filter.data, formData, mergedSpecies);
           break;
         case 'Location Filter':
           FilterLocationsFormData(filter.data, formData, locationItems);
