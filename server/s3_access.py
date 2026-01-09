@@ -1002,9 +1002,8 @@ class S3Connection:
                 coll_info: the collection information to save
         """
         collections_path = 'Collections'
-        base_path = make_s3_path((collections_path, bucket[len(SPARCD_PREFIX):]))
-
-        coll_info_path = make_s3_path((base_path, COLLECTION_JSON_FILE_NAME))
+        coll_info_path = make_s3_path((collections_path, bucket[len(SPARCD_PREFIX):], \
+                                                                    COLLECTION_JSON_FILE_NAME))
 
         # Upload the data making sure to only update what's expected
         S3Connection.upload_file_data(url, user, password, bucket, coll_info_path,
@@ -1031,9 +1030,8 @@ class S3Connection:
                 perm_info: the tuple of permissions information
         """
         collections_path = 'Collections'
-        base_path = make_s3_path((collections_path, bucket[len(SPARCD_PREFIX):]))
-
-        perms_info_path = make_s3_path((base_path, PERMISSIONS_JSON_FILE_NAME))
+        perms_info_path = make_s3_path((collections_path, bucket[len(SPARCD_PREFIX):], \
+                                                                        PERMISSIONS_JSON_FILE_NAME))
 
         # Upload the data making sure to only update what's expected
         S3Connection.upload_file_data(url, user, password, bucket, perms_info_path,

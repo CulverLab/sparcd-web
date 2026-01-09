@@ -1,0 +1,14 @@
+[
+  {
+    "usernameProperty": "smalusa",
+    "readProperty": true,
+    "uploadProperty": true,
+    "ownerProperty": true
+  },
+  {
+    "usernameProperty": "schnaufer",
+    "readProperty": true,
+    "uploadProperty": true,
+    "ownerProperty": true
+  }
+]

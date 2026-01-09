@@ -1,0 +1,24 @@
+{
+  "uploadUser": "schnaufer",
+  "uploadDate": {
+    "date": {
+      "year": 2025,
+      "month": 12,
+      "day": 22
+    },
+    "time": {
+      "hour": 12,
+      "minute": 21,
+      "second": 22,
+      "nano": 895451000
+    }
+  },
+  "imagesWithSpecies": 3,
+  "imageCount": 3,
+  "editComments": [
+    "Edited by schnaufer on 2026.01.07.13.25.21"
+  ],
+  "bucket": "sparcd-ffffffff-ffff-ffff-ffff-ffffffffffff",
+  "uploadPath": "Collections/ffffffff-ffff-ffff-ffff-ffffffffffff/Uploads/2026.01.06.13.09.23_schnaufer",
+  "description": "Testing upload"
+}

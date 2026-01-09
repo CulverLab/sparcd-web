@@ -20,13 +20,14 @@ def __get_s3_updown_test_data(bucket: str, upload: str) -> tuple:
     coll_name = bucket[len(s3_access.SPARCD_PREFIX):]
     return [
                 {'path': ['Collections', coll_name, 'data.json'],
-                  'value': json.dumps({"bucketProperty": "sparcd-test-data",
-                              "nameProperty": "Automated Testing Data",
-                              "organizationProperty": "UA Wild Cat Research and Conservation",
-                              "contactInfoProperty": "smalusa@arizona.edu",
-                              "descriptionProperty": "Collection ID # \ntest-data",
-                              "idProperty": "test-data"
-                            }, indent=2),
+                  'value': json.dumps({
+                    "bucketProperty": "sparcd-ffffffff-ffff-ffff-ffff-ffffffffffff",
+                    "nameProperty": "ZZZ Automated Testing Data",
+                    "organizationProperty": "UA Wild Cat Research and Conservation",
+                    "contactInfoProperty": "smalusa@arizona.edu",
+                    "descriptionProperty": "Collection ID # \nffffffff-ffff-ffff-ffff-ffffffffffff",
+                    "idProperty": "ffffffff-ffff-ffff-ffff-ffffffffffff"
+                    }, indent=2),
                   'content_type': 'application/json',
                   'value_is_path': False,
                 }, {
@@ -48,14 +49,14 @@ def __get_s3_expected_coll_data() -> tuple:
     """
     return tuple([
           {
-            "bucketProperty": "sparcd-automated-test",
-            "nameProperty": "Automated Testing Data",
+            "bucketProperty": "sparcd-ffffffff-ffff-ffff-ffff-ffffffffffff",
+            "nameProperty": "ZZZ Automated Testing Data",
             "organizationProperty": "UA Wild Cat Research and Conservation",
             "contactInfoProperty": "smalusa@arizona.edu",
-            "descriptionProperty": "Collection ID # \nautomated-test",
-            "idProperty": "automated-test",
-            "bucket": "sparcd-automated-test",
-            "base_path": "Collections/automated-test",
+            "descriptionProperty": "Collection ID # \nffffffff-ffff-ffff-ffff-ffffffffffff",
+            "idProperty": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+            "bucket": "sparcd-ffffffff-ffff-ffff-ffff-ffffffffffff",
+            "base_path": "Collections/ffffffff-ffff-ffff-ffff-ffffffffffff",
             "permissions": {
               "usernameProperty": "schnaufer",
               "readProperty": True,
@@ -84,14 +85,14 @@ def __get_s3_updated_coll_data() -> tuple:
     """
     return tuple([
           {
-            "bucketProperty": "sparcd-automated-test",
-            "nameProperty": "Automated Testing Data",
+            "bucketProperty": "sparcd-ffffffff-ffff-ffff-ffff-ffffffffffff",
+            "nameProperty": "ZZZ Automated Testing Data",
             "organizationProperty": "UA Wild Cat Research and Conservation",
             "contactInfoProperty": "smalusa@arizona.edu",
-            "descriptionProperty": "Collection ID # \nautomated-test",
-            "idProperty": "automated-test",
-            "bucket": "sparcd-automated-test",
-            "base_path": "Collections/automated-test",
+            "descriptionProperty": "Collection ID # \nffffffff-ffff-ffff-ffff-ffffffffffff",
+            "idProperty": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+            "bucket": "sparcd-ffffffff-ffff-ffff-ffff-ffffffffffff",
+            "base_path": "Collections/ffffffff-ffff-ffff-ffff-ffffffffffff",
             "permissions": {
               "usernameProperty": "schnaufer",
               "readProperty": True,
@@ -114,8 +115,9 @@ def __get_s3_updated_coll_data() -> tuple:
             ],
             "uploads": [
               {
-                "path": "Collections/automated-test/Uploads/2025.12.22.12.21.22_schnaufer/",
-                "info": {
+                "path": "Collections/ffffffff-ffff-ffff-ffff-ffffffffffff/Uploads/2026.01.06.13.09.23_schnaufer/",
+                "info": 
+                {
                   "uploadUser": "schnaufer",
                   "uploadDate": {
                     "date": {
@@ -133,17 +135,17 @@ def __get_s3_updated_coll_data() -> tuple:
                   "imagesWithSpecies": 3,
                   "imageCount": 3,
                   "editComments": [
-                    "Edited by schnaufer on 2026.11.20.20.13.21"
+                    "Edited by schnaufer on 2026.01.07.13.25.21"
                   ],
-                  "bucket": "sparcd-automated-test",
-                  "uploadPath": "Collections/automated-test/Uploads/2025.12.22.12.21.22_schnaufer",
+                  "bucket": "sparcd-ffffffff-ffff-ffff-ffff-ffffffffffff",
+                  "uploadPath": "Collections/ffffffff-ffff-ffff-ffff-ffffffffffff/Uploads/2026.01.06.13.09.23_schnaufer",
                   "description": "Testing upload"
                 },
                 "location": "HUA37",
                 "elevation": "2632.000000",
-                "key": "2025.12.22.12.21.22_schnaufer",
+                "key": "2026.01.06.13.09.23_schnaufer",
                 "uploaded_folders": [
-                  "444HCOIM"
+                  "DCIM112"
                 ]
               }
             ]
@@ -153,12 +155,12 @@ def __get_s3_updated_coll_data() -> tuple:
 def __get_s3_upload_expected_image_folders() -> tuple:
     """ Returns a tuple of expected image folders for the uploads
     """
-    return ('444HCOIM',)
+    return ('DCIM112',)
 
 def __get_dl_file_names() -> tuple:
     """ Returns a tuple of file names for downloading
     """
-    return ('444HCOIM/NSCF----_250816105104_0001.JPG',)
+    return ('DCIM112/NSCF----_250816105104_0001.JPG',)
 
 
 @pytest.fixture(scope='session')
@@ -246,7 +248,7 @@ def test_put_s3_file(s3_endpoint, s3_name, s3_secret, s3_test_bucket, s3_test_up
 
 
 # pylint: disable=redefined-outer-name
-def test_gut_s3_file(s3_endpoint, s3_name, s3_secret, s3_test_bucket, s3_test_upload) -> None:
+def test_get_s3_file(s3_endpoint, s3_name, s3_secret, s3_test_bucket, s3_test_upload) -> None:
     """ Tests getting files non-binary from the S3 test bucket
     """
     assert s3_endpoint is not None
@@ -399,6 +401,8 @@ def test_update_user_collections(s3_endpoint, s3_name, s3_secret, s3_test_bucket
         print(f'test_update_user_collections: Testing bucket \"{one_expected["bucket"]}\"',
                                                                                         flush=True)
         assert one_expected['bucket'] in colls_dict
+        print('HACK: EXPECTED:',one_expected, flush=True)
+        print('HACK: HAVE    :',colls_dict[one_expected['bucket']], flush=True)
         assert one_expected == colls_dict[one_expected['bucket']]
 
 
