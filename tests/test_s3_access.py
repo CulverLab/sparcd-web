@@ -795,7 +795,21 @@ def test_update_upload_metadata_with_comment(s3_endpoint, s3_name, s3_secret, s3
     assert s3_test_upload is not None
 
     coll_name = s3_test_bucket[len(s3_access.SPARCD_PREFIX):]
-    upload_path = s3_access.make_s3_path(("Collections", coll_name, "Uploads", s3_test_upload))
+
+    # Create our upload folder
+    comment = "Automated testing to add comment to metadata"
+    image_count = 10
+    timestamp = datetime.datetime(2102, 6, 16, hour=13, minute=14, second=15,
+                                                                    tzinfo=datetime.timezone.utc)
+    created_upload_name = timestamp.strftime('%Y.%m.%d.%H.%M.%S') + '_' + s3_name
+    print(f'test_update_upload_metadata_with_comment: Creating testing upload ' \
+                                        f'{created_upload_name} in {s3_test_bucket}', flush=True)
+
+    s3_access.S3Connection.create_upload(s3_endpoint, s3_name, s3_secret, coll_name, comment,
+                                                                            timestamp, image_count)
+
+    # Get the upload path
+    upload_path = s3_access.make_s3_path(("Collections", coll_name, "Uploads", created_upload_name))
     comment = "Testing updating a upload metadata comment"
 
     # Make the call
@@ -816,13 +830,15 @@ def test_update_upload_metadata_with_comment(s3_endpoint, s3_name, s3_secret, s3
         res = s3_access.get_s3_file(minio, s3_test_bucket, remote_path, temp_file[1])
         res = json.loads(res)
 
-        local_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'original_data',
-                                                    s3_access.S3_UPLOAD_META_JSON_FILE_NAME)
-        # Restore the upload metadata
-        s3_access.put_s3_file(minio, s3_test_bucket, remote_path, local_path,
-                                                                    content_type='application/json')
+        # Clean up the upload folder and everything under it
+        minio.remove_object(s3_test_bucket, upload_path)
 
-        assert res['description'] == comment
+        found = False
+        for one_comment in res['editComments']:
+            if one_comment == comment:
+                found = True
+
+        assert found == True
     finally:
         if os.path.exists(temp_file[1]):
             os.unlink(temp_file[1])
@@ -881,7 +897,23 @@ def test_update_upload_metadata_with_count_comment(s3_endpoint, s3_name, s3_secr
     assert s3_test_upload is not None
 
     coll_name = s3_test_bucket[len(s3_access.SPARCD_PREFIX):]
-    upload_path = s3_access.make_s3_path(("Collections", coll_name, "Uploads", s3_test_upload))
+
+    # Create our upload folder
+    comment = "Automated testing adding comment and changing counts"
+    image_count = 10
+    timestamp = datetime.datetime(2103, 6, 16, hour=13, minute=14, second=15,
+                                                                    tzinfo=datetime.timezone.utc)
+    created_upload_name = timestamp.strftime('%Y.%m.%d.%H.%M.%S') + '_' + s3_name
+    print(f'test_update_upload_metadata_with_count_comment: Creating testing upload ' \
+                                        f'{created_upload_name} in {s3_test_bucket}', flush=True)
+
+    s3_access.S3Connection.create_upload(s3_endpoint, s3_name, s3_secret, coll_name, comment,
+                                                                            timestamp, image_count)
+
+    # Get the upload path
+    upload_path = s3_access.make_s3_path(("Collections", coll_name, "Uploads", created_upload_name))
+
+    # Initialize testing variables
     new_count = int(datetime.datetime.now().timestamp())
     comment = "Testing another update of an upload metadata comment"
 
@@ -903,14 +935,16 @@ def test_update_upload_metadata_with_count_comment(s3_endpoint, s3_name, s3_secr
         res = s3_access.get_s3_file(minio, s3_test_bucket, remote_path, temp_file[1])
         res = json.loads(res)
 
-        local_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'original_data',
-                                                    s3_access.S3_UPLOAD_META_JSON_FILE_NAME)
-        # Restore the upload metadata
-        s3_access.put_s3_file(minio, s3_test_bucket, remote_path, local_path,
-                                                                    content_type='application/json')
+        # Clean up the upload folder and everything under it
+        minio.remove_object(s3_test_bucket, upload_path)
+
+        found = False
+        for one_comment in res['editComments']:
+            if one_comment == comment:
+                found = True
 
         assert res['imagesWithSpecies'] == new_count
-        assert res['description'] == comment
+        assert found == True
     finally:
         if os.path.exists(temp_file[1]):
             os.unlink(temp_file[1])
