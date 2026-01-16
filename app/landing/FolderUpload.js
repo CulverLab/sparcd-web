@@ -574,9 +574,23 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
       formData.append('location', locationSelection.idProperty);
       formData.append('path', uploadPath);
       formData.append('comment', comment);
-      formData.append('files', JSON.stringify(newUploadFiles.map((item) => item.webkitRelativePath)));
       formData.append('ts', new Date().toISOString());
       formData.append('tz', Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+      // Break the upload into pieces if it's too large
+      if (newUploadFiles.length < 5000) {
+        formData.append('files', JSON.stringify(newUploadFiles.map((item) => item.webkitRelativePath)));
+      } else {
+        formData.append('files', JSON.stringify(newUploadFiles.slice(0,5000).map((item) => item.webkitRelativePath)));
+        let index = 1;
+        let start = 5000;
+        while (start < newUploadFiles.length) {
+          let end = Math.min(start + 5000, newUploadFiles.length);
+          formData.append('files'+index, JSON.stringify(newUploadFiles.slice(start,end).map((item) => item.webkitRelativePath)));
+          start += 5000;
+          index += 1;
+        };
+      }
 
       try {
         const resp = fetch(sandboxNewUrl, {

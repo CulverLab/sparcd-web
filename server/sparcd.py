@@ -1474,6 +1474,21 @@ def sandbox_new():
         print('ERROR: Unable to load file list JSON', ex, flush=True)
         return "Not Found", 406
 
+    # Check if we have additional files to upload
+    req_index = 1
+    while True:
+        more_files = request.form.get('files' + str(req_index), None)
+        if not more_files:
+            break
+
+        req_index += 1
+        try:
+            more_files = json.loads(more_files)
+            all_files = all_files + more_files
+        except json.JSONDecodeError as ex:
+            print('ERROR: Unable to load file list JSON', ex, flush=True)
+            return "Not Found", 406
+
     # Create the upload location
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
     client_ts = datetime.datetime.fromisoformat(timestamp).astimezone(dateutil.tz.gettz(timezone))
