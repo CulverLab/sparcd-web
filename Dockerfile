@@ -55,6 +55,7 @@ COPY ./requirements.txt ./
 RUN apk update
 RUN apk add python3 py-pip
 RUN apk add gdal
+RUN apk add ffmpeg
 RUN apk add gdal-dev && \
     apk add python3-dev && \
     apk add gcc g++ && \
