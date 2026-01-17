@@ -38,9 +38,10 @@ import styles from './page.module.css'
  */
 export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploadReload}) {
   const theme = useTheme();
+  const imageEditRef = React.useRef(null); // Used to signal the ImageEdit child control about a keypress
+  const navigationIndicatorTimerId = React.useRef(null); // Used to manage navigation indicator timeout IDs
   const sidebarSpeciesRef = React.useRef(null); // Used for sizeing
   const sidebarTopRef = React.useRef(null);     // Used for sizeing
-  const navigationIndicatorTimerId = React.useRef(null); // Used to manage navigation indicator timeout IDs
   const editingStates = React.useMemo(() => {return({'none':0, 'listImages':2, 'editImage': 3}) }, []); // Different states of this page
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const curUpload = React.useContext(UploadEditContext);
@@ -390,10 +391,18 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
    */
   const onKeypress = React.useCallback((event) => {
     if (curEditState === editingStates.editImage) {
-      if (event.key !== 'Meta') {
+      if (!event.altKey && !event.ctrlKey && !event.metaKey) {
         if (event.key === 'ArrowLeft') {
+          // Notify the ImageEdit child to reset its zoom, et al
+          if (imageEditRef.current) {
+            imageEditRef.current.resetZoom();
+          }
           handlePrevImage(curImageModified);
         } else if (event.key === 'ArrowRight') {
+          // Notify the ImageEdit child to reset its zoom, et al
+          if (imageEditRef.current) {
+            imageEditRef.current.resetZoom();
+          }
           handleNextImage(curImageModified);
         } else if (!event.altKey && !event.ctrlKey) {
           const speciesKeyItem = speciesItems.find((item) => item.keyBinding == event.key.toUpperCase());
@@ -404,13 +413,17 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
             event.preventDefault();
 
             if (userSettings.autonext) {
+              // Notify the ImageEdit child to reset its zoom, et al
+              if (imageEditRef.current) {
+                imageEditRef.current.resetZoom();
+              }
               handleNextImage(true, requestId);
             }
           }
         }
       }
     }
-  }, [curEditState, editingStates, finishImageEdits, handleNextImage, handlePrevImage, handleSpeciesAdd, setLastSpeciesRequestId, speciesItems, userSettings]);
+  }, [curEditState, editingStates, finishImageEdits, handleNextImage, handlePrevImage, handleSpeciesAdd, imageEditRef, setLastSpeciesRequestId, speciesItems, userSettings]);
 
   // Handling keypress events when adding a species to an image
   React.useEffect(() => {
@@ -1060,6 +1073,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                        dropable={true}
                        navigation={{onPrev:handlePrevImage,onNext:handleNextImage}}
                        species={curImageEdit.species}
+                       ref={imageEditRef}
                        onSpeciesChange={(speciesName, speciesCount) => {
                                                           const requestId = Date.now();
                                                           setLastSpeciesRequestId(requestId);

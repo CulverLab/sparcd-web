@@ -156,6 +156,10 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
           defaultValue={null}
           getOptionLabel={(option) => option.idProperty}
           getOptionKey={(option) => option.idProperty+option.latProperty+option.lngProperty}
+          filterOptions={(options, { inputValue }) => options.filter((item) => 
+                                                        item.idProperty.toLowerCase().includes(inputValue.toLowerCase()) ||
+                                                            item.nameProperty.toLowerCase().includes(inputValue.toLowerCase()) )
+                        }
           renderOption={(props, loc) => {
             const { key, ...optionProps } = props;
             return (
