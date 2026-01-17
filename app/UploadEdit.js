@@ -391,7 +391,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
    */
   const onKeypress = React.useCallback((event) => {
     if (curEditState === editingStates.editImage) {
-      if (event.key !== 'Meta') {
+      if (!event.altKey && !event.ctrlKey && !event.metaKey) {
         if (event.key === 'ArrowLeft') {
           // Notify the ImageEdit child to reset its zoom, et al
           if (imageEditRef.current) {
