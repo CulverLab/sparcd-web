@@ -39,6 +39,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
   const collectionsItems = React.useContext(CollectionsInfoContext);
   const narrowWindow = React.useContext(NarrowWindowContext);
   const uiSizes = React.useContext(SizeContext);
+  const [editingUploadMask, setEditingUploadMask] = React.useState(false);
   const [expandedUpload, setExpandedUpload] = React.useState(false);
   const [searchIsSetup, setSearchIsSetup] = React.useState(false);
   const [selectionIndex, setSelectionIndex] = React.useState(-1);
@@ -105,6 +106,17 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
 
     return false;
   }, [collectionsItems, searchSetup]);
+
+  /**
+   * Handle the user wanting to edit an upload
+   * @function
+   */
+  const handleUploadEdit = React.useCallback((curCollectionId, itemKey) => {
+    setEditingUploadMask(true);
+    window.setTimeout(() => {
+        onEditUpload(curCollectionId, itemKey, "Collections");
+    }, 200);
+  }, [onEditUpload, setEditingUploadMask]);
 
   /**
    * Returns a function that will set the expanded panel name for Accordian panels
@@ -277,7 +289,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                                     </Grid>
                                     <Grid sx={{marginLeft:'auto'}}>
                                       <Tooltip title="Edit this upload">
-                                        <IconButton aria-label="Edit this upload" onClick={() => onEditUpload(curCollection.id, item.key, "Collections")}>
+                                        <IconButton aria-label="Edit this upload" onClick={() => handleUploadEdit(curCollection.id, item.key)}>
                                           <BorderColorOutlinedIcon fontSize="small"/>
                                         </IconButton>
                                       </Tooltip>
@@ -350,6 +362,20 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                   <Typography gutterBottom variant="body2" color="lightgrey">
                     This may take a while
                   </Typography>
+              </Grid>
+            </div>
+          </Grid>
+      }
+      { editingUploadMask && 
+          <Grid id="waiting-edit-upload-wrapper" container direction="row" alignItems="center" justifyContent="center" 
+                sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
+          >
+            <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
+              <Grid container direction="column" alignItems="center" justifyContent="center" >
+                  <Typography gutterBottom variant="body2" color="lightgrey">
+                    Preparing to edit uploaded images
+                  </Typography>
+                  <CircularProgress variant="indeterminate" />
               </Grid>
             </div>
           </Grid>
