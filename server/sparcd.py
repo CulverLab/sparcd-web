@@ -1615,10 +1615,13 @@ def sandbox_file():
                 print('Warning: Unable to update sandbox file with the location: ' \
                         f'{request.files[one_file].filename} with upload_id {upload_id}'
                      , flush=True)
+                return None, 205
 
         # Check if we need to convert the file to another format
+        remote_name = request.files[one_file].filename
         if file_ext.lower() == '.mov':
             mp4_filename = os.path.splitext(temp_file[1])[0] + '.mp4'
+            remote_name = os.path.splitext(remote_name)[0] + '.mp4'
             try:
                 video_clip = VideoFileClip(temp_file[1])
                 video_clip.write_videofile(mp4_filename,
@@ -1637,7 +1640,7 @@ def sandbox_file():
         # Upload the file to S3
         S3Connection.upload_file(s3_url, user_info.name,
                                         get_password(token, db), s3_bucket,
-                                        s3_path + '/' + request.files[one_file].filename,
+                                        s3_path + '/' + remote_name,
                                         upload_file)
 
         # Update the database entry to show the file is uploaded
