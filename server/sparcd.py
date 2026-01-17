@@ -1615,7 +1615,7 @@ def sandbox_file():
                 print('Warning: Unable to update sandbox file with the location: ' \
                         f'{request.files[one_file].filename} with upload_id {upload_id}'
                      , flush=True)
-                return None, 205
+                return f'Unable to update location in image: {request.files[one_file].filename}',205
 
         # Check if we need to convert the file to another format
         remote_name = request.files[one_file].filename
