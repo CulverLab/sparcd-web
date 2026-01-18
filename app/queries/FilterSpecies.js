@@ -42,7 +42,7 @@ export default function FilterSpecies({data, parentId, onClose, onChange}) {
   const speciesItems = React.useContext(SpeciesInfoContext);
   const speciesOtherNames = React.useContext(SpeciesOtherNamesContext);
   const mergedSpecies = React.useMemo(() => speciesItems.map((item) => { return {...item, ...{defaultChecked:true}};}).concat(
-                                                        speciesOtherNames.map((item) => {return {...item, ...{defaultChecked:false}};}) ), 
+                                                        (speciesOtherNames ? speciesOtherNames : []).map((item) => {return {...item, ...{defaultChecked:false}};}) ), 
                                         [speciesItems, speciesOtherNames]); // Consistant view of data
   const [displayedSpecies, setDisplayedSpecies] = React.useState(mergedSpecies); // The visible species
   const [listHeight, setListHeight] = React.useState(200);
