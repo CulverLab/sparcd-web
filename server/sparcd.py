@@ -530,7 +530,6 @@ def sandbox():
 
     # Get the collections to fill in the return data (from the DB only - no S3 connection info)
     all_collections = sdc.load_collections(db, hash2str(s3_url), bool(user_info.admin))
-    print('HACK:',not not all_collections, len(sandbox_items), user_info.url, flush=True)
 
     # Get the sandbox collection regardless if we were able to load collections
     return_sandbox = sdu.get_sandbox_collections(s3_url, user_info.name,
