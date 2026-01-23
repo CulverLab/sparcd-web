@@ -14,8 +14,8 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { AddMessageContext, LocationsInfoContext, NarrowWindowContext, SizeContext, SpeciesInfoContext, TokenContext, 
-          UploadEditContext, UserSettingsContext } from './serverInfo';
+import { AddMessageContext, ExpiredTokenFuncContext, LocationsInfoContext, NarrowWindowContext, SizeContext, 
+          SpeciesInfoContext, TokenContext, UploadEditContext, UserSettingsContext } from './serverInfo';
 import ImageEdit from './ImageEdit';
 import ImageTile from './components/ImageTile';
 import { Level } from './components/Messages';
@@ -48,6 +48,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
   const editToken = React.useContext(TokenContext);  // Login token
   const locationItems = React.useContext(LocationsInfoContext);
   const narrowWindow = React.useContext(NarrowWindowContext);
+  const setExpiredToken = React.useContext(ExpiredTokenFuncContext);
   const speciesItems = React.useContext(SpeciesInfoContext);
   const uiSizes = React.useContext(SizeContext);
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
@@ -165,6 +166,10 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to update image species: ${resp.status}`, {cause:resp});
             }
           })
@@ -448,21 +453,26 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
         const resp = fetch(checkChangesUrl, {
           method: 'POST',
           body: formData
-        }).then(async (resp) => {
-              if (resp.ok) {
-                return resp.json();
-              } else {
-                throw new Error(`Failed to check for update server changes: ${resp.status}`, {cause:resp});
+        })
+        .then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
               }
-            })
-          .then((respData) => {
-            setChangesMade(respData.changesMade);
-            setHavePreviousChanges(respData.changesMade);
-            setCheckedServerChanges(true);
-          })
-          .catch(function(err) {
-            console.log('Check Changes Error: ', err);
-            addMessage(Level.Error, 'A problem ocurred while checking for server upload changes');
+              throw new Error(`Failed to check for update server changes: ${resp.status}`, {cause:resp});
+            }
+        })
+        .then((respData) => {
+          setChangesMade(respData.changesMade);
+          setHavePreviousChanges(respData.changesMade);
+          setCheckedServerChanges(true);
+        })
+        .catch(function(err) {
+          console.log('Check Changes Error: ', err);
+          addMessage(Level.Error, 'A problem ocurred while checking for server upload changes');
         });
       } catch (error) {
         console.log('Check Changes Unknown Error: ', err);
@@ -544,6 +554,10 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
               if (resp.ok) {
                 return resp.json();
               } else {
+                if (resp.status === 401) {
+                  // User needs to log in again
+                  setExpiredToken();
+                }
                 throw new Error(`Failed to upload location: ${resp.status}`, {cause:resp});
               }
             })
@@ -653,6 +667,10 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to update species keybind: ${resp.status}`, {cause:resp});
             }
           })
@@ -733,6 +751,10 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to finish all image editing changes: ${resp.status}`, {cause:resp});
             }
           })
@@ -827,6 +849,10 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to update image with editing changes: ${resp.status}`, {cause:resp});
             }
           })
@@ -893,6 +919,10 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
               if (resp.ok) {
                 return resp.json();
               } else {
+                if (resp.status === 401) {
+                  // User needs to log in again
+                  setExpiredToken();
+                }
                 throw new Error(`Failed to get location information: ${resp.status}`, {cause:resp});
               }
             })

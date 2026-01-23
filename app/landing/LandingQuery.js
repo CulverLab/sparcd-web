@@ -15,8 +15,7 @@ import { useTheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
-import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext,
-        TokenContext } from '../serverInfo';
+import { BaseURLContext, ExpiredTokenFuncContext, TokenContext } from '../serverInfo';
 
 /**
  * Returns the UI for queries on the Landing page
@@ -25,6 +24,7 @@ import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, SandboxInf
  */
 export default function LandingQuery() {
   const theme = useTheme();
+  const setExpiredToken = React.useContext(ExpiredTokenFuncContext);
   const serverURL = React.useContext(BaseURLContext);
   const queryToken = React.useContext(TokenContext);
   const [animalsNums,setAnimalsNums] = React.useState(null);
@@ -43,6 +43,10 @@ export default function LandingQuery() {
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to get species statistics: ${resp.status}`, {cause:resp});
             }
           })

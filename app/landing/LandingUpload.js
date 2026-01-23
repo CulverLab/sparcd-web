@@ -15,8 +15,8 @@ import { useTheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
-import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, 
-         TokenContext } from '../serverInfo';
+import { BaseURLContext, CollectionsInfoContext, ExpiredTokenFuncContext, MobileDeviceContext, 
+         SandboxInfoContext, TokenContext } from '../serverInfo';
 
 /**
  * Returns the UI for uploads on the Landing page
@@ -29,6 +29,7 @@ export default function LandingUpload({loadingSandbox, onChange}) {
   const theme = useTheme();
   const curSandboxInfo = React.useContext(SandboxInfoContext);
   const mobileDevice = React.useContext(MobileDeviceContext);
+  const setExpiredToken = React.useContext(ExpiredTokenFuncContext);
   const serverURL = React.useContext(BaseURLContext);
   const uploadToken = React.useContext(TokenContext);
   const [numPrevUploads, setNumPrevUploads] = React.useState(null);
@@ -49,6 +50,10 @@ export default function LandingUpload({loadingSandbox, onChange}) {
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to get upload statistics: ${resp.status}`, {cause:resp});
             }
           })

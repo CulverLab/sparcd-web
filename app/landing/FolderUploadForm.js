@@ -16,7 +16,7 @@ import { allTimezones, useTimezoneSelect } from "react-timezone-select";
 
 import LocationItem from '../components/LocationItem'
 import { meters2feet } from '../utils';
-import { BaseURLContext, TokenContext } from '../serverInfo';
+import { BaseURLContext, ExpiredTokenFuncContext, TokenContext } from '../serverInfo';
 
 /**
  * Renders the UI for user provided details when uploading files
@@ -34,6 +34,7 @@ import { BaseURLContext, TokenContext } from '../serverInfo';
 export default function FolderUploadForm({displayCoordSystem, measurementFormat, collectionInfo, locationItems, onCollectionChange,
                                           onCommentChange, onLocationChange, onTimezoneChange}) {
   const theme = useTheme();
+  const setExpiredToken = React.useContext(ExpiredTokenFuncContext);
   const serverURL = React.useContext(BaseURLContext);
   const uploadToken = React.useContext(TokenContext);
   const { options, parseTimezone } = useTimezoneSelect({ labelStyle:'altName', allTimezones });
@@ -69,6 +70,10 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
               if (resp.ok) {
                 return resp.json();
               } else {
+                if (resp.status === 401) {
+                  // User needs to log in again
+                  setExpiredToken();
+                }
                 throw new Error(`Failed to get location information: ${resp.status}`, {cause:resp});
               }
             })

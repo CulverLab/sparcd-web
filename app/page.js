@@ -23,9 +23,9 @@ import UploadManage from './UploadManage';
 import UploadEdit from './UploadEdit';
 import UserActions from './components/userActions';
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin';
-import { AddMessageContext, BaseURLContext, CollectionsInfoContext, LocationsInfoContext, MobileDeviceContext, 
-         NarrowWindowContext, SandboxInfoContext, SizeContext, SpeciesInfoContext, SpeciesOtherNamesContext,
-         TokenContext, UploadEditContext, UserNameContext, UserSettingsContext } from './serverInfo';
+import { AddMessageContext, BaseURLContext, CollectionsInfoContext, ExpiredTokenFuncContext, LocationsInfoContext, 
+         MobileDeviceContext, NarrowWindowContext, SandboxInfoContext, SizeContext, SpeciesInfoContext, 
+         SpeciesOtherNamesContext, TokenContext, UploadEditContext, UserNameContext, UserSettingsContext } from './serverInfo';
 import * as utils from './utils';
 
 // This is declared here so that it doesn't raise an error on server-side compile
@@ -113,11 +113,27 @@ const loginStore = {
   }
 };
 
+// Events to tap into when detecting if we're idle
+const idleListenEvents = [
+  "mousedown",
+  "mousemove",
+  "wheel",
+  "keydown",
+  "touchstart",
+  "scroll"
+];
+
+const DEFAULT_IDLE_TIMEOUT_SEC =  20 * 60 * 1000; // 20 minutes
+const IDLE_LOGOUT_TIMEOUT_SEC =  2 * 60 * 1000;   // 3 minutes
+
 export default function Home() {
   const DEFAULT_DISPLAY_WIDTH = 800.0;  // Used as default until the window is ready
   const DEFAULT_DISPLAY_HEIGHT = 600.0; // Used as default until the window is ready
   const DEFAULT_HEADER_HEIGHT = 63.0;   // Used as default until the window is ready
   const DEFAULT_FOOTER_HEIGHT = 76.0;   // Used as default until the window is ready
+  const idleTimeoutSecRef = React.useRef(DEFAULT_IDLE_TIMEOUT_SEC);     // Make this server configurable (during login)
+  const idleLogoutTimeoutSecRef = React.useRef(IDLE_LOGOUT_TIMEOUT_SEC);     // Make this server configurable (during login)
+  const idleLastTimestampRef = React.useRef(Date.now());                // The last time detected not being idle
   const defaultUserSettings = {name:'<Zeus>',settings:{},admin:false};
   const [breadcrumbs, setBreadcrumbs] = React.useState([]);
   const [checkedToken, setCheckedToken] = React.useState(false);
@@ -132,6 +148,7 @@ export default function Home() {
   const [displayOwnerSettings, setDisplayOwnerSettings] =  React.useState(false); // Collection owner settings editing
   const [editing, setEditing] = React.useState(false);
   const [isNarrow, setIsNarrow] = React.useState(null);
+  const [lastIdleTimeoutId, setLastIdleTimeoutId] = React.useState(null);   // The last timeout ID we set for checking the idle
   const [lastToken, setLastToken] = React.useState(null);
   const [loadingCollections, setLoadingCollections] = React.useState(false);
   const [loadingLocations, setLoadingLocations] = React.useState(false);
@@ -158,12 +175,65 @@ export default function Home() {
   const [serverURL, setServerURL] = React.useState(utils.getServer());
   const [speciesInfo, setSpeciesInfo] = React.useState(null);
   const [speciesOtherInfo, setSpeciesOtherInfo] = React.useState(null);
+  const [userLoginAgain, setUserLoginAgain] = React.useState(false);      // The user needs to log in again
+  const [userTimedOut, setUserTimedOut] = React.useState(false);          // The user timed out and needs to log in again
   const [userSettings, setUserSettings] =  React.useState(defaultUserSettings);
 
   const loginValidStates = loginValid;
   let settingsTimeoutId = null;   // Used to manage of the settings calls to the server
   let settingsRequestId = 0;        // Used to prevent sending multiple requests to server
   let curLoggedIn = loggedIn;
+
+
+  /**
+   * Handles the idle events
+   * @function
+   */
+  const idleListener = React.useCallback(() => {
+    idleLastTimestampRef.current = Date.now();
+  }, [idleLastTimestampRef]);
+
+
+  /**
+   * Handles checking if the user has been idle for too long
+   * @function
+   */
+  const checkTimeout = React.useCallback(() => {
+    // Get the elapsed time since the user did something
+    const diffSec = (Date.now() - idleLastTimestampRef) / 1000;
+
+    // We idle out if we are at, or exceed, the limit
+    if (diffSec >= idleTimeoutSecRef) {
+      setLastIdleTimeoutId(null);
+      setUserTimedOut(true);
+    } else {
+      // Set the timeout for our remaining seconds
+      setLastIdleTimeoutId(window.setTimeout(checkTimeout, (idleTimeoutSecRef - diffSec) * 1000) );
+    }
+
+  }, [idleLastTimestampRef, idleTimeoutSecRef, setLastIdleTimeoutId, setUserTimedOut]);
+
+  // Setup the idle detection
+//  React.useEffect(() => {
+//    // Adding out listeners
+//    idleListenEvents.forEach((name) => window.addEventListener(name, idleListener, { passive:true } ));
+//
+//    // Start the timer for checking the idle flag (we wait a minimum of the idle timout seconds)
+//    setLastIdleTimeoutId(window.setTimeout(checkTimeout, idleTimeoutSecRef * 1000));
+//
+//
+//    return () => {
+//      // Stop any timeout
+//      if (lastIdleTimeoutId !== null) {
+//        window.clearTimeout(lastIdleTimeoutId);
+//        setLastIdleTimeoutId(null);
+//      }
+//
+//      // Remove our listeners
+//      idleListenEvents.forEach((name) => window.removeEventListener(name, idleListener, { passive:true } ));
+//    }
+//  }, [checkTimeout, idleListener, idleTimeoutSecRef, lastIdleTimeoutId, setLastIdleTimeoutId]);
+
 
   /**
    * Performs pos-login actions
@@ -340,6 +410,10 @@ export default function Home() {
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setUserLoginAgain(true);
+              }
               throw new Error(`Failed to get collections: ${resp.status}`, {cause:resp});
             }
           })
@@ -387,6 +461,10 @@ export default function Home() {
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setUserLoginAgain(true);
+              }
               throw new Error(`Failed to get sandbox: ${resp.status}`, {cause:resp});
             }
           })
@@ -424,6 +502,10 @@ export default function Home() {
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setUserLoginAgain(true);
+              }
               throw new Error(`Failed to get locations: ${resp.status}`, {cause:resp});
             }
           })
@@ -462,6 +544,10 @@ export default function Home() {
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setUserLoginAgain(true);
+              }
               throw new Error(`Failed to get species: ${resp.status}`, {cause:resp});
             }
           })
@@ -502,6 +588,10 @@ export default function Home() {
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setUserLoginAgain(true);
+              }
               throw new Error(`Failed to get additional species: ${resp.status}`, {cause:resp});
             }
           })
@@ -619,6 +709,30 @@ export default function Home() {
     commonLoginUser(formData, onSuccess, onFailure);
   }
 
+  /**
+   * Handles the request to log the user in again
+   * @function
+   */
+  const handleLoginAgain = React.useCallback((username, password) =>{
+    const lastLoginToken = loginStore.loadLoginToken();
+    const formData = new FormData();
+    formData.append('token', lastLoginToken);
+    formData.append('user', username);
+    formData.append('password', password);
+    commonLoginUser(formData,
+          () => {
+            setCheckedToken(true);
+            setUserLoginAgain(false);
+            setUserTimedOut(false);
+            },
+          () => {
+            loginStore.clearLoginToken()
+            setLastToken(null);
+            setCheckedToken(true);
+            handleLogout();
+        });
+  }, [commonLoginUser, handleLogout, setCheckedToken, setLastToken, setUserLoginAgain, setUserTimedOut]);
+
   // For some reason changing this to useCallback() causes the build to fail 
   /**
    * Attempts to login the user with a stored token
@@ -686,6 +800,7 @@ export default function Home() {
     setSpeciesInfo(null);
     setLastToken(null);
     setUserSettings(defaultUserSettings);
+    setBreadcrumbs([]);
     loginStore.clearLoginToken();
   }
 
@@ -713,6 +828,10 @@ export default function Home() {
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setUserLoginAgain(true);
+              }
               throw new Error(`Failed to log in: ${resp.status}`, {cause:resp});
             }
           })
@@ -802,24 +921,6 @@ export default function Home() {
   }, [clearSearch, setCurSearchTitle, setCurSearchHandler]);
 
   /**
-   * Fetches the user's settings from the server
-   * @function
-   */
-  function getUserSettings() {
-    const settingsUrl = serverURL + '/settings';
-    // Get the information on the upload
-    /* TODO: make call and wait for response & return correct result
-             need to handle null, 'invalid', and token values
-    const resp = await fetch(settingsUrl, {
-      'method': 'GET',
-      'data': formData
-    });
-    console.log(resp);
-    S
-    */
-  }
-
-  /**
    * Handles enabling administration editing
    * @function
    * @param {string} pw The password to use to check for permission
@@ -871,6 +972,10 @@ export default function Home() {
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to check admin permissions: ${resp.status}`, {cause:resp});
             }
           })
@@ -918,6 +1023,10 @@ export default function Home() {
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to check owner permissions: ${resp.status}`, {cause:resp});
             }
           })
@@ -967,6 +1076,10 @@ export default function Home() {
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setUserLoginAgain(true);
+              }
               throw new Error(`Failed to set settings: ${resp.status}`, {cause:resp});
             }
           })
@@ -1175,6 +1288,7 @@ export default function Home() {
   return (
     <main style={{...theme.palette.main}}>
       <ThemeProvider theme={theme}>
+        <ExpiredTokenFuncContext.Provider value={() => setUserLoginAgain(true)}>
         <MobileDeviceContext.Provider value={mobileDevice}>
         <NarrowWindowContext.Provider value={narrowWindow}>
         <SizeContext.Provider value={{footer:sizeFooter, title:sizeTitle, window:sizeWindow, workspace:sizeWorkspace}}>
@@ -1240,7 +1354,15 @@ export default function Home() {
                 </CollectionsInfoContext.Provider>
                 </TokenContext.Provider>
           }
-          { // Make sure this is is last
+          { // Needs to be next to last (allow messages to overlay this)
+            (userLoginAgain === true || userTimedOut === true) && 
+              <LoginAgain 
+                      message={userLoginAgain === true ? "Your session has expired. Please log in again" : "You have been away from this site. Please login again"}
+                      timeoutSec={userLoginAgain !== true && userTimedOut === true ? idleLogoutTimeoutSecRef : null}
+                      onLoginAgain={handleLoginAgain}
+              />
+          }
+          { // Make sure this is last
             messages.length > 0 && 
               <Grid id="messages-wrapper" container direction="row" alignItems="start" justifyContent="center"
                     sx={{...theme.palette.messages_wrapper, top: workspaceTop}}>
@@ -1252,6 +1374,7 @@ export default function Home() {
         </SizeContext.Provider>
         </NarrowWindowContext.Provider>
         </MobileDeviceContext.Provider>
+        </ExpiredTokenFuncContext.Provider>
       </ThemeProvider>
     </main>
   )

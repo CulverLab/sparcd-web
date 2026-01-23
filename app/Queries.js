@@ -31,8 +31,8 @@ import { FilterYearFormData } from './queries/FilterYear';
 import * as utils from './utils';
 
 import { Level } from './components/Messages';
-import { AddMessageContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, SpeciesOtherNamesContext,
-         TokenContext, UserSettingsContext } from './serverInfo';
+import { AddMessageContext, ExpiredTokenFuncContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, 
+         SpeciesOtherNamesContext, TokenContext, UserSettingsContext } from './serverInfo';
 
 /**
  * Provides the UI for queries
@@ -50,6 +50,7 @@ export default function Queries({loadingCollections}) {
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const locationItems = React.useContext(LocationsInfoContext); // Locations
   const queryToken = React.useContext(TokenContext);  // Login token
+  const setExpiredToken = React.useContext(ExpiredTokenFuncContext);
   const speciesItems = React.useContext(SpeciesInfoContext);  // Species
   const speciesOtherItems = React.useContext(SpeciesOtherNamesContext); // Unofficial species
   const uiSizes = React.useContext(SizeContext);  // UI Dimensions
@@ -263,42 +264,47 @@ export default function Queries({loadingCollections}) {
       const resp = fetch(queryUrl, {
         method: 'POST',
         body: formData
-      }).then(async (resp) => {
+      })
+      .then(async (resp) => {
           if (resp.ok) {
             return resp.json();
           } else {
+            if (resp.status === 401) {
+              // User needs to log in again
+              setExpiredToken();
+            }
             throw new Error(`Failed to complete query: ${resp.status}`, {cause:resp});
           }
-        })
-        .then((respData) => {
-          // TODO: handle no results
-          console.log('QUERY:',respData);
-          if (activeQuery === queryId && Object.keys(respData).length > 0) {
-            const time_diff_sec = (waitingOnQuery - Date.now()) / 1000.0;
-            if (Math.round(time_diff_sec) < QUERY_RESULTS_SHOW_DELAY_SEC) {
-              setQueryResults(respData);
-              setIsExpanded(false);
-            } else  {
-              window.setTimeout(() => setQueryResults(respData), time_diff_sec * 1000);
-            }
-            activeQuery = null;
-            setWaitingOnQuery(null);
-          } else {
-            if (Object.keys(respData).length <= 0) {
-              addMessage(Level.Information, 'The query returned no results. Please adjust your query and try again');
-            }
-            activeQuery = null;
-            setWaitingOnQuery(null);
+      })
+      .then((respData) => {
+        // TODO: handle no results
+        console.log('QUERY:',respData);
+        if (activeQuery === queryId && Object.keys(respData).length > 0) {
+          const time_diff_sec = (waitingOnQuery - Date.now()) / 1000.0;
+          if (Math.round(time_diff_sec) < QUERY_RESULTS_SHOW_DELAY_SEC) {
+            setQueryResults(respData);
+            setIsExpanded(false);
+          } else  {
+            window.setTimeout(() => setQueryResults(respData), time_diff_sec * 1000);
           }
-        })
-        .catch(function(err) {
-          console.log('CATCH ERROR: ',err);
-          if (activeQuery === queryId) {
-            activeQuery = null;
-            setWaitingOnQuery(null);
-            addMessage(Level.Error, 'An error was detected while executing the query', 'Query Error Detected');
+          activeQuery = null;
+          setWaitingOnQuery(null);
+        } else {
+          if (Object.keys(respData).length <= 0) {
+            addMessage(Level.Information, 'The query returned no results. Please adjust your query and try again');
           }
-        });
+          activeQuery = null;
+          setWaitingOnQuery(null);
+        }
+      })
+      .catch(function(err) {
+        console.log('CATCH ERROR: ',err);
+        if (activeQuery === queryId) {
+          activeQuery = null;
+          setWaitingOnQuery(null);
+          addMessage(Level.Error, 'An error was detected while executing the query', 'Query Error Detected');
+        }
+      });
     } catch (error) {
       console.log('HAVE ERROR:', error);
       if (activeQuery === queryId) {

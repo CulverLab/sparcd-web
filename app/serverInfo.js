@@ -16,6 +16,8 @@ export const AddMessageContext = createContext(false);
 export const BaseURLContext = createContext(null);
 /** React context for Collections information */
 export const CollectionsInfoContext = createContext(null);
+/** React context for when a token has exxired */
+export const ExpiredTokenFuncContext = createContext(null);
 /** React context for locations information */
 export const LocationsInfoContext = createContext(null);
 /** React context for running on a mobile device */

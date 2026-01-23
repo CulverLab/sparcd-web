@@ -657,19 +657,6 @@ def species_stats():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
-
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
 
     # Check if we already have the stats
@@ -706,19 +693,6 @@ def species_other():
     token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
     if token_valid is None or user_info is None:
         return "Not Found", 404
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
@@ -1328,19 +1302,6 @@ def sandbox_stats():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
-
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
 
     # Check if we already have the stats
@@ -1408,19 +1369,6 @@ def sandbox_prev():
     rel_path = request.form.get('path', None)
     if not rel_path:
         return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
 
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
 

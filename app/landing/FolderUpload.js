@@ -29,7 +29,7 @@ import LocationItem from '../components/LocationItem';
 import { meters2feet } from '../utils';
 import ProgressWithLabel from '../components/ProgressWithLabel';
 import { AddMessageContext, AllowedImageMime, AllowedMovieMime, BaseURLContext, CollectionsInfoContext, 
-          LocationsInfoContext,SizeContext, TokenContext, UserSettingsContext } from '../serverInfo';
+          ExpiredTokenFuncContext, LocationsInfoContext,SizeContext, TokenContext, UserSettingsContext } from '../serverInfo';
 
 
 const MAX_FILE_SIZE = 80 * 1000 * 1024; // Number of bytes before a file is too large
@@ -90,6 +90,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const collectionInfo = React.useContext(CollectionsInfoContext);
   const locationItems = React.useContext(LocationsInfoContext);
+  const setExpiredToken = React.useContext(ExpiredTokenFuncContext);
   const serverURL = React.useContext(BaseURLContext);
   const uiSizes = React.useContext(SizeContext);
   const uploadToken = React.useContext(TokenContext);
@@ -155,6 +156,10 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to check upload: ${resp.status}`, {cause:resp});
             }
           })
@@ -207,6 +212,10 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to get failed files for upload: ${resp.status}`, {cause:resp});
             }
           })
@@ -264,6 +273,10 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to get uploaded files count: ${resp.status}`, {cause:resp});
             }
           })
@@ -368,6 +381,10 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to mark upload as completed: ${resp.status}`, {cause:resp});
             }
           })
@@ -451,6 +468,10 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to check upload: ${resp.status}`, {cause:resp});
             }
           })
@@ -798,6 +819,10 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
               if (resp.ok) {
                 return resp.json();
               } else {
+                if (resp.status === 401) {
+                  // User needs to log in again
+                  setExpiredToken();
+                }
                 throw new Error(`Failed to add new sandbox upload: ${resp.status}`, {cause:resp});
               }
             })
@@ -894,6 +919,10 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to reset sandbox upload: ${resp.status}`, {cause:resp});
             }
           })
@@ -942,6 +971,10 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to abandoning sandbox upload: ${resp.status}`, {cause:resp});
             }
           })

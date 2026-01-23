@@ -20,7 +20,7 @@ import PropTypes from 'prop-types';
 
 import EditCollection from './EditCollection';
 import { Level } from './Messages';
-import { AddMessageContext, CollectionsInfoContext, SizeContext, TokenContext } from '../serverInfo';
+import { AddMessageContext, CollectionsInfoContext, ExpiredTokenFuncContext, SizeContext, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
 
 const EditingStates = {
@@ -39,6 +39,7 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
   const theme = useTheme();
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const collectionInfo = React.useContext(CollectionsInfoContext);
+  const setExpiredToken = React.useContext(ExpiredTokenFuncContext);
   const settingsToken = React.useContext(TokenContext);  // Login token
   const uiSizes = React.useContext(SizeContext);  // UI Dimensions
   const panelsWrapperRef = React.useRef(null);  // Used for sizeing
@@ -147,6 +148,10 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to update collection information: ${resp.status}`, {cause:resp});
             }
           })
@@ -195,6 +200,10 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to update changed settings information: ${resp.status}`, {cause:resp});
             }
           })
@@ -227,6 +236,10 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to abandon changed settings information: ${resp.status}`, {cause:resp});
             }
           })
@@ -266,6 +279,10 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
             if (resp.ok) {
               return resp.json();
             } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setExpiredToken();
+              }
               throw new Error(`Failed to get collection details information: ${resp.status}`, {cause:resp});
             }
           })
