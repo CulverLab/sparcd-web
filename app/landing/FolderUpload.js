@@ -29,7 +29,7 @@ import LocationItem from '../components/LocationItem';
 import { meters2feet } from '../utils';
 import ProgressWithLabel from '../components/ProgressWithLabel';
 import { AddMessageContext, AllowedImageMime, AllowedMovieMime, BaseURLContext, CollectionsInfoContext, 
-          DisableIdleCheckFuncContext, ExpiredTokenFuncContext, LocationsInfoContext,SizeContext, TokenContext,
+          DisableIdleCheckFuncContext, TokenExpiredFuncContext, LocationsInfoContext,SizeContext, TokenContext,
           UserSettingsContext } from '../serverInfo';
 
 
@@ -92,7 +92,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
   const collectionInfo = React.useContext(CollectionsInfoContext);
   const disabledIdleCheckFunc = React.useContext(DisableIdleCheckFuncContext);
   const locationItems = React.useContext(LocationsInfoContext);
-  const setExpiredToken = React.useContext(ExpiredTokenFuncContext);
+  const setTokenExpired = React.useContext(TokenExpiredFuncContext);
   const serverURL = React.useContext(BaseURLContext);
   const uiSizes = React.useContext(SizeContext);
   const uploadToken = React.useContext(TokenContext);
@@ -160,7 +160,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to check upload: ${resp.status}`, {cause:resp});
             }
@@ -190,7 +190,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
       });
     } catch (error) {
       console.log('Prev Upload Unknown Error: ',err);
-      addMessage(Level.Error, 'An unkown problem ocurred while preparing for upload');
+      addMessage(Level.Error, 'An unknown problem ocurred while preparing for upload');
     }
   }, [addMessage, serverURL, setContinueUploadInfo, setNewUpload, setNewUploadFiles, setWorkingUploadFiles, setUploadPath, uploadToken]);
 
@@ -216,7 +216,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to get failed files for upload: ${resp.status}`, {cause:resp});
             }
@@ -250,7 +250,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
       });
     } catch (error) {
       console.log('Getting Failed Files For Upload  Unknown Error: ',err);
-      addMessage(Level.Error, 'An unkown problem ocurred while getting failed files for the upload');
+      addMessage(Level.Error, 'An unknown problem ocurred while getting failed files for the upload');
       setUploadState(uploadingState.error);
     }
   }, [addMessage, serverURL, setUploadState, uploadToken]);
@@ -277,7 +277,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to get uploaded files count: ${resp.status}`, {cause:resp});
             }
@@ -351,7 +351,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
       });
     } catch (error) {
       console.log('Upload Images Counts Unknown Error: ',err);
-      addMessage(Level.Error, 'An unkown problem ocurred while checking upload image counts');
+      addMessage(Level.Error, 'An unknown problem ocurred while checking upload image counts');
       setUploadState(uploadingState.error);
       disabledIdleCheckFunc(false);    // Enable checking for idle
     }
@@ -391,7 +391,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to mark upload as completed: ${resp.status}`, {cause:resp});
             }
@@ -411,7 +411,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
       });
     } catch (error) {
       console.log('Upload Images Completed Unknown Error: ',err);
-      addMessage(Level.Error, 'An unkown problem ocurred while completing image upload');
+      addMessage(Level.Error, 'An unknown problem ocurred while completing image upload');
       if (typeof(onFailure) === 'function') {
         onFailure(uploadId);
       }
@@ -478,7 +478,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to check upload: ${resp.status}`, {cause:resp});
             }
@@ -513,7 +513,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
       });
     } catch (error) {
       console.log('Upload Images Unknown Error: ',err);
-      addMessage(Level.Error, 'An unkown problem ocurred while uploading images');
+      addMessage(Level.Error, 'An unknown problem ocurred while uploading images');
     }
   }, [addMessage, options, selectedTimezone, serverURL, setHaveFailedUpload, uploadToken]);
 
@@ -830,7 +830,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
               } else {
                 if (resp.status === 401) {
                   // User needs to log in again
-                  setExpiredToken();
+                  setTokenExpired();
                 }
                 throw new Error(`Failed to add new sandbox upload: ${resp.status}`, {cause:resp});
               }
@@ -847,7 +847,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
       } catch (error) {
         setDisableDetails(false);
         console.log('New Upload Unknown Error: ',err);
-        addMessage(Level.Error, 'An unkown problem ocurred while preparing for new sandbox upload');
+        addMessage(Level.Error, 'An unknown problem ocurred while preparing for new sandbox upload');
       }
     }, 100);
   }, [addMessage, collectionSelection, comment, disableUploadDetails, locationSelection, newUploadFiles, serverURL, setDisableDetails, 
@@ -930,7 +930,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to reset sandbox upload: ${resp.status}`, {cause:resp});
             }
@@ -949,7 +949,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
       });
     } catch (error) {
       console.log('Reset Upload Unknown Error: ',err);
-      addMessage(Level.Error, 'An unkown problem ocurred while preparing for reset sandbox upload');
+      addMessage(Level.Error, 'An unknown problem ocurred while preparing for reset sandbox upload');
     }
   }, [addMessage, continueUploadInfo, disableUploadCheck, Level, prevUploadCheckState, serverURL, setContinueUploadInfo, setPrevUploadCheck,
       setUploadingFileCounts, uploadFolder, uploadToken]);
@@ -982,7 +982,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to abandoning sandbox upload: ${resp.status}`, {cause:resp});
             }
@@ -1005,7 +1005,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
       });
     } catch (error) {
       console.log('Abandon Upload Unknown Error: ',err);
-      addMessage(Level.Error, 'An unkown problem ocurred while preparing for abandoning sandbox upload');
+      addMessage(Level.Error, 'An unknown problem ocurred while preparing for abandoning sandbox upload');
     }
   }, [addMessage, continueUploadInfo, disableUploadCheck, newUploadFiles, onCompleted, prevUploadCheckState, serverURL, setCollectionSelection,
       setComment, setContinueUploadInfo, setLocationSelection, setNewUpload, setPrevUploadCheck, setUploadingFileCounts, uploadToken]);

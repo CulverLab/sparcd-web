@@ -10,6 +10,7 @@ import json
 import os
 import shutil
 import tempfile
+from time import sleep
 import traceback
 from typing import Optional, Callable
 import uuid
@@ -35,7 +36,11 @@ COLLECTION_JSON_FILE_NAME = 'collection.json'
 # Configuration file name for permissions
 PERMISSIONS_JSON_FILE_NAME = 'permissions.json'
 
-# Configuration file name for species
+# Configuration file name for locations (case must match S3)
+LOCATIONS_JSON_FILE_NAME = 'locations.json'
+# Configuration file name for settings (case must match S3)
+SETTINGS_JSON_FILE_NAME = 'settings.json'
+# Configuration file name for species (case must match S3)
 SPECIES_JSON_FILE_NAME = 'species.json'
 
 # CamTrap deployment CSV name on S3
@@ -53,6 +58,8 @@ S3_UPLOADS_PATH_PART = 'Uploads/'
 # The metadata JSON file name for uploads
 S3_UPLOAD_META_JSON_FILE_NAME = 'UploadMeta.json'
 
+# Array of configuration files
+CONFIGURATION_FILES_LIST = [LOCATIONS_JSON_FILE_NAME,SETTINGS_JSON_FILE_NAME,SPECIES_JSON_FILE_NAME]
 
 def make_s3_path(parts: tuple) -> str:
     """ Makes the parts into an S3 path
@@ -163,7 +170,7 @@ def get_uploaded_folders(minio: Minio, bucket: str, upload_path: str) -> tuple:
     upload_path = upload_path.rstrip('/') + '/'
 
     # Get the list of folders under a single upload
-    for one_obj in minio.list_objects(bucket, upload_path):
+    for one_obj in minio.list_objects(bucket, prefix=upload_path):
         if one_obj.is_dir and not one_obj.object_name == upload_path:
             subfolders.append(one_obj.object_name[len(upload_path):].strip('/').strip('\\'))
 
@@ -185,7 +192,7 @@ def update_user_collections(minio: Minio, collections: tuple) -> tuple:
     for one_coll in collections:
         # Get the uploads and their information
         uploads_path = make_s3_path((one_coll['base_path'], S3_UPLOADS_PATH_PART)) + '/'
-        for one_obj in minio.list_objects(one_coll['bucket'], uploads_path):
+        for one_obj in minio.list_objects(one_coll['bucket'], prefix=uploads_path):
             if one_obj.is_dir and not one_obj.object_name == uploads_path:
                 if one_coll['bucket'] not in all_uploads_paths:
                     all_uploads_paths[one_coll['bucket']] = {'bucket':one_coll['bucket'], \
@@ -322,7 +329,7 @@ def get_s3_images(minio: Minio, bucket: str, upload_paths: tuple, need_url: bool
         new_paths = []
 
         for one_path in cur_paths:
-            for one_obj in minio.list_objects(bucket, one_path):
+            for one_obj in minio.list_objects(bucket, prefix=one_path):
                 if one_obj.is_dir:
                     if not one_obj.object_name == one_path:
                         new_paths.append(one_obj.object_name)
@@ -330,8 +337,8 @@ def get_s3_images(minio: Minio, bucket: str, upload_paths: tuple, need_url: bool
                     _, file_name = os.path.split(one_obj.object_name)
                     name, ext = os.path.splitext(file_name)
                     if ext.lower().endswith('.jpg') or ext.lower().endswith('.mp4'):
-                        s3_url = minio.presigned_get_object(bucket, one_obj.object_name) if need_url \
-                                                                                            else None
+                        s3_url = minio.presigned_get_object(bucket, one_obj.object_name) \
+                                                                            if need_url else None
                         images.append({'name':name,
                                        'bucket':bucket, \
                                        's3_path':one_obj.object_name,
@@ -365,6 +372,25 @@ def get_common_name(csv_comment: str) -> Optional[str]:
             common_name = csv_comment[start_index:rindex]
 
     return common_name
+
+
+def find_settings_bucket(minio: Minio) -> Optional[str]:
+    """ Finds the settings bucket at the endpoint
+    Arguments:
+        minio: the minio instance to check
+    Return:
+        Returns the found Minio settings bucket
+    """
+    settings_bucket = None
+
+    if minio.bucket_exists(SETTINGS_BUCKET_LEGACY):
+        return SETTINGS_BUCKET_LEGACY
+
+    for one_bucket in minio.list_buckets():
+        if one_bucket.name.startswith(SETTINGS_BUCKET_PREFIX):
+            settings_bucket = one_bucket.name
+
+    return settings_bucket
 
 
 @dataclasses.dataclass
@@ -629,7 +655,7 @@ class S3Connection:
         # Get the uploads and their information
         coll_uploads = []
         temp_folder = tempfile.mkdtemp(prefix=SPARCD_PREFIX)
-        for one_obj in minio.list_objects(bucket, uploads_path):
+        for one_obj in minio.list_objects(bucket, prefix=uploads_path):
             if one_obj.is_dir and not one_obj.object_name == uploads_path:
                 # Get the data on this upload
                 temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX, dir=temp_folder)
@@ -720,13 +746,9 @@ class S3Connection:
         minio = Minio(url, access_key=user, secret_key=password)
 
         # Find the name of our settings bucket
-        settings_bucket = None
-        for one_bucket in minio.list_buckets():
-            if one_bucket.name == SETTINGS_BUCKET_LEGACY:
-                settings_bucket = one_bucket.name
-                break
-            if one_bucket.name.startswith(SETTINGS_BUCKET_PREFIX):
-                settings_bucket = one_bucket.name
+        settings_bucket = find_settings_bucket(minio)
+        if not settings_bucket:
+            return None
 
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
@@ -756,17 +778,13 @@ class S3Connection:
         minio = Minio(url, access_key=user, secret_key=password)
 
         # Find the name of our settings bucket
-        settings_bucket = None
-        for one_bucket in minio.list_buckets():
-            if one_bucket.name == SETTINGS_BUCKET_LEGACY:
-                settings_bucket = one_bucket.name
-                break
-            if one_bucket.name.startswith(SETTINGS_BUCKET_PREFIX):
-                settings_bucket = one_bucket.name
+        settings_bucket = find_settings_bucket(minio)
+        if not settings_bucket:
+            print(f'Unable to find settings bucket at {url}')
+            return
 
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
-
 
         file_path = make_s3_path((SETTINGS_FOLDER, filename))
         try:
@@ -1138,3 +1156,135 @@ class S3Connection:
 
         os.unlink(temp_file[1])
         return True
+
+    @staticmethod
+    def needs_repair(url: str, user: str, password: str) -> bool:
+        """ Checks if the S3 endpoint needs repair by looking for buckets and
+            certain files
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+        Return:
+            Returns True if the S3 endpoint has collections, or a settings bucket, and is
+            missing configuration files. Also, True will be returned if a settings bucket
+            is missing. False is returned if everything appears to be in order
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        settings_bucket = find_settings_bucket(minio)
+
+        # Set the found count to success in case we don't have a settings bucket
+        found_count = len(CONFIGURATION_FILES_LIST)
+
+        # If we have a settings bucket we want to make sure all expected files are there
+        if settings_bucket is not None:
+            found_count = 0
+            # Check for settings files
+            for one_obj in minio.list_objects(settings_bucket, prefix=SETTINGS_FOLDER):
+                if not one_obj.is_dir:
+                    check_name = os.path.basename(one_obj.object_name)
+                    if check_name.lower() in CONFIGURATION_FILES_LIST:
+                        found_count += 1
+
+        # Try and find any collection bucket
+        have_collection = False
+        for one_bucket in minio.list_buckets():
+            if one_bucket.name.startswith(SPARCD_PREFIX):
+                have_collection = True
+                break
+
+        # If we are missing a settings bucket and we have collections we need to repair
+        # If we don't have all the settings files we need to repair
+        # If we don't have a settings bucket and we don't have and collections and S3 instance
+        #   that wasn't initialized
+        # If we have the correct count of things and we have a settings bucket we have an S3
+        #   instance that was initialized
+        return found_count != len(CONFIGURATION_FILES_LIST) or \
+                                                    (have_collection and settings_bucket is None)
+
+    @staticmethod
+    def check_new_install_possible(url: str, user: str, password: str) -> tuple:
+        """ Checks to see if we can create buckets, upload files, and download files
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+        Return:
+            A tuple with True is returned if the checks pass and False otherwise, and the
+            name of the test bucket if it couldn't be removed
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        tries = 0
+        max_tries = 5
+        created_bucket = None
+        while tries < max_tries:
+            tries += 1
+            try:
+                # Our new bucket name
+                new_bucket = "DELETE-TESTING-" + uuid.uuid4().hex
+
+                # Make sure it's not up there yet
+                if minio.bucket_exists(new_bucket):
+                    continue
+
+                # Try to make the new bucket
+                minio.make_bucket(new_bucket)
+                created_bucket = new_bucket
+                break
+            except S3Error as ex:
+                print('ERROR: Exception caught while checking if we can create a new bucket:' \
+                            f' {tries} of {max_tries} attempts', flush=True)
+                print(f'     : exception code: {ex.code}', flush=True)
+                print(ex, flush=True)
+                sleep(1)
+
+        # If we can't make a new bucket, we're done
+        if created_bucket is None:
+            return False
+
+        # Prepare the temporary file for upload
+        temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+        os.close(temp_file[0])
+        with open(temp_file[1], 'w', encoding="utf-8") as ofile:
+            ofile.write('HERE IS SOME TESTING DATA')
+
+        # Try to upload and download a file
+        try:
+            # Uploading
+            success = False
+            try:
+                put_s3_file(minio, created_bucket, 'testing.txt', temp_file[1])
+                success = True
+            except S3Error as ex:
+                print('ERROR: Unable to put a test file onto the S3 server')
+                print(ex, flush=True)
+
+            # Downloading
+            if success is True:
+                success = get_s3_file(minio, created_bucket, 'testing.txt', temp_file[1]) \
+                                                                                        is not None
+        finally:
+            # Clean up the created files and bucket
+            # Remove any files (there may only be one)
+            try:
+                for one_obj in minio.list_objects(created_bucket, recursive=True):
+                    if not one_obj.is_dir:
+                        minio.remove_object(created_bucket, one_obj.object_name)
+            except S3Error as ex:
+                print(f'ERROR: Unable to remove file from created bucket {one_obj.object_name}',
+                                                                                        flush=True)
+                print(f'     : exception code: {ex.code}', flush=True)
+                print(ex, flush=True)
+
+            # Remove the bucket
+            try:
+                minio.remove_bucket(created_bucket)
+                created_bucket = None
+            except S3Error as ex:
+                print('ERROR: Unable to remove created bucket', flush=True)
+                print(f'     : exception code: {ex.code}', flush=True)
+                print(ex, flush=True)
+
+        return success is True, created_bucket

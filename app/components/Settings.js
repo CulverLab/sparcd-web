@@ -23,7 +23,7 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useTheme } from '@mui/material/styles';
 
 import { Level } from './Messages';
-import { AddMessageContext, CollectionsInfoContext, ExpiredTokenFuncContext, geographicCoordinates, 
+import { AddMessageContext, CollectionsInfoContext, TokenExpiredFuncContext, geographicCoordinates, 
          TokenContext, UserNameContext } from '../serverInfo';
 import * as utils from '../utils';
 
@@ -73,7 +73,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
   const theme = useTheme();
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const collectionsItems = React.useContext(CollectionsInfoContext);
-  const setExpiredToken = React.useContext(ExpiredTokenFuncContext);
+  const setTokenExpired = React.useContext(TokenExpiredFuncContext);
   const settingsToken = React.useContext(TokenContext);  // Login token
   const userName = React.useContext(UserNameContext);
   const passwordRef = React.useRef();
@@ -195,7 +195,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed checked to see if user is an admin: ${resp.status}`, {cause:resp});
             }

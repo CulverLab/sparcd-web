@@ -130,7 +130,7 @@ def __clear_files(minio: Minio, bucket: str, path: str, level: int=0) -> tuple:
         path += '/'
 
     # List through and remove objects
-    for one_obj in minio.list_objects(bucket, path):
+    for one_obj in minio.list_objects(bucket, prefix=path):
         if one_obj.is_dir:
             if not one_obj.object_name == path:
                 new_paths.append(one_obj.object_name)

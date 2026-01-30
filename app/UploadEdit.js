@@ -14,7 +14,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { AddMessageContext, ExpiredTokenFuncContext, LocationsInfoContext, NarrowWindowContext, SizeContext, 
+import { AddMessageContext, TokenExpiredFuncContext, LocationsInfoContext, NarrowWindowContext, SizeContext, 
           SpeciesInfoContext, TokenContext, UploadEditContext, UserSettingsContext } from './serverInfo';
 import ImageEdit from './ImageEdit';
 import ImageTile from './components/ImageTile';
@@ -48,7 +48,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
   const editToken = React.useContext(TokenContext);  // Login token
   const locationItems = React.useContext(LocationsInfoContext);
   const narrowWindow = React.useContext(NarrowWindowContext);
-  const setExpiredToken = React.useContext(ExpiredTokenFuncContext);
+  const setTokenExpired = React.useContext(TokenExpiredFuncContext);
   const speciesItems = React.useContext(SpeciesInfoContext);
   const uiSizes = React.useContext(SizeContext);
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
@@ -168,7 +168,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to update image species: ${resp.status}`, {cause:resp});
             }
@@ -183,7 +183,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
       });
     } catch (err) {
       console.log('Update Species Count Unknown Error: ',err);
-      addMessage(Level.Error, 'An unkown problem ocurred while updating the image species');
+      addMessage(Level.Error, 'An unknown problem ocurred while updating the image species');
     }
   }, [addMessage, curUpload, editToken, serverURL, speciesItems, setCurImageModified]);
 
@@ -460,7 +460,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to check for update server changes: ${resp.status}`, {cause:resp});
             }
@@ -476,7 +476,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
         });
       } catch (error) {
         console.log('Check Changes Unknown Error: ', err);
-        addMessage(Level.Error, 'An unkown problem ocurred checking for server upload changes');
+        addMessage(Level.Error, 'An unknown problem ocurred checking for server upload changes');
       }
     }
   }, [addMessage, changesMade, checkedServerChanges, curUpload, editToken, serverURL, setChangesMade, setCheckedServerChanges]);
@@ -556,7 +556,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
               } else {
                 if (resp.status === 401) {
                   // User needs to log in again
-                  setExpiredToken();
+                  setTokenExpired();
                 }
                 throw new Error(`Failed to upload location: ${resp.status}`, {cause:resp});
               }
@@ -573,7 +573,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
         });
       } catch (error) {
         console.log('Update Location Unknown Error: ',err);
-        addMessage(Level.Error, 'An unkown problem ocurred while updating the collection location');
+        addMessage(Level.Error, 'An unknown problem ocurred while updating the collection location');
         setPendingMessage(null);
       }
     }
@@ -669,7 +669,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to update species keybind: ${resp.status}`, {cause:resp});
             }
@@ -683,7 +683,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
       });
     } catch (error) {
       console.log('Update Location Unknown Error: ',err);
-      addMessage(Level.Error, 'An unkown problem ocurred while updating the keybinding');
+      addMessage(Level.Error, 'An unknown problem ocurred while updating the keybinding');
     }
 
     speciesItems[newKeySpeciesIdx].keyBinding = newKey;
@@ -753,7 +753,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to finish all image editing changes: ${resp.status}`, {cause:resp});
             }
@@ -792,7 +792,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
     } catch (err) {
       setPendingMessage(null);
       console.log('Finish Images Edit Commit Unknown Error: ',err);
-      addMessage(Level.Error, 'An unkown problem ocurred while finishing the edited image changes');
+      addMessage(Level.Error, 'An unknown problem ocurred while finishing the edited image changes');
     }
   }, [addMessage, editToken, serverURL]);
 
@@ -851,7 +851,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to update image with editing changes: ${resp.status}`, {cause:resp});
             }
@@ -888,7 +888,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
       });
     } catch (err) {
       console.log('Update Image Edit Commit Complete Error: ',err);
-      failureFunc('An unkown problem ocurred while updating the stored image with these changes');
+      failureFunc('An unknown problem ocurred while updating the stored image with these changes');
     }
   }, [addMessage, editToken, lastSpeciesRequestId, serverURL]);
 
@@ -921,7 +921,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
               } else {
                 if (resp.status === 401) {
                   // User needs to log in again
-                  setExpiredToken();
+                  setTokenExpired();
                 }
                 throw new Error(`Failed to get location information: ${resp.status}`, {cause:resp});
               }

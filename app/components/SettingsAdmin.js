@@ -25,7 +25,7 @@ import EditLocation from './EditLocation';
 import EditSpecies from './EditSpecies';
 import EditUser from './EditUser';
 import { Level } from './Messages';
-import { AddMessageContext, CollectionsInfoContext, ExpiredTokenFuncContext, LocationsInfoContext, 
+import { AddMessageContext, CollectionsInfoContext, TokenExpiredFuncContext, LocationsInfoContext, 
          SizeContext, SpeciesInfoContext, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
 
@@ -58,7 +58,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const collectionInfo = React.useContext(CollectionsInfoContext);
   const locationItems = React.useContext(LocationsInfoContext);
-  const setExpiredToken = React.useContext(ExpiredTokenFuncContext);
+  const setTokenExpired = React.useContext(TokenExpiredFuncContext);
   const settingsToken = React.useContext(TokenContext);  // Login token
   const uiSizes = React.useContext(SizeContext);  // UI Dimensions
   const panelsWrapperRef = React.useRef(null);  // Used for sizeing
@@ -93,7 +93,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
               } else {
                 if (resp.status === 401) {
                   // User needs to log in again
-                  setExpiredToken();
+                  setTokenExpired();
                 }
                 throw new Error(`Failed to update changed settings information: ${resp.status}`, {cause:resp});
               }
@@ -208,7 +208,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to get admin users: ${resp.status}`, {cause:resp});
             }
@@ -244,7 +244,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to get admin species: ${resp.status}`, {cause:resp});
             }
@@ -293,7 +293,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to update collection information: ${resp.status}`, {cause:resp});
             }
@@ -355,7 +355,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to update user information: ${resp.status}`, {cause:resp});
             }
@@ -415,7 +415,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to update species information: ${resp.status}`, {cause:resp});
             }
@@ -504,7 +504,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to update location information: ${resp.status}`, {cause:resp});
             }
@@ -578,7 +578,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to update changed settings information: ${resp.status}`, {cause:resp});
             }
@@ -614,7 +614,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to abandon changed settings information: ${resp.status}`, {cause:resp});
             }
@@ -669,7 +669,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to get collection details information: ${resp.status}`, {cause:resp});
             }
@@ -731,7 +731,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setExpiredToken();
+                setTokenExpired();
               }
               throw new Error(`Failed to get location details information: ${resp.status}`, {cause:resp});
             }

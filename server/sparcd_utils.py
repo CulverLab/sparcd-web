@@ -18,7 +18,7 @@ import image_utils
 import spd_crypt as crypt
 from sparcd_db import SPARCdDatabase
 import sparcd_file_utils as sdfu
-from s3_access import S3Connection, SPARCD_PREFIX, SPECIES_JSON_FILE_NAME
+from s3_access import S3Connection, SPARCD_PREFIX, LOCATIONS_JSON_FILE_NAME, SPECIES_JSON_FILE_NAME
 import s3_utils as s3u
 from text_formatters.coordinate_utils import DEFAULT_UTM_ZONE, deg2utm, deg2utm_code
 
@@ -28,8 +28,6 @@ TIMEOUT_COLLECTIONS_FILE_SEC = 12 * 60 * 60
 TEMP_COLLECTION_FILE_NAME = SPARCD_PREFIX + 'coll.json'
 # Name of temporary species file
 TEMP_LOCATIONS_FILE_NAME = SPARCD_PREFIX + 'locations.json'
-# Configuration file name for locations
-LOCATIONS_JSON_FILE_NAME = 'locations.json'
 
 # Uploads table timeout length
 TIMEOUT_UPLOADS_SEC = 3 * 60 * 60
@@ -698,7 +696,6 @@ def process_upload_changes(s3_url: str, username: str, fetch_password: Callable,
     finally:
         # Remove the downloading folder
         shutil.rmtree(edit_folder)
-        pass
 
     return success_files, failed_files
 

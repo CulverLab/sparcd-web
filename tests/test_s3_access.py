@@ -41,7 +41,7 @@ def __fetch_upload_file_names(url: str, user: str, password: str, bucket: str, u
     while len(search_paths) > 0:
         new_paths = []  # Used to accumulate subfolders
         for one_path in search_paths:
-            for one_obj in minio.list_objects(bucket, one_path):
+            for one_obj in minio.list_objects(bucket, prefix=one_path):
                 if one_obj.is_dir and not one_obj.object_name == one_path:
                     new_paths.append(one_obj.object_name)
                 else:
@@ -88,7 +88,7 @@ def __confirm_delete_configuration_file(filename: str, url: str, user: str, pass
     print(f'__confirm_delete_configuration_file: settings file "{filename}" in {settings_bucket}',
                                                                                         flush=True)
     found = False
-    for one_obj in minio.list_objects(settings_bucket, s3_access.SETTINGS_FOLDER + '/'):
+    for one_obj in minio.list_objects(settings_bucket, prefix=s3_access.SETTINGS_FOLDER + '/'):
         if one_obj.object_name == file_path:
             found = True
             break

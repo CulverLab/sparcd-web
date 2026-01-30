@@ -78,7 +78,7 @@ class SPDSQLite:
         return self._conn is not None
 
     def add_token(self, token: str, user: str, password: str, client_ip: str, user_agent: str, \
-                                                                            s3_url: str) -> None:
+                                                            s3_url: str, s3_id: str) -> None:
         """ Saves the token and associated user information
         Arguments:
             token: the unique token to save
@@ -87,6 +87,7 @@ class SPDSQLite:
             client_ip: the IP address of the client
             user_agent: a user agent value
             s3_url: the URL of the s3 instance
+            s3_id: the ID of the S3 instance
             token_timeout_sec: timeout for cleaning up expired tokens from the table
         """
         # pylint: disable=too-many-arguments, too-many-positional-arguments
@@ -94,9 +95,9 @@ class SPDSQLite:
             raise RuntimeError('Attempting to save tokens to the database before connecting')
 
         cursor = self._conn.cursor()
-        query = 'INSERT INTO tokens(token, name, password, s3_url, timestamp, client_ip, ' \
+        query = 'INSERT INTO tokens(token, name, password, s3_url, s3_id, timestamp, client_ip, ' \
                 'user_agent) VALUES(?,?,?,?,strftime("%s", "now"),?,?)'
-        cursor.execute(query, (token, user, password, s3_url, client_ip, user_agent))
+        cursor.execute(query, (token, user, password, s3_url, s3_id, client_ip, user_agent))
 
         self._conn.commit()
         cursor.close()
@@ -150,7 +151,7 @@ class SPDSQLite:
     def get_user_by_token(self, token: str) -> Optional[tuple]:
         """ Looks up token and user information
         Arguments:
-            The token to lookup
+            token: the token to lookup
         Return:
             A result tuple of the username, email, settings json, species json, have admin
             privileges, s3 url, timestamp, client IP, user agent string, and elapsed seconds on
@@ -161,21 +162,22 @@ class SPDSQLite:
                                     'connecting')
 
         cursor = self._conn.cursor()
-        cursor.execute('WITH ti AS (SELECT token, name, timestamp, client_ip, user_agent,' \
+        cursor.execute('WITH ti AS (SELECT token, name, s3_id, timestamp, client_ip, user_agent,' \
                           '(strftime("%s", "now")-timestamp) AS elapsed_sec, s3_url FROM tokens ' \
-                          'WHERE token=(?)) '\
+                          'WHERE token=?) '\
                        'SELECT u.name, u.email, u.settings, u.species, u.administrator, ' \
                           'ti.s3_url, ti.timestamp, ti.client_ip, ti.user_agent, ti.elapsed_sec ' \
-                          'FROM users u JOIN ti ON u.name = ti.name',
+                          'FROM users u JOIN ti ON u.name = ti.name AND u.s3_id = ti.s3_id',
                     (token,))
         res = cursor.fetchone()
         cursor.close()
 
         return res
 
-    def get_user_by_name(self, username: str) -> Optional[tuple]:
+    def get_user_by_name(self, s3_id: str, username: str) -> Optional[tuple]:
         """ Looks up the specified user
         Arguments:
+            s3_id: the ID of the S3 endpoint
             username: the name of the user to lookup
         Returns:
             A result tuple of the username, email, settings json, species json, and having admin
@@ -186,16 +188,17 @@ class SPDSQLite:
 
         cursor = self._conn.cursor()
         cursor.execute('SELECT name, email, settings, species, administrator FROM users ' \
-                                'WHERE name=(?)', (username,))
+                                'WHERE name=? AND s3_id=?', (username, s3_id))
         res = cursor.fetchone()
         cursor.close()
 
         return res
 
-    def auto_add_user(self, username: str, species: str, email: str=None) -> None:
+    def auto_add_user(self, s3_id: str, username: str, species: str, email: str=None) -> None:
         """ Add a user that doesn't exist. The user received default permissions as defined
             in the DB
         Arguments:
+            s3_id: the ID of the S3 endpoint
             username: the name of the user to add
             species: the species information for the user
             email: the user's email
@@ -205,8 +208,8 @@ class SPDSQLite:
 
         cursor = self._conn.cursor()
         try:
-            cursor.execute('INSERT INTO users(name, email, species) VALUES(?,?,?)',
-                                                                        (username,email,species))
+            cursor.execute('INSERT INTO users(name, email, species, s3_id) VALUES(?,?,?)',
+                                                            (username, email, species, s3_id))
             self._conn.commit()
         except sqlite3.IntegrityError as ex:
             # If the user already exists, we ignore the error and continue
@@ -233,9 +236,10 @@ class SPDSQLite:
 
         return res
 
-    def update_user_settings(self, username: str, settings: str, email: str) -> None:
+    def update_user_settings(self, s3_id:str, username: str, settings: str, email: str) -> None:
         """ Updates the user's settings in the database
         Arguments
+            s3_id: the ID of the S3 endpoint
             username: the name of the user to update
             settings: the new settings to set
             email: the updated email address
@@ -245,8 +249,8 @@ class SPDSQLite:
                                     'connecting')
 
         cursor = self._conn.cursor()
-        cursor.execute('UPDATE users SET settings=(?), email=(?) WHERE name=(?)',
-                                                                        (settings,email,username))
+        cursor.execute('UPDATE users SET settings=?, email=? WHERE name=? and s3_id=?',
+                                                                (settings, email, username, s3_id))
         self._conn.commit()
         cursor.close()
 
@@ -1334,9 +1338,10 @@ class SPDSQLite:
         self._conn.commit()
         cursor.close()
 
-    def save_user_species(self, username: str, species: str) -> None:
+    def save_user_species(self, s3_id: str, username: str, species: str) -> None:
         """ Saves the species entry for the user
         Arguments:
+            s3_id: the ID of the S3 endpoint
             username: the name of the user to update
             species: the species information to save
         """
@@ -1346,7 +1351,8 @@ class SPDSQLite:
 
         # Add the entry to the database
         cursor = self._conn.cursor()
-        cursor.execute('UPDATE users SET species=? WHERE name=?', (species,username))
+        cursor.execute('UPDATE users SET species=? WHERE name=? AND s3_id=?',
+                                                                        (species, username, s3_id))
 
         self._conn.commit()
         cursor.close()
@@ -1401,8 +1407,10 @@ class SPDSQLite:
         return res is not None and len(res) > 0 and int(res[0]) > 0
 
 
-    def get_admin_edit_users(self) -> tuple:
+    def get_admin_edit_users(self, s3_id: str) -> tuple:
         """ Returns the user information for administrative editing
+        Arguments:
+            s3_id: the ID of the S3 endpoint
         Return:
             Returns a tuple of name, email, administrator privileges, and if they were auto-added
             for each user
@@ -1413,7 +1421,8 @@ class SPDSQLite:
 
         # Get the edits
         cursor = self._conn.cursor()
-        cursor.execute('SELECT name, email, administrator, auto_added FROM users ORDER BY name ASC')
+        cursor.execute('SELECT name, email, administrator, auto_added FROM users WHERE s3_id=? ' \
+                                                        'ORDER BY name ASC', (s3_id, ))
 
         res = cursor.fetchall()
         if not res or len(res) < 1:
@@ -1424,30 +1433,10 @@ class SPDSQLite:
 
         return res
 
-    def admin_count(self) -> int:
-        """ Returns the count of administrators in the database
-        Returns:
-            The count of administrators in the database
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to count number of admins from the database '\
-                                                                                'before connecting')
-
-        # Get the edits
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT count(1) FROM users where administrator=1')
-
-        res = cursor.fetchall()
-        cursor.close()
-
-        if not res or len(res) < 1:
-            return 0
-
-        return int(res[0])
-
-    def update_user(self, old_name: str, new_email: str, admin: bool=None) -> None:
+    def update_user(self, s3_id: str, old_name: str, new_email: str, admin: bool=None) -> None:
         """ Updates the user in the database
         Arguments:
+            s3_id: the ID of the S3 endpoint
             old_name: the old user name
             new_email: the new email to set for the user
             admin: if set to True the user as admin privileges, if None this permission is unchanged
@@ -1457,11 +1446,11 @@ class SPDSQLite:
                                     'connecting')
 
         if admin is None:
-            query = 'UPDATE users SET email=? WHERE name=?'
-            params = (new_email, old_name)
+            query = 'UPDATE users SET email=? WHERE name=? AND s3_id=?'
+            params = (new_email, old_name, s3_id)
         else:
-            query = 'UPDATE users SET email=?, administrator=? WHERE name=?'
-            params = (new_email, isinstance(admin, bool) and admin is True, old_name)
+            query = 'UPDATE users SET email=?, administrator=? WHERE name=? AND s3_id=?'
+            params = (new_email, isinstance(admin, bool) and admin is True, old_name, s3_id)
 
         cursor = self._conn.cursor()
         cursor.execute(query, params)
@@ -1489,7 +1478,7 @@ class SPDSQLite:
                                                                                     'connecting')
 
         cursor = self._conn.cursor()
-        cursor.execute('SELECT id FROM users WHERE name=?', (username,))
+        cursor.execute('SELECT id FROM users WHERE name=? AND s3_id=?', (username, s3_id))
 
         res = cursor.fetchall()
         if not res or len(res) < 1:
@@ -1532,7 +1521,7 @@ class SPDSQLite:
                                                                                     'connecting')
 
         cursor = self._conn.cursor()
-        cursor.execute('SELECT id FROM users WHERE name=?', (username,))
+        cursor.execute('SELECT id FROM users WHERE name=? AND s3_id=?', (username, s3_id))
 
         res = cursor.fetchall()
         if not res or len(res) < 1:
@@ -1565,11 +1554,11 @@ class SPDSQLite:
 
         cursor = self._conn.cursor()
 
-        cursor.execute('WITH u AS (SELECT id FROM users WHERE name=?) ' \
+        cursor.execute('WITH u AS (SELECT id FROM users WHERE name=? AND s3_id=?) ' \
                         'SELECT loc_name, loc_id, loc_active, loc_ele, loc_old_lat, loc_old_lng, ' \
                             'loc_new_lat, loc_new_lng FROM admin_location_edits ale, u '\
                         'WHERE ale.s3_id=? AND ale.user_id = u.id AND ale.location_updated = 0 ' \
-                        'ORDER BY timestamp ASC', (username, s3_id))
+                        'ORDER BY timestamp ASC', (username, s3_id, s3_id))
         res = cursor.fetchall()
         cursor.close()
 
@@ -1589,11 +1578,11 @@ class SPDSQLite:
 
         cursor = self._conn.cursor()
 
-        cursor.execute('WITH u AS (SELECT id FROM users WHERE name=?) ' \
+        cursor.execute('WITH u AS (SELECT id FROM users WHERE name=? AND s3_id=?) ' \
                         'SELECT old_scientific_name, new_scientific_name, name, keybind, iconURL '\
                         'FROM admin_species_edits ase, u ' \
                         'WHERE ase.s3_id=? AND ase.user_id = u.id AND ase.s3_updated = 0 ' \
-                        'ORDER BY timestamp ASC', (username, s3_id))
+                        'ORDER BY timestamp ASC', (username, s3_id, s3_id))
         res = cursor.fetchall()
         cursor.close()
 
@@ -1612,10 +1601,10 @@ class SPDSQLite:
                                                                     'database before connecting')
 
         cursor = self._conn.cursor()
-        cursor.execute('WITH u AS (SELECT id FROM users WHERE name=?) ' \
+        cursor.execute('WITH u AS (SELECT id FROM users WHERE name=? AND s3_id=?) ' \
                         'SELECT count(1) FROM admin_location_edits ale, u ' \
                         'WHERE ale.s3_id=? AND ale.user_id = u.id AND ale.location_updated = 0',
-                                                                                (username, s3_id))
+                                                                        (username, s3_id, s3_id))
         res = cursor.fetchone()
         cursor.close()
 
@@ -1634,10 +1623,10 @@ class SPDSQLite:
             raise RuntimeError('Attempting to get administrative species change counts from the '\
                                                                     'database before connecting')
         cursor = self._conn.cursor()
-        cursor.execute('WITH u AS (SELECT id FROM users WHERE name=?) ' \
+        cursor.execute('WITH u AS (SELECT id FROM users WHERE name=? AND s3_id=?) ' \
                         'SELECT count(1) FROM admin_species_edits ase, u ' \
                         'WHERE ase.s3_id=? AND ase.user_id = u.id AND ase.s3_updated = 0',
-                            (username, s3_id))
+                                                                        (username, s3_id, s3_id))
         res = cursor.fetchone()
         cursor.close()
 
@@ -1655,8 +1644,8 @@ class SPDSQLite:
 
         cursor = self._conn.cursor()
         query = 'UPDATE admin_location_edits SET location_updated = 1 WHERE s3_id=? ' \
-                    'AND user_id IN (SELECT id FROM users WHERE name=?)'
-        cursor.execute(query, (s3_id, username))
+                    'AND user_id IN (SELECT id FROM users WHERE name=? AND s3_id=?)'
+        cursor.execute(query, (s3_id, username, s3_id))
 
         self._conn.commit()
         cursor.close()
@@ -1673,8 +1662,8 @@ class SPDSQLite:
 
         cursor = self._conn.cursor()
         query = 'UPDATE admin_species_edits SET s3_updated = 1 WHERE s3_id=? AND user_id in ' \
-                    '(SELECT id FROM users where name=?)'
-        cursor.execute(query, (s3_id, username))
+                    '(SELECT id FROM users where name=? AND s3_id=?)'
+        cursor.execute(query, (s3_id, username, s3_id))
 
         self._conn.commit()
         cursor.close()
@@ -1927,3 +1916,28 @@ class SPDSQLite:
 
         self._conn.commit()
         cursor.close()
+
+    def count_admin(self, s3_id: str) -> int:
+        """ Counts the number of administrators found in the database for the S3 endpoint
+        Arguments:
+            s3_id: the ID of the S3 endpoint
+        Return:
+            Returns the number of found administrators
+        Notes:
+            This only counts the number of known administrators in the database and has no bearing
+            on what permissions are granted on the S3 instance
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to release a named lock in the database before ' \
+                                                                                    'connecting')
+
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT count(1) FROM users WHERE s3_id=? AND administrator=1', (s3_id, ))
+
+        res = cursor.fetchone()
+        cursor.close()
+
+        if not res or len(res) < 1:
+            return 0
+
+        return int(res[0])

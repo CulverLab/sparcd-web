@@ -31,7 +31,7 @@ import { FilterYearFormData } from './queries/FilterYear';
 import * as utils from './utils';
 
 import { Level } from './components/Messages';
-import { AddMessageContext, ExpiredTokenFuncContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, 
+import { AddMessageContext, TokenExpiredFuncContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, 
          SpeciesOtherNamesContext, TokenContext, UserSettingsContext } from './serverInfo';
 
 /**
@@ -50,7 +50,7 @@ export default function Queries({loadingCollections}) {
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const locationItems = React.useContext(LocationsInfoContext); // Locations
   const queryToken = React.useContext(TokenContext);  // Login token
-  const setExpiredToken = React.useContext(ExpiredTokenFuncContext);
+  const setTokenExpired = React.useContext(TokenExpiredFuncContext);
   const speciesItems = React.useContext(SpeciesInfoContext);  // Species
   const speciesOtherItems = React.useContext(SpeciesOtherNamesContext); // Unofficial species
   const uiSizes = React.useContext(SizeContext);  // UI Dimensions
@@ -271,7 +271,7 @@ export default function Queries({loadingCollections}) {
           } else {
             if (resp.status === 401) {
               // User needs to log in again
-              setExpiredToken();
+              setTokenExpired();
             }
             throw new Error(`Failed to complete query: ${resp.status}`, {cause:resp});
           }

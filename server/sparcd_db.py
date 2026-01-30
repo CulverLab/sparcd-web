@@ -58,7 +58,8 @@ class SPARCdDatabase:
         return self._db.is_connected()
 
     def add_token(self, token: str, user: str, password: str, client_ip: str,
-                                user_agent: str, s3_url: str, token_timeout_sec: int=None) -> None:
+                                user_agent: str, s3_url: str, s3_id: str,
+                                token_timeout_sec: int=None) -> None:
         """ Saves the token and associated user information
         Arguments:
             token: the unique token to save
@@ -67,10 +68,11 @@ class SPARCdDatabase:
             client_ip: the IP address of the client
             user_agent: a user agent value
             s3_url: the URL of the s3 instance
+            s3_id: the id of the s3 instance
             token_timeout_sec: timeout for cleaning up expired tokens from the table
         """
         # pylint: disable=too-many-arguments, too-many-positional-arguments
-        self._db.add_token(token, user, password, client_ip, user_agent, s3_url)
+        self._db.add_token(token, user, password, client_ip, user_agent, s3_url, s3_id)
 
         self._db.clean_expired_tokens(user, token_timeout_sec)
 
@@ -112,14 +114,15 @@ class SPARCdDatabase:
 
         return None, None
 
-    def get_user(self, username: str) -> Optional[UserInfo]:
+    def get_user(self, s3_id: str, username: str) -> Optional[UserInfo]:
         """ Looks up the specified user
         Arguments:
+            s3_id: the ID of the S3 endpoint
             username: the name of the user to lookup
         Returns:
             A dict containing the user's name, email, settings, and admin level.
         """
-        res = self._db.get_user_by_name(username)
+        res = self._db.get_user_by_name(s3_id, username)
 
         if res and len(res) >= 4:
             user_info = UserInfo(res[0], res[4])  # Name and admin
@@ -130,10 +133,12 @@ class SPARCdDatabase:
 
         return None
 
-    def auto_add_user(self, username: str, species: str, email: str=None) -> Optional[UserInfo]:
+    def auto_add_user(self, s3_id: str, username: str, species: str, \
+                                                            email: str=None) -> Optional[UserInfo]:
         """ Add a user that doesn't exist. The user received default permissions as defined
             in the DB
         Arguments:
+            s3_id: the ID of the S3 endpoint
             username: the name of the user to add
             species: the species information for the user
             email: the user's email
@@ -144,8 +149,8 @@ class SPARCdDatabase:
             already exists in the database - however, the user's email won't be updated if the
             user already exists.
         """
-        self._db.auto_add_user(username, species, email)
-        return self.get_user(username)
+        self._db.auto_add_user(s3_id, username, species, email)
+        return self.get_user(s3_id, username)
 
     def get_password(self, token: str) -> str:
         """ Returns the password associated with the token
@@ -161,14 +166,15 @@ class SPARCdDatabase:
 
         return ''
 
-    def update_user_settings(self, username: str, settings: str, email: str) -> None:
+    def update_user_settings(self, s3_id: str, username: str, settings: str, email: str) -> None:
         """ Updates the user's settings in the database
         Arguments
+            s3_id: the ID of the S3 endpoint
             username: the name of the user to update
             settings: the new settings to set
             email: the updated email address
         """
-        self._db.update_user_settings(username, settings, email)
+        self._db.update_user_settings(s3_id, username, settings, email)
 
     def get_sandbox(self, s3_id: str) -> Optional[tuple]:
         """ Returns the sandbox items
@@ -495,13 +501,14 @@ class SPARCdDatabase:
         self._db.add_image_species_edit(s3_id, bucket, file_path, username,  timestamp, common,
                                         species, count, request_id)
 
-    def save_user_species(self, username: str, species: str) -> None:
+    def save_user_species(self, s3_id: str, username: str, species: str) -> None:
         """ Saves the species entry for the user
         Arguments:
+            s3_id: the ID to the S3 instance
             username: the name of the user to update
             species: the species information to save
         """
-        self._db.save_user_species(username, species)
+        self._db.save_user_species(s3_id, username, species)
 
     def get_image_species_edits(self, s3_id: str, bucket: str, upload_path: str) -> dict:
         """ Returns all the saved edits for this bucket and upload path
@@ -539,29 +546,25 @@ class SPARCdDatabase:
         """
         return self._db.have_upload_changes(s3_id, bucket, upload_name)
 
-    def get_admin_edit_users(self) -> tuple:
+    def get_admin_edit_users(self, s3_id: str) -> tuple:
         """ Returns the user information for administrative editing
+        Arguments:
+            s3_id: the ID to the S3 instance
         Return:
             Returns a tuple of name, email, administrator privileges, and if they were auto-added
             for each user
         """
-        return self._db.get_admin_edit_users()
+        return self._db.get_admin_edit_users(s3_id)
 
-    def admin_count(self) -> int:
-        """ Returns the count of administrators in the database
-        Returns:
-            The count of administrators in the database
-        """
-        return self._db.admin_count()
-
-    def update_user(self, old_name: str, new_email: str, admin: bool=None) -> None:
+    def update_user(self, s3_id: str, old_name: str, new_email: str, admin: bool=None) -> None:
         """ Updates the user in the database
         Arguments:
+            s3_id: the ID to the S3 instance
             old_name: the old user name
             new_email: the new email to set for the user
             admin: if set to True the user as admin privileges, if None this permission is unchanged
         """
-        self._db.update_user(old_name, new_email, admin)
+        self._db.update_user(s3_id, old_name, new_email, admin)
 
     def update_species(self, s3_id: str, username: str, old_scientific: str, new_scientific: str, \
                                         new_name: str, new_keybind: str, new_icon_url: str) -> bool:
@@ -1002,3 +1005,13 @@ class SPARCdDatabase:
             return json.loads(image_data[0])
         except json.JSONDecodeError:
             return None
+
+    def have_any_known_admin(self, s3_id: str) -> bool:
+        """ Returns whether or not any administrators are known to the database
+        Arguments:
+            s3_id: the unique ID of the S3 instance
+        Return:
+            Returns True if there are known administrators for this S3 endpoint and False
+            otherwise
+        """
+        return self._db.count_admin(s3_id) > 0

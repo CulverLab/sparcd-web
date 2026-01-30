@@ -15,6 +15,7 @@ import Login from './Login';
 import LoginAgain from './components/LoginAgain';
 import { Level, makeMessage, Messages } from './components/Messages';
 import Maps from './Maps';
+import NewInstallation from './components/NewInstallation';
 import Queries from './Queries';
 import SettingsAdmin from './components/SettingsAdmin';
 import SettingsOwner from './components/SettingsOwner';
@@ -24,7 +25,7 @@ import UploadManage from './UploadManage';
 import UploadEdit from './UploadEdit';
 import UserActions from './components/userActions';
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin';
-import { AddMessageContext, BaseURLContext, CollectionsInfoContext, DisableIdleCheckFuncContext, ExpiredTokenFuncContext, 
+import { AddMessageContext, BaseURLContext, CollectionsInfoContext, DisableIdleCheckFuncContext, TokenExpiredFuncContext, 
          LocationsInfoContext, MobileDeviceContext, NarrowWindowContext, SandboxInfoContext, SizeContext, SpeciesInfoContext, 
          SpeciesOtherNamesContext, TokenContext, UploadEditContext, UserNameContext, UserSettingsContext } from './serverInfo';
 import * as utils from './utils';
@@ -126,6 +127,7 @@ const idleListenEvents = [
 
 const DEFAULT_IDLE_TIMEOUT_SEC =  20 * 60; // 20 minutes
 const IDLE_LOGOUT_TIMEOUT_SEC =  2 * 60;   // 3 minutes
+const IDLE_NEW_INSTALL_TIMEOUT_SEC =  2 * 60; // 2 minutes
 
 export default function Home() {
   const DEFAULT_DISPLAY_WIDTH = 800.0;  // Used as default until the window is ready
@@ -141,6 +143,7 @@ export default function Home() {
   const [checkForIdle, setCheckForIdle] = React.useState(true);   // Flag to enable/disable checking for the user being idle
   const [checkedToken, setCheckedToken] = React.useState(false);
   const [collectionInfo, setCollectionInfo] = React.useState(null);
+  const [createNewInstance, setCreateNewInstance] = React.useState(true);  // Flag used to create a new instance of SPARCd HACK: should be false
   const [curSearchTitle, setCurSearchTitle] = React.useState(null);
   const [curAction, setCurAction] = React.useState(UserActions.None);
   const [curActionData, setCurActionData] = React.useState(null);
@@ -320,15 +323,21 @@ export default function Home() {
       // TODO: UI indication while logging in (throbber?)
 
       // Try to log user in
-      loginUser(url, user, password, (new_token) => {
+      loginUser(url, user, password, (newToken, newInstance) => {
         // If log in successful then...
         if (remember === true) {
           loginStore.saveLoginInfo(url, user, remember);
         } else {
           loginStore.clearLoginInfo();
         }
-        // Load collections
-        window.setTimeout(() => loginAfterActions(new_token), 500);
+        // Load collections if it's not a new instance
+        if (!newInstance) {
+          window.setTimeout(() => loginAfterActions(newToken), 500);
+        } else {
+          // Indicate we have a new instance
+          setCreateNewInstance(true);
+          idleTimeoutSecRef.current = IDLE_NEW_INSTALL_TIMEOUT_SEC;
+        }
       }, () => {
         // If log in fails
         addMessage(Level.Warn, 'Unable to log in. Please check your username and password before trying again', 'Login Failure');
@@ -741,6 +750,8 @@ export default function Home() {
             }
           })
         .then((respData) => {
+            // First check that we have a successful return
+          if (respData.success === true) {
             // Save token and set status
             const loginToken = respData['value'];
             loginStore.saveLoginToken(loginToken);
@@ -764,8 +775,12 @@ export default function Home() {
             setLoggedIn(true);
             setLastToken(loginToken);
             if (onSuccess && typeof(onSuccess) === 'function') {
-              onSuccess(loginToken);
+              onSuccess(loginToken, respData['newInstance']);
+            } else if (respData['newInstance']) {
+              // Indicate we have a new instance
+              setCreateNewInstance(true);
             }
+          }
         })
         .catch(function(err) {
           console.log('Error: ',err);
@@ -1101,7 +1116,7 @@ export default function Home() {
       });
     } catch (error) {
       console.log('Settings Unknown Error: ',err);
-      addMessage(Level.Error, 'An unkown problem ocurred while saving your settings');
+      addMessage(Level.Error, 'An unknown problem ocurred while saving your settings');
     }
   }, [addMessage, lastToken, serverURL, setUserSettings, userSettings]);
 
@@ -1167,6 +1182,16 @@ export default function Home() {
       idleLastTimestampRef.current = Date.now();
     }
   }, [checkForIdleRef, idleLastTimestampRef, setCheckForIdle]);
+
+  /**
+   * Handles when creating a new instance of SPARCd is cancelled
+   * @function
+   */
+  const handleCancelNewInstallation = React.useCallback(() => {
+    idleTimeoutSecRef.current = DEFAULT_IDLE_TIMEOUT_SEC;
+    setCreateNewInstance(false);
+    handleLogout();
+  }, [handleLogout, idleTimeoutSecRef, setCreateNewInstance]);
 
   // Get mobile device information if we don't have it yet
   if (typeof window !== 'undefined') {
@@ -1305,13 +1330,13 @@ export default function Home() {
     <main style={{...theme.palette.main}}>
       <ThemeProvider theme={theme}>
         <DisableIdleCheckFuncContext.Provider value={handleDisableIdleCheck}>
-        <ExpiredTokenFuncContext.Provider value={() => setUserLoginAgain(true)}>
+        <TokenExpiredFuncContext.Provider value={() => setUserLoginAgain(true)}>
         <MobileDeviceContext.Provider value={mobileDevice}>
         <NarrowWindowContext.Provider value={narrowWindow}>
         <SizeContext.Provider value={{footer:sizeFooter, title:sizeTitle, window:sizeWindow, workspace:sizeWorkspace}}>
         <UserNameContext.Provider value={userSettings.name}>
         <UserSettingsContext.Provider value={userSettings.settings}>
-          <TokenContext.Provider value={lastToken}>
+          <TokenContext.Provider value={createNewInstance ? null : lastToken}>
           <AddMessageContext.Provider value={addMessage}>
           <CollectionsInfoContext.Provider value={collectionInfo}>
             <Grid id='sparcd-wrapper' container direction="row" alignItems="start" justifyContent="start" sx={{minWidth:'100vw',minHeight:'100vh'}}>
@@ -1319,7 +1344,7 @@ export default function Home() {
                         onLogout={handleLogout} size={narrowWindow?"small":"normal"} 
                         breadcrumbs={breadcrumbs} onBreadcrumb={restoreBreadcrumb} onAdminSettings={handleAdminSettings} onOwnerSettings={handleOwnerSettings}/>
               <Box id='sparcd-middle-wrapper' sx={{overflow:"scroll"}} >
-                {!curLoggedIn ? 
+                {!curLoggedIn || createNewInstance === true ? 
                   <LoginValidContext.Provider value={loginValidStates}>
                     <Login prev_url={dbURL} prev_user={dbUser} prev_remember={dbRemember} onLogin={handleLogin}
                            onRememberChange={handleRememberChanged} />
@@ -1371,7 +1396,12 @@ export default function Home() {
                 </CollectionsInfoContext.Provider>
                 </TokenContext.Provider>
           }
-          { // Needs to be next to last (allow messages to overlay this)
+          { createNewInstance === true &&
+            <AddMessageContext.Provider value={addMessage}>
+              <NewInstallation token={lastToken} onCancel={handleCancelNewInstallation} />
+            </AddMessageContext.Provider>
+          }
+          { // Needs to be next to last (allow messages to overlay)
             (userLoginAgain === true || userIdleTimedOut === true) && 
               <LoginAgain 
                       message={userLoginAgain === true ? "Your session has expired. Please log in again" : "This session has been idle for too long. Please login again"}
@@ -1393,7 +1423,7 @@ export default function Home() {
         </SizeContext.Provider>
         </NarrowWindowContext.Provider>
         </MobileDeviceContext.Provider>
-        </ExpiredTokenFuncContext.Provider>
+        </TokenExpiredFuncContext.Provider>
         </DisableIdleCheckFuncContext.Provider>
       </ThemeProvider>
     </main>

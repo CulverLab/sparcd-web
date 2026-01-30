@@ -8,8 +8,11 @@ from urllib.parse import urlparse
 
 from cryptography.fernet import InvalidToken
 
+from minio import Minio
+
 from sparcd_file_utils import load_timed_info, save_timed_info
-from s3_access import S3Connection, SPECIES_JSON_FILE_NAME
+from s3_access import S3Connection, find_settings_bucket
+
 
 
 def web_to_s3_url(url: str, decrypt: Callable) -> str:
@@ -44,6 +47,20 @@ def web_to_s3_url(url: str, decrypt: Callable) -> str:
         port = '443'
 
     return parsed.hostname + ':' + port
+
+
+def sparcd_config_exists(minio: Minio) -> bool:
+    """ Checks that SPARCd is setup at the endpoint
+    Arguments:
+        url: the URL to the S3 store
+        user: the S3 username
+        fetch_password: returns the S3 password
+    Return:
+        Returns True if there is a configuration on the S3 endpoint and False if not
+    """
+    settings_bucket = find_settings_bucket(minio)
+
+    return settings_bucket is not None
 
 
 def load_sparcd_config(sparcd_file: str, timed_file: str, url: str, user: str, \
@@ -81,6 +98,7 @@ def load_sparcd_config(sparcd_file: str, timed_file: str, url: str, user: str, \
     return loaded_config
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def save_sparcd_config(config_data, sparcd_file: str, timed_file: str, url: str, user: str, \
                                                             fetch_password: Callable) -> None:
     """ Saves the species on S3 and locally

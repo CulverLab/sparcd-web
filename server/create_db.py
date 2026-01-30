@@ -78,12 +78,14 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                 'email TEXT DEFAULT NULL, ' \
                 'settings TEXT DEFAULT "{}", ' \
                 'species TEXT default "{}", ' \
+                's3_id TEXT NOT NULL, ' \
                 'administrator INT DEFAULT 0, ' \
                 'auto_added INT DEFAULT 1)',
              'CREATE TABLE tokens(id INTEGER PRIMARY KEY ASC, ' \
                 'name TEXT NOT NULL, ' \
                 'password TEXT NOT NULL, ' \
                 's3_url TEXT NOT NULL, ' \
+                's3_id TEXT NOT NULL, ' \
                 'token TEXT UNIQUE, ' \
                 'timestamp INTEGER, ' \
                 'client_ip TEXT, ' \

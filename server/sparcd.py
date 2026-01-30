@@ -409,10 +409,12 @@ def login_token():
         if token_valid:
             # Everything checks out
             return json.dumps(
-                {  'value':token,
-                   'name':login_info.name,
+                {  'success': True,
+                   'value': token,
+                   'name': login_info.name,
                    'settings': \
-                        sdu.secure_user_settings(login_info.settings|{'email':login_info.email})
+                        sdu.secure_user_settings(login_info.settings|{'email':login_info.email}),
+                    'newInstance': False,
                })
 
         # Delete the old token from the database
@@ -425,6 +427,7 @@ def login_token():
 
     # Log onto S3 to make sure the information is correct
     s3_url = s3u.web_to_s3_url(url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+    s3_hash = hash2str(s3_url)
     try:
         minio = Minio(s3_url, access_key=user, secret_key=password)
         _ = minio.list_buckets()
@@ -432,20 +435,27 @@ def login_token():
         print('S3 exception caught:', ex, flush=True)
         return "Not Found", 404
 
+    # Get whether the endpoint is setup for SPARCd
+    new_instance = not s3u.sparcd_config_exists(minio)
+
     # Save information into the database - also cleans up old tokens if there's too many
     new_key = uuid.uuid4().hex
     db.reconnect()
     db.add_token(token=new_key, user=user, password=crypt.do_encrypt(WORKING_PASSCODE, password),
                     client_ip=client_ip, user_agent=user_agent_hash,
                     s3_url=crypt.do_encrypt(WORKING_PASSCODE, s3_url),
+                    s3_id=s3_hash,
                     token_timeout_sec=SESSION_EXPIRE_SECONDS)
-    user_info = db.get_user(user)
+    user_info = db.get_user(s3_hash, user)
     if not user_info:
         # Get the species
         cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME,
-                                                hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
+                                                s3_hash+'-'+TEMP_SPECIES_FILE_NAME,
                                                 s3_url, user, lambda: password)
-        user_info = db.auto_add_user(user, species=json.dumps(cur_species))
+        if cur_species is None:
+            cur_species = []
+
+        user_info = db.auto_add_user(s3_hash, user, species=json.dumps(cur_species))
 
     # Add in the email if we have user settings
     if user_info.settings:
@@ -458,8 +468,8 @@ def login_token():
 
     user_info.settings = sdu.secure_user_settings(user_info.settings)
 
-    return json.dumps({'value':new_key, 'name':user_info.name,
-                       'settings':user_info.settings})
+    return json.dumps({'success':True, 'value':new_key, 'name':user_info.name,
+                       'settings':user_info.settings, 'newInstance':new_instance})
 
 
 @app.route('/collections', methods = ['GET'])
@@ -630,7 +640,7 @@ def species():
     if updated is True:
         user_species = [keyed_user[one_key] for one_key in keyed_user]
         species_json = json.dumps(user_species)
-        db.save_user_species(user_info.name, species_json)
+        db.save_user_species(hash2str(s3_url), user_info.name, species_json)
         return species_json
 
     # Return the collections
@@ -1216,7 +1226,9 @@ def set_settings():
         modified = True
 
     if modified:
-        db.update_user_settings(user_info.name, json.dumps(user_info.settings), user_info.email)
+        s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+        db.update_user_settings(hash2str(s3_url), user_info.name, json.dumps(user_info.settings),
+                                                                                    user_info.email)
 
     user_info.settings = sdu.secure_user_settings(user_info.settings|{'email':user_info.email})
 
@@ -2290,7 +2302,7 @@ def species_keybind():
         cur_species.append({'name':common, 'scientificName':scientific, 'keyBinding':new_key[0], \
                                             "speciesIconURL": "https://i.imgur.com/4qz5mI0.png"})
 
-    db.save_user_species(user_info.name, json.dumps(cur_species))
+    db.save_user_species(hash2str(s3_url), user_info.name, json.dumps(cur_species))
 
     return json.dumps({'success': True})
 
@@ -2625,14 +2637,15 @@ def admin_users():
     if user_info.admin != 1:
         return "Not Found", 404
 
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+
     # Get the users and fill in the collection information
-    all_users = db.get_admin_edit_users()
+    all_users = db.get_admin_edit_users(hash2str(s3_url))
 
     if not all_users:
         return json.dumps(all_users)
 
     # Organize the collection permissions by user
-    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
     all_collections = sdc.load_collections(db, hash2str(s3_url), bool(user_info.admin), s3_url,
                                                     user_info.name, lambda: get_password(token, db))
     user_collections = {}
@@ -2732,14 +2745,16 @@ def admin_user_update():
     if user_info.admin != 1:
         return "Not Found", 404
 
-    old_user_info = db.get_user(old_name)
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+
+    old_user_info = db.get_user(hash2str(s3_url), old_name)
     if old_user_info is None:
         return {'success': False, 'message': f'User "{old_name}" not found'}
 
     if admin is not None:
         admin = sdu.make_boolean(admin)
 
-    db.update_user(old_name, new_email, admin)
+    db.update_user(hash2str(s3_url), old_name, new_email, admin)
     return {'success': True, 'message': f'Successfully updated user "{old_name}"', \
             'email': sdu.secure_email(new_email)}
 
@@ -3218,3 +3233,75 @@ def admin_abandon_changes():
     db.clear_admin_species_changes(hash2str(s3_url), user_info.name)
 
     return {'success': True, 'message': "All changes were successully abandoned"}
+
+@app.route('/newInstallCheck', methods = ['PUT'])
+@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+def new_install_check():
+    """ Checks if the S3 endpoint can support a new installation
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True/False if the endpoint appears to be able to support a new S3 installation
+        (or not), if there are already collections on the remote endpoint, if the user is in the
+        database already for this endpoint and is/is not admin.
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('NEW INSTALL CHECK', flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Perform the checks on the S3 instance to see that we can support a new installation
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+
+    # Check that the user is in the DB for this endpoint and is/is not an administrator
+    if not user_info.admin:
+        if db.have_any_known_admin(hash2str(s3_url)):
+            return json.dumps({'success':False,
+                                'admin': False,
+                                'needsRepair': False,
+                                'failedPerms': False,
+                                'message': 'You are not authorized to make a new installation or ' \
+                                            'repair an existing one. Please contact your ' \
+                                            'administrator'})
+
+    # Check if the S3 instance needs repairs and not a new install
+    needs_repair, has_everything = S3Connection.needs_repair(s3_url, user_info.name,
+                                                                            get_password(token, db))
+    if needs_repait:
+        return json.dumps({'success':False,
+                            'admin': user_info.admin,
+                            'needsRepair': True,
+                            'failedPerms': False,
+                            'message': 'You may be authorized to perform a repair on the S3 ' \
+                                        'endpoint'})
+    elif has_everything:
+        # The endpoint has everything needed (what are they up to?)
+        return json.dumps({'success':True,
+                            'admin': False,
+                            'newInstance': False,
+                            'message': 'The endpoint already is configured for SPARCd'})
+
+    # Check if they can make a new install
+    can_create, test_bucket = S3Connection.check_new_install_possible(s3_url, user_info.name,
+                                                                        get_password(token, db))
+    if not can_create:
+        return json.dumps({'success':False,
+                            'admin': user_info.admin,
+                            'needsRepair': False,
+                            'failedPerms': True,
+                            'message': 'Unable to install SPARCd at the S3 endpoint. Please ' \
+                                        'contact your S3 administrator about permissions'})
+
+    # TODO: When have messages to users and the test bucket isn't removed, inform the admin(s)
+    if test_bucket is not None:
+        print(f'WARNING: unable to delete testing bucket {test_bucket}', flus=True)
+
+    return json.dumps({'success': True, 'admin': user_info.admin, 'newInstance': True})
