@@ -123,7 +123,6 @@ export default function LoginAgain({newInstallToken, repairServer, onCancel}) {
    * @function
    */
   const handleContinueInstall = React.useCallback(() => {
-    console.log('INSTALL');
     setInstallStep(InstallStep.executingInstall);
     setErrorMessage(null);
 
@@ -167,7 +166,6 @@ export default function LoginAgain({newInstallToken, repairServer, onCancel}) {
    * @function
    */
   const handleContinueRepair = React.useCallback(() => {
-    console.log('REPAIR');
     setInstallStep(InstallStep.executingRepair);
 
     const installRepairlUrl = serverURL + '/installRepair?t=' + encodeURIComponent(newInstallToken);

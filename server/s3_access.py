@@ -395,16 +395,22 @@ def find_settings_bucket(minio: Minio) -> Optional[str]:
 
     return settings_bucket
 
-def create_settings_bucket(minio: Minio) -> Optional[str]:
-    """ Attempts to create a settings bucket
+def create_new_bucket(minio: Minio, prefix: str) -> Optional[str]:
+    """ Attempts to create a new bucket
     Arguments:
         minio: the S3 instance to create a settings bucket on
+        prefix: the prefix to the new bucket name (cannot be empty or None)
     Return:
-        Returns the new bucket name when successful, else None
+        Returns the new bucket name when successful, else None.
+        The name of the created bucket consists of the prefix followed by a UUID.
+        An invalid prefix will also cause None to be returned
     """
+    if not prefix:
+        return None
+
     settings_bucket = None
-    for idx in range(0, MAX_NEW_BUCKET_TRIES):
-        settings_bucket = SETTINGS_BUCKET_PREFIX + str(uuid.uuid4())
+    for _ in range(0, MAX_NEW_BUCKET_TRIES):
+        settings_bucket = prefix + str(uuid.uuid4())
         try:
             # Create the settings bucket if the name is OK
             if not minio.bucket_exists(settings_bucket):
@@ -1041,11 +1047,11 @@ class S3Connection:
                                                                         coll_info: object) -> None:
         """ Saves the collection information on the S3 server
         Arguments:
-                url: the URL to the s3 instance
-                user: the name of the user to use when connecting
-                password: the user's password
-                bucket: the bucket to upload to
-                coll_info: the collection information to save
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            bucket: the bucket to upload to
+            coll_info: the collection information to save
         """
         collections_path = 'Collections'
         coll_info_path = make_s3_path((collections_path, bucket[len(SPARCD_PREFIX):], \
@@ -1069,11 +1075,11 @@ class S3Connection:
                                                                         perm_info: tuple) -> None:
         """ Saves the permissions information on the S3 server
         Arguments:
-                url: the URL to the s3 instance
-                user: the name of the user to use when connecting
-                password: the user's password
-                bucket: the bucket to upload to
-                perm_info: the tuple of permissions information
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            bucket: the bucket to upload to
+            perm_info: the tuple of permissions information
         """
         collections_path = 'Collections'
         perms_info_path = make_s3_path((collections_path, bucket[len(SPARCD_PREFIX):], \
@@ -1092,6 +1098,38 @@ class S3Connection:
                                                 indent=4
                                                 ),
                                             content_type='application/json')
+
+    @staticmethod
+    def add_collection(url: str, user: str, password: str, coll_info: object, \
+                                                                perm_info: tuple) -> Optional[str]:
+        """ Adds a new collection to the S3 server
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            coll_info: the collection information to save
+            perm_info: the tuple of permissions information
+        Return:
+            The name of the newly created bucket
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        # Try hard to create a collections bucket
+        collection_bucket = create_new_bucket(minio, SPARCD_PREFIX)
+        if collection_bucket is None:
+            print(f'Unable to create a collection bucket after {MAX_NEW_BUCKET_TRIES} tries',
+                                                                                        flush=True)
+            return False
+
+        del minio
+
+        # Save the information
+        coll_id = collection_bucket[len(SPARCD_PREFIX):]    # pylint: disable=unsubscriptable-object
+        S3Connection.save_collection_info(url, user, password, collection_bucket,
+                            coll_info | {'idProperty':coll_id, 'bucketProperty':collection_bucket} )
+        S3Connection.save_collection_permissions(url, user, password, collection_bucket, perm_info)
+
+        return collection_bucket
 
 
     @staticmethod
@@ -1230,8 +1268,9 @@ class S3Connection:
         # If we have the correct count of things and we have a settings bucket we have an S3
         #   instance that was initialized and looks good
         return settings_bucket is not None and (found_count != len(CONFIGURATION_FILES_LIST)) or \
-                                                    (settings_bucket is None and have_collection), \
-                True if settings_bucket is not None and found_count == len(CONFIGURATION_FILES_LIST)\
+                                                (settings_bucket is None and have_collection), \
+                True if settings_bucket is not None and \
+                                                    found_count == len(CONFIGURATION_FILES_LIST)\
                 else False if settings_bucket is None and found_count == 0 and not have_collection \
                 else None
 
@@ -1339,7 +1378,7 @@ class S3Connection:
             return False
 
         # Try hard to create a settings bucket
-        settings_bucket = create_settings_bucket(minio)
+        settings_bucket = create_new_bucket(minio, SETTINGS_BUCKET_PREFIX)
         if settings_bucket is None:
             print(f'Unable to create a settings bucket after {MAX_NEW_BUCKET_TRIES} tries',
                                                                                         flush=True)
@@ -1358,7 +1397,7 @@ class S3Connection:
                 print(f'     : exception code: {ex.code}', flush=True)
                 print(ex, flush=True)
 
-        return upload_count == len(CONFIGURATION_FILES_LIST)
+        return uploaded_count == len(CONFIGURATION_FILES_LIST)
 
     @staticmethod
     def repair_sparcd(url: str, user: str, password: str, settings_folder: str) -> bool:
@@ -1376,13 +1415,13 @@ class S3Connection:
         # Check if we need and new settings bucket and create one if we do
         settings_bucket = find_settings_bucket(minio)
         if settings_bucket is None:
-            settings_bucket = create_settings_bucket(minio)
+            settings_bucket = create_new_bucket(minio, SETTINGS_BUCKET_PREFIX)
         if settings_bucket is None:
             return False
 
         # Get the list of files we have
         found_files = []
-        for one_obj in minio.list_objects(bucket, prefix=SETTINGS_FOLDER+'/'):
+        for one_obj in minio.list_objects(settings_bucket, prefix=SETTINGS_FOLDER+'/'):
             if not one_obj.is_dir:
                 file_name = os.path.basename(one_obj.object_name)
                 if file_name in CONFIGURATION_FILES_LIST:

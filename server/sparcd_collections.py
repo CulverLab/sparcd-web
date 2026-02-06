@@ -150,6 +150,20 @@ def load_collections(db: SPARCdDatabase, s3_id: str, admin: bool, s3_url: str=No
     return user_coll
 
 
+def collection_add(db: SPARCdDatabase, s3_id: str, collection: dict) -> None:
+    """ Adds the collection in the database if the collection data hasn't expired
+    Arguments:
+        db: the database to access
+        s3_id: the unique ID of the S3 instance
+        collection: collection information including the collection name and other values
+    Note:
+        If the collection already exists in the database, the collection is updated instead
+        of being added
+    """
+    db.collection_add(s3_id, collection, TIMEOUT_COLLECTIONS_SEC)
+
+
+
 def collection_update(db: SPARCdDatabase, s3_id: str, collection: dict) -> None:
     """ Updates the collection in the database if the collection data hasn't expired
     Arguments:

@@ -18,7 +18,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { AddMessageContext, DefaultImageIconURL } from '../serverInfo';
+import { AddMessageContext, DefaultImageIconURL, UserNameContext } from '../serverInfo';
 import { Level } from './Messages';
 
 /**
@@ -32,11 +32,20 @@ import { Level } from './Messages';
 export default function EditCollection({data, onUpdate, onClose}) {
   const theme = useTheme();
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
+  const userName = React.useContext(UserNameContext);  // User display name
   const [addUserPermissions, setAddUserPermissions] = React.useState(false);
   const [isModified, setIsModified] = React.useState(false);
-  const [newPermissions, setNewPermissions] = React.useState(JSON.parse(JSON.stringify(data.allPermissions)));
+  const [newPermissions, setNewPermissions] = React.useState(JSON.parse(JSON.stringify(data ? data.allPermissions : [])));
   const [removeUsers, setRemoveUsers] = React.useState(false);
   const [forceRedraw, setForceRedraw] = React.useState(0);
+
+  // Check if need to default a new collection to the user
+  React.useEffect(() => {
+    if (!data && newPermissions.length === 0) {
+      setNewPermissions([{'usernameProperty':userName, 'readProperty': true,
+                              'uploadProperty': true, 'ownerProperty': true}]);
+    }
+  }, [newPermissions, setNewPermissions, userName]);
 
   /**
    * Handles saving the changes to the user
@@ -44,7 +53,6 @@ export default function EditCollection({data, onUpdate, onClose}) {
    */
   const onSaveChanges= React.useCallback(() => {
     if (!isModified) {
-      onClose();
       return;
     }
 
@@ -420,6 +428,7 @@ export default function EditCollection({data, onUpdate, onClose}) {
     );
   }
 
+  // Return the UI
   return (
    <Grid sx={{minWidth:'50vw'}} > 
     <Card id="edit-collection" sx={{backgroundColor:'#EFEFEF', border:"none", boxShadow:"none"}} >
@@ -456,10 +465,10 @@ export default function EditCollection({data, onUpdate, onClose}) {
       <CardContent id='edit-collection-details' sx={{paddingTop:'0px', paddingBottom:'0px'}}>
         <Grid container direction="column" justifyContent="start" alignItems="stretch"
               sx={{minWidth:'400px', border:'1px solid black', borderRadius:'5px', backgroundColor:'rgb(255,255,255,0.3)' }}>
-          <TextField disabled={!!data}
+          <TextField disabled={true}
                 id='edit-collection-id'
                 label="ID"
-                defaultValue={data ? data.id : null}
+                defaultValue={data ? data.id : "<automatically generated>"}
                 size='small'
                 disabled={true}
                 sx={{margin:'10px'}}

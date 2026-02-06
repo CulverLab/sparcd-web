@@ -881,6 +881,34 @@ class SPARCdDatabase:
                                                             'json': json.dumps(one_coll)} \
                                     for one_coll in collections])
 
+    def collection_add(self, s3_id: str, collection: dict, timeout_sec: int=None) -> bool:
+        """ Adds the collection in the database or updates it if it already exists
+        Arguments:
+            s3_id: The ID of the S3 endpoint
+            collection: collection information including the collection id and other values
+            timeout_sec: the number of seconds all the saved collections are valid
+        Return:
+            Returns True if the collection was added or updated and False if it wasn't
+        """
+        if timeout_sec is None:
+            raise RuntimeError('Missing timeout seconds parameter when adding a new')
+
+        if not isinstance(timeout_sec, int):
+            try:
+                timeout_sec = int(timeout_sec)
+            except ValueError as ex:
+                raise RuntimeError('Invalid timeout seconds parameter when adding a ' \
+                                                            f'collections: {timeout_sec}') from ex
+
+        # Check if this is an update and not a new instance
+        elapsed_sec = self._db.collection_elapsed_sec(s3_id, collection['id'])
+        if elapsed_sec is not None or elapsed_sec >= timeout_sec:
+            return self.collection_update(s3_id, collection, timeout_sec)
+
+        self._db.collection_add(s3_id, collection['id'], collection['name'],
+                                                                            json.dumps(collection))
+        return True
+
     def collection_update(self, s3_id: str, collection: dict, timeout_sec: int=None) -> bool:
         """ Updates the collection in the database if it's not expired
         Arguments:
@@ -891,14 +919,14 @@ class SPARCdDatabase:
             Returns True if the collection was updated and False if it wasn't
         """
         if timeout_sec is None:
-            raise RuntimeError('Missing timeout seconds parameter when getting all collections')
+            raise RuntimeError('Missing timeout seconds parameter when updating collection')
 
         if not isinstance(timeout_sec, int):
             try:
                 timeout_sec = int(timeout_sec)
             except ValueError as ex:
-                raise RuntimeError('Invalid timeout seconds parameter when getting all ' \
-                                                            f'collections: {timeout_sec}') from ex
+                raise RuntimeError('Invalid timeout seconds parameter when updating a ' \
+                                                            f'collection: {timeout_sec}') from ex
 
         elapsed_sec = self._db.collection_elapsed_sec(s3_id, collection['id'])
         if elapsed_sec is None or elapsed_sec >= timeout_sec:

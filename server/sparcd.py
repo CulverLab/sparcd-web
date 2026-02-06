@@ -3018,7 +3018,7 @@ def admin_location_update():
 @app.route('/adminCollectionUpdate', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def admin_collection_update():
-    """ Adds/updates a collection information
+    """ Updates a collection information
     Arguments: (GET)
         t - the session token
     Return:
@@ -3103,6 +3103,78 @@ def admin_collection_update():
 
         # Update the collection entry in the database
         sdc.collection_update(db, hash2str(s3_url), updated_collection)
+
+    return {'success':True, 'data': updated_collection, \
+            'message': "Successfully updated the collection"}
+
+
+@app.route('/adminCollectionAdd', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def admin_collection_add():
+    """ Adds a collection information
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True if the collection was added
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN COLLECTION UDPATE', flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
+    col_name = request.form.get('name', None)
+    col_desc = request.form.get('description', None)
+    col_email = request.form.get('email', None)
+    col_org = request.form.get('organization', None)
+    col_all_perms = request.form.get('allPermissions', None)
+
+    # Check what we have from the requestor
+    if not all(item for item in [col_name, col_all_perms]):
+        return "Not Found", 406
+
+    if col_desc is None:
+        col_desc = ''
+    if col_email is None:
+        col_email = ''
+    if col_org is None:
+        col_org = ''
+
+    col_all_perms = json.loads(col_all_perms)
+
+    # Make sure this user is an admin
+    if user_info.admin != 1:
+        return "Not Found", 404
+
+    # Get existing collection information and permissions
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+
+    # Add the collection
+    s3_bucket = S3Connection.add_collection(s3_url, user_info.name,
+                                get_password(token, db),
+                                {   'nameProperty': col_name,
+                                    'descriptionProperty': col_desc,
+                                    'contactInfoProperty': col_email,
+                                    'organizationProperty': col_org,
+                                },
+                                col_all_perms)
+
+    # Update the collection to reflect the changes
+    updated_collection = S3Connection.get_collection_info(s3_url, user_info.name,
+                                            get_password(token, db), s3_bucket)
+    if updated_collection:
+        updated_collection = sdu.normalize_collection(updated_collection)
+
+        # Update the collection entry in the database
+        sdc.collection_add(db, hash2str(s3_url), updated_collection)
 
     return {'success':True, 'data': updated_collection, \
             'message': "Successfully updated the collection"}

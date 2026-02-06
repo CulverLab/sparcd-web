@@ -1387,8 +1387,10 @@ export default function Home() {
                 <LocationsInfoContext.Provider value={locationInfo}>
                 <SpeciesInfoContext.Provider value={speciesInfo}>
                 <AddMessageContext.Provider value={addMessage}>
+                <UserNameContext.Provider value={userSettings.name}>
                   <SettingsAdmin loadingCollections={loadingCollections} loadingLocations={loadingLocations}
                                   onConfirmPassword={confirmAdminPassword} onClose={() => setDisplayAdminSettings(false)}/>
+                </UserNameContext.Provider>
                 </AddMessageContext.Provider>
                 </SpeciesInfoContext.Provider>
                 </LocationsInfoContext.Provider>

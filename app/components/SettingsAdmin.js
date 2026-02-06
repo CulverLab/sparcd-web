@@ -265,18 +265,18 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   }
 
   /**
-   * Handles updating the collection information
+   * Updates the collection information on the server
    * @function
    * @param {object} collectionNewInfo The updated collection information to save
    * @param {function} onSuccess The callable upon success
    * @param {function} onError The callable upon an issue ocurring
    */
   const updateCollection = React.useCallback((collectionNewInfo, onSuccess, onError) => {
-    const userUpdateCollUrl = serverURL + '/adminCollectionUpdate?t=' + encodeURIComponent(settingsToken);
+    const userUpdateCollUrl = serverURL + '/adminCollectionUpdateAdd?t=' + encodeURIComponent(settingsToken);
 
     const formData = new FormData();
 
-    formData.append('id', editingState.data.id);
+    formData.append('id', editingState.data && editingState.data.id ? editingState.data.id : null);
     formData.append('name', collectionNewInfo.name);
     formData.append('description', collectionNewInfo.description);
     formData.append('email', collectionNewInfo.email);
@@ -308,10 +308,6 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                   break;
                 }
               }
-//              let curColl = collectionInfo.filter((item) => item.id === editingState.data.id);
-//              if (curColl && curColl.length > 0) {
-//                curColl[0] = respData.data;
-//              }
               if (typeof(onSuccess) === 'function') {
                 onSuccess();
               }
@@ -328,6 +324,77 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       addMessage(Level.Warning, 'An unknown error ocurred when attempting to update collection information');
     }
   }, [addMessage, collectionInfo, editingState, serverURL, setEditingState, settingsToken]);
+
+  /**
+   * Creates a new collection on the server
+   * @function
+   * @param {object} collectionNewInfo The new collection information to save
+   * @param {function} onSuccess The callable upon success
+   * @param {function} onError The callable upon an issue ocurring
+   */
+  const newCollection = React.useCallback((collectionNewInfo, onSuccess, onError) => {
+    const userUpdateCollUrl = serverURL + '/adminCollectionAdd?t=' + encodeURIComponent(settingsToken);
+
+    const formData = new FormData();
+
+    formData.append('name', collectionNewInfo.name);
+    formData.append('description', collectionNewInfo.description);
+    formData.append('email', collectionNewInfo.email);
+    formData.append('organization', collectionNewInfo.organization);
+    formData.append('allPermissions', JSON.stringify(collectionNewInfo.allPermissions));
+
+    try {
+      const resp = fetch(userUpdateCollUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setTokenExpired();
+              }
+              throw new Error(`Failed to update collection information: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Set the species data
+            if (respData.success) {
+              setEditingState({...editingState, data:{...editingState.data,...respData.data}});
+              collectionInfo.append(respData.data);
+
+              if (typeof(onSuccess) === 'function') {
+                onSuccess();
+              }
+            } else if (typeof(onError) === 'function') {
+              onError(respData.message);
+            }
+        })
+        .catch(function(err) {
+          console.log('Admin Update Collection Error: ',err);
+          addMessage(Level.Warning, 'An error ocurred when attempting to update collection information');
+      });
+    } catch (error) {
+      console.log('Admin Update Collection Unknown Error: ',err);
+      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update collection information');
+    }
+  }, [addMessage, collectionInfo, editingState, serverURL, setEditingState, settingsToken]);
+
+  /**
+   * Handles adding new/updating the collection information
+   * @function
+   * @param {object} collectionNewInfo The updated collection information to save
+   * @param {function} onSuccess The callable upon success
+   * @param {function} onError The callable upon an issue ocurring
+   */
+  const handleUpdateCollection = React.useCallback((collectionNewInfo, onSuccess, onError) => {
+    if (editingState.data && editingState.data.id) {
+      updateCollection(collectionNewInfo, onSuccess, onError);
+    } else {
+      newCollection(collectionNewInfo, onSuccess, onError);
+    }
+  }, [newCollection, updateCollection]);
 
   /**
    * Handles updating the user information
@@ -655,6 +722,13 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    */
   const handleCollectionEdit = React.useCallback((event, collection) => {
     event.stopPropagation();
+
+    // Check if this is for a new collection
+    if (!collection) {
+      setEditingState({type:EditingStates.Collection, data:collection});
+      return;
+    }
+
     const adminCollectionUrl = serverURL + '/adminCollectionDetails?t=' + encodeURIComponent(settingsToken);
     const formData = new FormData();
 
@@ -1203,7 +1277,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       >
       {editingState.type === EditingStates.User && <EditUser data={editingState.data} onUpdate={updateUser} onConfirmPassword={onConfirmPassword}
                                                              onClose={() => setEditingState({type:EditingStates.None, data:null})} /> }
-      {editingState.type === EditingStates.Collection && <EditCollection data={editingState.data} onUpdate={updateCollection}
+      {editingState.type === EditingStates.Collection && <EditCollection data={editingState.data} onUpdate={handleUpdateCollection}
                                                                           onClose={() => setEditingState({type:EditingStates.None, data:null})}/> }
       {editingState.type === EditingStates.Species && <EditSpecies data={editingState.data} onUpdate={updateSpecies} 
                                                                       onClose={() => setEditingState({type:EditingStates.None, data:null})}/> }
@@ -1262,7 +1336,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   // Setup the tab and page generation
   const adminTabs = [
     {name:'Users', uiFunc:() => generateUsers(handleUserEdit), newName:null, newFunc:null, searchFunc:searchUsers},
-    {name:'Collections', uiFunc:() => generateCollections(handleCollectionEdit), newName:null, newFunc:null, searchFunc:searchCollections},
+    {name:'Collections', uiFunc:() => generateCollections(handleCollectionEdit), newName:'New Collection', newFunc:handleCollectionEdit, searchFunc:searchCollections},
     {name:'Species', uiFunc:() => generateSpecies(handleSpeciesEdit), newName:'Add Species', newFunc:handleSpeciesEdit, searchFunc:searchSpecies},
     {name:'Locations', uiFunc:() => generateLocations(handleLocationEdit), newName:'Add Location', newFunc:handleLocationEdit, searchFunc:searchLocations},
   ];

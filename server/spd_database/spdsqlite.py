@@ -372,6 +372,26 @@ class SPDSQLite:
                         f's3_id: {s3_id}')
             return None
 
+    def collection_add(self, s3_id: str, coll_id: str, coll_name: str, coll_json: str) -> None:
+        """ Adds the new collection information to the database
+        Arguments:
+            s3_id: the endpoint ID to check
+            coll_id: the ID of the collection
+            coll_name: the name of the collection
+            coll_json: the collection JSON
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to add collection information in the database '\
+                                                                            'before connecting')
+
+        cursor = self._conn.cursor()
+        cursor.execute('INSERT INTO collections(s3_id, hash_id, name, coll_id, json, timestamp) ' \
+                                                    'VALUES(?, ?, ?, ?, ?, strftime("%s", "now"))',
+                        (s3_id, self.hash2str(s3_id+coll_id), coll_name, coll_id, coll_json))
+
+        self._conn.commit()
+        cursor.close()
+
     def collection_update(self, s3_id: str, coll_id: str, coll_json: str) -> None:
         """ Updates the database with the new collection information
         Arguments:
