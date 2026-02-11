@@ -279,7 +279,7 @@ export default function EditCollection({data, onUpdate, onClose}) {
           </CardContent>
           <CardActions id='edit-collection-add-user-actions'>
             <Button sx={{flex:'1', disabled:isModified === false }} onClick={handleAddNewUser}>Save</Button>
-            <Button sx={{flex:'1'}} onClick={() => setAddUserPermissions(false)} >Cancel</Button>
+            <Button sx={{flex:'1'}} onClick={() => setAddUserPermissions(false)} >Done</Button>
           </CardActions>
         </Card>
       </Grid>

@@ -489,6 +489,7 @@ def login_token():
         minio = Minio(s3_url, access_key=user, secret_key=password)
         _ = minio.list_buckets()
     except MinioException as ex:
+        print(f'WARNING: Failed login attempt: {url} {username}',flush=True)
         print('S3 exception caught:', ex, flush=True)
         return "Not Found", 404
 
@@ -3160,12 +3161,13 @@ def admin_collection_add():
     # Add the collection
     s3_bucket = S3Connection.add_collection(s3_url, user_info.name,
                                 get_password(token, db),
-                                {   'nameProperty': col_name,
-                                    'descriptionProperty': col_desc,
-                                    'contactInfoProperty': col_email,
-                                    'organizationProperty': col_org,
+                                {   'name': col_name,
+                                    'description': col_desc,
+                                    'email': col_email,
+                                    'organization': col_org,
                                 },
                                 col_all_perms)
+    print(f'INFO: Created new collection: {s3_bucket}', flush=True)
 
     # Update the collection to reflect the changes
     updated_collection = S3Connection.get_collection_info(s3_url, user_info.name,

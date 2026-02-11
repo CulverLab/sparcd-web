@@ -196,7 +196,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * Gets the user information from the server
    * @function
    */
-  function getUserInfo() {
+  const getUserInfo = React.useCallback(() => {
     const adminUsersUrl = serverURL + '/adminUsers?t=' + encodeURIComponent(settingsToken);
 
     try {
@@ -226,13 +226,13 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       console.log('Admin Users Unknown Error: ',err);
       addMessage(Level.Warning, 'An unknown error ocurred when attempting to load user information');
     }    
-  }
+  }, [addMessage, serverURL, settingsToken, setSelectedUsers, setTokenExpired, setUserInfo]);
 
   /**
    * Gets the master species information from the server (not the per-user species)
    * @function
    */
-  function getMasterSpecies() {
+  const getMasterSpecies = React.useCallback(() => {
     const adminSpeciesUrl = serverURL + '/adminSpecies?t=' + encodeURIComponent(settingsToken);
 
     try {
@@ -262,7 +262,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       console.log('Admin Species Unknown Error: ',err);
       addMessage(Level.Warning, 'An unknown error ocurred when attempting to load species information');
     }
-  }
+  }, [addMessage, serverURL, settingsToken, setMasterSpecies, setSelectedSpecies, setTokenExpired]);
 
   /**
    * Updates the collection information on the server
@@ -272,7 +272,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {function} onError The callable upon an issue ocurring
    */
   const updateCollection = React.useCallback((collectionNewInfo, onSuccess, onError) => {
-    const userUpdateCollUrl = serverURL + '/adminCollectionUpdateAdd?t=' + encodeURIComponent(settingsToken);
+    const userUpdateCollUrl = serverURL + '/adminCollectionUpdate?t=' + encodeURIComponent(settingsToken);
 
     const formData = new FormData();
 
@@ -362,7 +362,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             // Set the species data
             if (respData.success) {
               setEditingState({...editingState, data:{...editingState.data,...respData.data}});
-              collectionInfo.append(respData.data);
+              collectionInfo.push(respData.data);
 
               if (typeof(onSuccess) === 'function') {
                 onSuccess();

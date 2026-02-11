@@ -408,23 +408,23 @@ def create_new_bucket(minio: Minio, prefix: str) -> Optional[str]:
     if not prefix:
         return None
 
-    settings_bucket = None
+    return_bucket = None
     for _ in range(0, MAX_NEW_BUCKET_TRIES):
-        settings_bucket = prefix + str(uuid.uuid4())
+        return_bucket = prefix + str(uuid.uuid4())
         try:
             # Create the settings bucket if the name is OK
-            if not minio.bucket_exists(settings_bucket):
-                minio.make_bucket(settings_bucket)
+            if not minio.bucket_exists(return_bucket):
+                minio.make_bucket(return_bucket)
                 break
         except S3Error as ex:
-            print('ERROR: Unable to create possible settings bucket {settings_bucket}',
+            print('ERROR: Unable to create possible new bucket {return_bucket}',
                                                                                     flush=True)
             print(f'     : exception code: {ex.code}', flush=True)
             print(ex, flush=True)
 
-        settings_bucket = None
+        return_bucket = None
 
-    return settings_bucket
+    return return_bucket
 
 
 @dataclasses.dataclass
@@ -1066,7 +1066,7 @@ class S3Connection:
                                          'descriptionProperty': coll_info['description'],
                                          'idProperty': bucket[len(SPARCD_PREFIX):],
                                          'bucketProperty': bucket,
-                                        }),
+                                        }, indent=4),
                                     content_type='application/json')
 
 
@@ -1117,11 +1117,12 @@ class S3Connection:
         # Try hard to create a collections bucket
         collection_bucket = create_new_bucket(minio, SPARCD_PREFIX)
         if collection_bucket is None:
-            print(f'Unable to create a collection bucket after {MAX_NEW_BUCKET_TRIES} tries',
+            print(f'Unable to create a new collection bucket after {MAX_NEW_BUCKET_TRIES} tries',
                                                                                         flush=True)
             return False
 
         del minio
+        print(f'Created new collection: {collection_bucket}', flush=True)
 
         # Save the information
         coll_id = collection_bucket[len(SPARCD_PREFIX):]    # pylint: disable=unsubscriptable-object

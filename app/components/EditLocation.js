@@ -233,7 +233,6 @@ export default function EditLocation({data, onUpdate, onClose}) {
    * @function
    */
   const handleUnlockEditingId = React.useCallback(() => {
-    console.log('HACK: UNLOCK EDIT ID', canEditId, !canEditId);
     setCanEditId(!canEditId);
   }, [canEditId, setCanEditId]);
 

@@ -360,9 +360,10 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
   // Measurements when resizing the window
   React.useLayoutEffect(() => {
       function onResize () {
+        let leftWidth = 0;
         // Calculate the top sidebar and add in the species sidebar if it's on top as well
         if (sidebarTopRef && sidebarTopRef.current) {
-          topHeight = sidebarTopRef.current.offsetHeight;
+          let topHeight = sidebarTopRef.current.offsetHeight;
           setSidebarHeightTop(topHeight);
         }
 
@@ -387,7 +388,8 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
       return () => {
           window.removeEventListener("resize", onResize);
       }
-  }, [narrowWindow, uiSizes]);
+  }, [narrowWindow, setSidebarHeightSpecies, setSidebarHeightTop, setSidebarWidthLeft, setWorkspaceWidth, sidebarSpeciesRef,
+      sidebarTopRef, uiSizes]);
 
   /**
    * Handles user kep presses

@@ -902,7 +902,7 @@ class SPARCdDatabase:
 
         # Check if this is an update and not a new instance
         elapsed_sec = self._db.collection_elapsed_sec(s3_id, collection['id'])
-        if elapsed_sec is not None or elapsed_sec >= timeout_sec:
+        if elapsed_sec is not None and elapsed_sec >= timeout_sec:
             return self.collection_update(s3_id, collection, timeout_sec)
 
         self._db.collection_add(s3_id, collection['id'], collection['name'],
