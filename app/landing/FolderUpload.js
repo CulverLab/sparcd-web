@@ -110,6 +110,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
   const [locationSelection, setLocationSelection] = React.useState(null);
   const [newUpload, setNewUpload] = React.useState(false); // Used to indicate that we have  a new upload
   const [newUploadFiles, setNewUploadFiles] = React.useState(null); // The list of files to upload
+  const [notificationMessage, setNotificationMessage] = React.useState(null); // Used to display a notification message to user
   const [uploadState, setUploadState] = React.useState(uploadingState.none); // Used to indicate the state of an active upload
   const [prevUploadCheck, setPrevUploadCheck] = React.useState(prevUploadCheckState.noCheck); // Used to check if the user wants to perform a reset or new upload
   const [uploadPath, setUploadPath] = React.useState(null);
@@ -177,8 +178,10 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
 
               // Acknowledge that upload should continue or be restarted or as a new one
               const notLoadedFiles = files.filter((item) => !respData.uploadedFiles.includes(item.webkitRelativePath));
+              const loadedFiles = files.filter((item) => respData.uploadedFiles.includes(item.webkitRelativePath));
               setWorkingUploadFiles(notLoadedFiles);
               setContinueUploadInfo({files: notLoadedFiles,
+                                     loadedFiles: loadedFiles,
                                      elapsedSec: parseInt(respData.elapsed_sec),
                                      allFiles: files,
                                      id:respData.id})
@@ -438,7 +441,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
       console.log('HACK:     :', perFileSec);
       // Check if we have low memory (only works on Chrome-like browsers)
       if (!haveLowMemory()) {
-        curUploadCount = Math.max(1, MAX_FILES_UPLOAD_SPLIT - Math.round(perFileSec / 3.0)); // Checking against 3.0 seconds (aka magic number)
+        curUploadCount = Math.max(1, MAX_FILES_UPLOAD_SPLIT - Math.round(perFileSec / 7.0)); // Checking against 7.0 seconds (aka magic number)
       } else {
         curUploadCount = 1
       }
@@ -516,6 +519,68 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
       addMessage(Level.Error, 'An unknown problem ocurred while uploading images');
     }
   }, [addMessage, options, selectedTimezone, serverURL, setHaveFailedUpload, uploadToken]);
+
+  /**
+   * Handles checking that an failed upload that's continuing appears to have the same files now as before
+   * @function
+   * @param {array} checkFiles The list of files to check the upload validity of
+   * @param {string} uploadId The ID associated with the upload
+   * @param {function} cbSuccess The function to call if the files check is successful
+   * @param {function} cbMissing The function to call if the there are missing uploaded files
+   * @param {function} cbFail The function to call on failure
+   */
+  const checkUploadedFiles = React.useCallback((checkFiles, uploadId, cbSuccess, cbMissing, cbFail) => {
+    cbSuccess ||= () => {};
+    cbMissing ||= () => {};
+    cbFail ||= () => {};
+
+    // If we have nothing to check, we are successful
+    if (checkFiles.length <= 0) {
+      cbSuccess();
+      return;
+    }
+
+    const sandboxCheckUrl = serverURL + '/sandboxCheckContinueUpload?t=' + encodeURIComponent(uploadToken);
+    const formData = new FormData();
+
+    formData.append('id', uploadId);
+    formData.append(checkFiles[0].name, checkFiles[0]);
+
+    try {
+      const resp = fetch(sandboxCheckUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setTokenExpired();
+              }
+              throw new Error(`Failed to check upload: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+          if (respData.success) {
+            cbSuccess();
+          } else if (respData.missing) {
+            cbMissing(respData.message);
+          } else {
+            cbFail(respData.message);
+          }
+        })
+        .catch(function(err) {
+          console.log('Check Prev Upload Images Error: ',err);
+          addMessage(Level.Error, 'An unknown problem ocurred while confirming continuation of upload');
+          cbFail();
+      });
+    } catch (error) {
+      console.log('Check Prev Upload Images Unknown Error: ',err);
+      addMessage(Level.Error, 'An unknown problem ocurred while confirming continuation of upload');
+      cbFail();
+    }
+  }, [addMessage, serverURL, uploadToken]);
 
   /**
    * Handles uploading a folder of files
@@ -866,7 +931,16 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
     setUploadingFileCounts({total:continueUploadInfo.files.length, uploaded:0});
 
     setUploadingFiles(true);
-    uploadFolder(continueUploadInfo.files, continueUploadInfo.id);
+    // Check that the continuing upload attempt has the same files as the previous attempt
+    checkUploadedFiles(continueUploadInfo.loadedFiles, continueUploadInfo.id,
+      () => uploadFolder(continueUploadInfo.files, continueUploadInfo.id), // Success - continue uploading
+      (message) => {   // Missing files
+        setNotificationMessage({message, action:cancelUpload});
+      },
+      (message) => {   // Failure
+        setNotificationMessage({message, action:cancelUpload});
+      }
+    );
     setContinueUploadInfo(null);
   }, [continueUploadInfo, disableUploadPrev, setContinueUploadInfo, setUploadingFiles, setUploadingFileCounts, uploadFolder]);
 
@@ -1320,6 +1394,24 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
                 Please wait while the upload finishes up ...
               </Typography>
               <CircularProgress variant="indeterminate" />
+          </Grid>
+        </div>
+      </Grid>
+    }
+    { notificationMessage && 
+      <Grid id="query-running-query-wrapper" container direction="row" alignItems="center" justifyContent="center" 
+            sx={{...theme.palette.screen_overlay, backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
+      >
+        <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
+          <Grid container direction="column" alignItems="center" justifyContent="center" >
+              <Typography gutterBottom variant="body2" color="lightgrey">
+                {notificationMessage.message}
+              </Typography>
+              <Button size="small" onClick={() => {setNotificationMessage(null);notificationMessage.action();} }
+                      sx={{paddingTop:'20px'}}
+              >
+                Done
+              </Button>
           </Grid>
         </div>
       </Grid>

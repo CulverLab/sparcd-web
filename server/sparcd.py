@@ -23,7 +23,7 @@ import requests
 from flask import Flask, make_response, render_template, request, Response, send_file, \
                   send_from_directory, url_for
 from flask_cors import cross_origin
-from minio import Minio
+from minio import Minio, S3Error
 from minio.error import MinioException
 from moviepy import VideoFileClip
 
@@ -489,7 +489,7 @@ def login_token():
         minio = Minio(s3_url, access_key=user, secret_key=password)
         _ = minio.list_buckets()
     except MinioException as ex:
-        print(f'WARNING: Failed login attempt: {url} {username}',flush=True)
+        print(f'WARNING: Failed login attempt: {url} {user}',flush=True)
         print('S3 exception caught:', ex, flush=True)
         return "Not Found", 404
 
@@ -849,6 +849,11 @@ def upload_images():
 
     if isinstance(all_images, types.GeneratorType):
         all_images = tuple(all_images)
+
+    # Check that we have images
+    if all_images is None or len(all_images) <= 0:
+        return json.dumps([])
+
     # Get species data from the database and update the images
     edits = {}
     for one_image in all_images:
@@ -1452,6 +1457,101 @@ def sandbox_prev():
     return json.dumps({'exists': (uploaded_files is not None), 'path': rel_path, \
                         'uploadedFiles': uploaded_files, 'elapsed_sec': elapsed_sec, \
                         'id': upload_id})
+
+
+@app.route('/sandboxCheckContinueUpload', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def sandbox_check_continue_upload():
+    """ Checks if a sandbox file already uploaded matches what we've just received
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns whether the file appears to match the previous upload attempt
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('SANDBOX CHECK CONTINUE UPLOAD', flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
+    upload_id = request.form.get('id', None)
+
+    # Check what we have from the requestor
+    if not upload_id:
+        return "Not Found", 406
+
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+
+    s3_bucket, s3_path = db.sandbox_get_s3_info(user_info.name, upload_id)
+
+    # Check all the received files are already uploaded and their hash's match
+    all_match = True
+    message = 'Success'
+    for one_file in request.files:
+        file_ext = os.path.splitext(one_file)[1].lower()
+
+        # Get temporary file
+        temp_file = tempfile.mkstemp(suffix=file_ext, prefix=SPARCD_PREFIX)
+        os.close(temp_file[0])
+
+        request.files[one_file].save(temp_file[1])
+
+        # Get comparison file
+        comp_file = tempfile.mkstemp(suffix=file_ext, prefix=SPARCD_PREFIX)
+
+        try:
+            # Get the path to the file to download and download it
+            s3_comp_path = make_s3_path((s3_path, request.files[one_file].filename))
+            S3Connection.download_image(s3_url, user_info.name,
+                                        get_password(token, db),
+                                        s3_bucket,
+                                        s3_comp_path, comp_file[1])
+            # Calculate the checksums
+            temp_file_cs = sdfu.file_checksum(temp_file[1])
+            comp_file_cs = sdfu.file_checksum(comp_file[1])
+
+            if temp_file_cs != comp_file_cs:
+                all_match = False
+                message = 'The current upload folder appears to be incorrect due to existing images ' \
+                            'not matching'
+        except S3Error as ex:
+            # If the file doesn't exist we have a big problem with the upload
+            if ex.code == "NoSuchKey":
+                print('ERROR: Missing uploaded file while comparing continue upload files ' \
+                                f'against already uploaded files: {s3_bucket} {s3_comp_path} ',
+                        flush=True)
+                print(ex, flush=True)
+                all_match = 'Missing'
+                message = 'The uploaded file is not found on the server ' \
+                                                            f'{request.files[one_file].filename}'
+            else:
+                print('ERROR: Unexpected exception while comparing continue upload files ' \
+                                f'against already uploaded files: {s3_bucket} {s3_comp_path} ',
+                        flush=True)
+                print(ex, flush=True)
+                all_match = None
+                message = 'An unexpected error ocurred while checking already uploaded files'
+        finally:
+            if os.path.exists(temp_file[1]):
+                os.unlink(temp_file[1])
+            if os.path.exists(comp_file[1]):
+                os.unlink(comp_file[1])
+
+        # Stop processing once we have a problem
+        if all_match is not True:
+            break
+
+    return json.dumps({'success': all_match is True,
+                        'missing': all_match == 'missing',
+                        'message': message})
 
 
 @app.route('/sandboxNew', methods = ['POST'])

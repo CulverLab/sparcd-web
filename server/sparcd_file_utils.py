@@ -1,9 +1,11 @@
 """ Functions for handling common files """
 
 import datetime
+import hashlib
 import json
 import os
 import time
+from typing import Optional
 
 
 # Maximum number of times to try updating a temporary file
@@ -106,3 +108,25 @@ def load_timed_info(load_path: str, timeout_sec: int=TEMP_FILE_EXPIRE_SEC):
         return None
 
     return loaded_data['data']
+
+
+def file_checksum(file_path: str) -> Optional[str]:
+    """ Calculates the checksum for the file
+    Arguments:
+        file_path: the path to the file to calculate the checksum for
+    Return:
+        The checksum is returned if the file exists and can be read. None is returned otherwise
+    """
+    if os.path.exists(file_path):
+        try:
+            hash_md5 = hashlib.md5()
+            with open(file_path, "rb") as ifile:
+                for chunk in iter(lambda: ifile.read(4096), b""):
+                    hash_md5.update(chunk)
+            return hash_md5.hexdigest()
+        except PermissionError:
+            print(f'Unable to read file for checksum: {file_path}', flush=True)
+        finally:
+            pass
+
+    return None

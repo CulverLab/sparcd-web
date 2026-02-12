@@ -1045,22 +1045,21 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                       onZoom={(event, speciesItem) => {setSpeciesZoomName(speciesItem.name);setSpeciesKeybindName(null);event.preventDefault();}}
       />
       <Stack id="upload-edit-details" direction={{xs:"column"}} >
-        <Grid id='top-sidebar' ref={sidebarTopRef} container direction='row' alignItems='center' justifyContent='center' rows='1'
+        <Grid id='upload-edit-top-sidebar' ref={sidebarTopRef} container direction='row' alignItems='center' justifyContent='space-between' rows='1'
             style={{ ...theme.palette.top_sidebar, minWidth:(workspaceWidth-workplaceStartX)+'px', maxWidth:(workspaceWidth-workplaceStartX)+'px',
                      position:'sticky', verticalAlignment:'middle', visibility:topbarVisiblity }} >
-          <Grid>
             <Typography variant="body" sx={{ paddingLeft: '10px'}}>
               {curUpload.name}
             </Typography>
-          </Grid>
-          <Grid sx={{marginLeft:'auto'}}>
+            <Typography variant="body2">
+              {(curUpload.images && curUpload.images.length ? curUpload.images.length : 0) + " Images available"}
+            </Typography>
             <Typography variant="body" sx={{ paddingLeft: '10px', fontSize:'larger'}}>
               {curUploadLocation && curUploadLocation.nameProperty ? curUploadLocation.nameProperty : '<location>'}
+              <IconButton aria-label="edit" size="small" color={'lightgrey'} onClick={handleEditLocation}>
+                <BorderColorOutlinedIcon sx={{fontSize:'smaller'}}/>
+              </IconButton>
             </Typography>
-            <IconButton aria-label="edit" size="small" color={'lightgrey'} onClick={handleEditLocation}>
-              <BorderColorOutlinedIcon sx={{fontSize:'smaller'}}/>
-            </IconButton>
-          </Grid>
         </Grid>
         { curEditState == editingStates.listImages || curEditState == editingStates.editImage ? 
             <Box id="image-edit-wrapper-box"

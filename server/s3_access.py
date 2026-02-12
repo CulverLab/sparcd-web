@@ -1122,7 +1122,6 @@ class S3Connection:
             return False
 
         del minio
-        print(f'Created new collection: {collection_bucket}', flush=True)
 
         # Save the information
         coll_id = collection_bucket[len(SPARCD_PREFIX):]    # pylint: disable=unsubscriptable-object
