@@ -1387,8 +1387,12 @@ export default function Home() {
                 <LocationsInfoContext.Provider value={locationInfo}>
                 <SpeciesInfoContext.Provider value={speciesInfo}>
                 <AddMessageContext.Provider value={addMessage}>
-                  <SettingsAdmin loadingCollections={loadingCollections} loadingLocations={loadingLocations}
-                                  onConfirmPassword={confirmAdminPassword} onClose={() => setDisplayAdminSettings(false)}/>
+                  <SettingsAdmin loadingCollections={loadingCollections}
+                                  loadingLocations={loadingLocations}
+                                  onConfirmPassword={confirmAdminPassword}
+                                  onSandboxRefresh={() => {loadSandbox(lastToken);loadCollections(lastToken);}}
+                                  onClose={() => setDisplayAdminSettings(false)}
+                  />
                 </AddMessageContext.Provider>
                 </SpeciesInfoContext.Provider>
                 </LocationsInfoContext.Provider>

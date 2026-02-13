@@ -145,11 +145,11 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                 's3_id TEXT NOT NULL, ' \
                 'bucket TEXT NOT NULL, ' \
                 's3_base_path TEXT NOT NULL, ' \
-                'location_id TEXT NOT NULL, ' \
-                'location_name TEXT NOT NULL, ' \
-                'location_lat REAL NOT NULL, ' \
-                'location_lon READ NOT NULL, ' \
-                'location_ele REAL NOT NULL, ' \
+                'location_id TEXT DEFAULT NULL, ' \
+                'location_name TEXT DEFAULT NULL, ' \
+                'location_lat REAL DEFAULT NULL, ' \
+                'location_lon READ DEFAULT NULL, ' \
+                'location_ele REAL DEFAULT NULL, ' \
                 'recovered INT DEFAULT 0, ' \
                 'timestamp INTEGER, ' \
                 'upload_id TEXT DEFAULT NULL)',

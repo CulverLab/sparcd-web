@@ -52,9 +52,11 @@ const SortDirection = {
  * @param {boolean} loadingCollections Flag indicating collections are being loaded
  * @param {boolean} loadingLocations Flag indicating locations are being loaded
  * @param {function} onConfirmPassword Function for confirming a password re-entry
+ * @param {function} onSandboxRefresh Function for refreshing the sandbox entries
  * @param {function} onClose Function for when the user wants to close this
+ * @return {object} The UI to render
  */
-export default function SettingsAdmin({loadingCollections, loadingLocations, onConfirmPassword, onClose}) {
+export default function SettingsAdmin({loadingCollections, loadingLocations, onConfirmPassword, onSandboxRefresh, onClose}) {
   const theme = useTheme();
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const collectionInfo = React.useContext(CollectionsInfoContext);
@@ -1476,7 +1478,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             >
               <div style={{padding:'25px 10px'}}>
                 <Grid container direction="column" alignItems="center" justifyContent="center">
-                  <CheckIncompleteUploads onCancel={() => setCheckIncompleteUploads(false)} />
+                  <CheckIncompleteUploads onSandboxRefresh={onSandboxRefresh} onCancel={() => setCheckIncompleteUploads(false)} />
                   </Grid>
               </div>
             </Grid>

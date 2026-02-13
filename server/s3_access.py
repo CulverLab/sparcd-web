@@ -239,6 +239,44 @@ def update_user_collections(minio: Minio, collections: tuple) -> tuple:
 
     return user_collections
 
+
+def get_image_counts(minio: Minio, bucket: str, check_folders: tuple) -> int:
+    """ Gets the count of images from the selected folder and its subfolders
+    Arguments:
+        minio: the S3 instance to fo against
+        bucket: the bucket the upload is found in
+        check_folders: a tuple of folders paths to check against
+    Return:
+        Returns the count of images found
+    Note:
+        Files are considered images if they don't end in .csv or .json
+    """
+    uploaded_images = 0
+
+    while check_folders is not None and len(check_folders) > 0:
+        new_folders = []
+
+        for one_folder in check_folders:
+            if not one_folder.endswith('/'):
+                one_folder += '/'
+
+            for one_sub_obj in minio.list_objects(bucket, prefix=one_folder):
+                if one_sub_obj.is_dir and not one_sub_obj.object_name == one_folder:
+                    cur_sub_folder = one_sub_obj.object_name
+                    if not cur_sub_folder.endswith('/'):
+                        cur_sub_folder += '/'
+                    new_folders.append(cur_sub_folder)
+                else:
+                    # Exclude files that we know
+                    ext = os.path.splitext(one_sub_obj.object_name)[1]
+                    if not ext.lower in ['.csv', '.json']:
+                        uploaded_images += 1
+
+        check_folders = new_folders
+
+    return uploaded_images
+
+
 def get_upload_data_thread(minio: Minio, bucket: str, upload_paths: tuple, collection: object \
                                                                                         ) -> object:
     """  Gets upload information for the selected paths
@@ -262,7 +300,7 @@ def get_upload_data_thread(minio: Minio, bucket: str, upload_paths: tuple, colle
         upload_info_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
         if upload_info_data is not None:
             try:
-                upload_info = json.loads(upload_info_data)
+                upload_json = json.loads(upload_info_data)
             except json.JSONDecodeError:
                 print('get_upload_data_thread: Unable to load JSON information: ' \
                       f'{upload_info_path}')
@@ -280,7 +318,7 @@ def get_upload_data_thread(minio: Minio, bucket: str, upload_paths: tuple, colle
                 if csv_info and len(csv_info) >= 23:
                     upload_info.append({
                                  'path':one_path,
-                                 'info':upload_info,
+                                 'info':upload_json,
                                  'location':csv_info[1],
                                  'elevation':csv_info[12],
                                  'key':os.path.basename(one_path.rstrip('/\\')),
@@ -366,7 +404,7 @@ def check_incomplete_thread(minio: Minio, bucket: str) -> Optional[tuple]:
         Returns the tuple of found incomplete uploads
     """
     coll_id = bucket[len(SPARCD_PREFIX):]
-    uploads_path = make_s3_path((COLLECTIONS_FOLDER, coll_id, S3_UPLOADS_PATH_PART))
+    uploads_path = make_s3_path((COLLECTIONS_FOLDER, coll_id, S3_UPLOADS_PATH_PART)) + '/'
 
     incomplete_uploads = []
 
@@ -394,26 +432,19 @@ def check_incomplete_thread(minio: Minio, bucket: str) -> Optional[tuple]:
                 cur_folder = one_obj.object_name
                 if not cur_folder.endswith('/'):
                     cur_folder += '/'
-                check_folders = [cur_folder]
+                check_folders = []
+                for one_sub_obj in minio.list_objects(bucket, prefix=cur_folder):
+                    if one_sub_obj.is_dir and not one_sub_obj.object_name == cur_folder:
+                        cur_sub_folder = one_sub_obj.object_name
+                        if not cur_sub_folder.endswith('/'):
+                            cur_sub_folder += '/'
+                        check_folders.append(cur_sub_folder)
 
                 # Loop throgh this sub folder counting images
-                while check_folders is not None and len(check_folders) > 0:
-                    new_folders = []
-
-                    for one_folder in check_folders:
-                        for one_sub_obj in minio.list_objects(bucket, prefix=one_folder):
-                            if one_sub_obj.is_dir and not one_sub_obj.object_name == one_folder:
-                                cur_sub_folder = one_sub_obj.object_name
-                                if not cur_sub_folder.endswith('/'):
-                                    cur_sub_folder += '/'
-                                new_folders.append(cur_sub_folder)
-                            else:
-                                uploaded_images += 1
-
-                    check_folders = new_folders
+                uploaded_images = get_image_counts(minio, bucket, check_folders)
 
                 # Check the numbers
-                if not uploaded_images == int(upload_info.image_count):
+                if upload_info and not uploaded_images == int(upload_info['imageCount']):
                     incomplete_uploads.append({'upload_user': upload_info['uploadUser'],
                                                 'expected': int(upload_info['imageCount']),
                                                 'actual': uploaded_images,
@@ -1210,7 +1241,7 @@ class S3Connection:
     @staticmethod
     def update_upload_metadata_image_species(url: str, user: str, password: str, bucket: str, \
                                                         upload_path: str, new_count: int) -> bool:
-        """ Update the upload's metadata on the S3 instance with a new count
+        """ Update the upload's metadata on the S3 instance with a new species count
         Arguments:
             url: the URL to the s3 instance
             user: the name of the user to use when connecting
@@ -1244,6 +1275,60 @@ class S3Connection:
         # Update and save the upload information
         coll_info['imagesWithSpecies'] = new_count
         data = json.dumps(coll_info, indent=2)
+        minio.put_object(bucket, upload_info_path, BytesIO(data.encode()), len(data),
+                                                                    content_type='application/json')
+
+        os.unlink(temp_file[1])
+        return True
+
+
+    @staticmethod
+    def upload_recalculate_image_count(url: str, user: str, password: str, bucket: str, \
+                                                                        upload_name: str) -> bool:
+        """ Update the upload's metadata on the S3 instance with the actual image count
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            bucket: the bucket to upload to
+            upload_name: the name of the upload path
+        Return:
+            Returns True if no problem was found and False otherwise
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        coll_id = bucket[len(SPARCD_PREFIX):]
+
+        temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+        os.close(temp_file[0])
+
+        upload_path = make_s3_path((COLLECTIONS_FOLDER, coll_id, S3_UPLOADS_PATH_PART, upload_name))
+
+        # Get the count of uploaded images
+        sub_paths = []
+        for one_obj in minio.list_objects(bucket,  prefix=upload_path + '/'):
+            if one_obj.is_dir and not one_obj.object_name == upload_path:
+                sub_paths.append(one_obj.object_name)
+        new_count = get_image_counts(minio, bucket, sub_paths)
+
+        # Get the upload information
+        upload_info_path = make_s3_path((upload_path, S3_UPLOAD_META_JSON_FILE_NAME))
+        up_info_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
+        if up_info_data is not None:
+            try:
+                up_info = json.loads(up_info_data)
+            except json.JSONDecodeError:
+                print('upload_recalculate_image_count: Unable to load JSON information: ' \
+                      f'{upload_info_path}')
+                return False
+        else:
+            print('upload_recalculate_image_count: Unable to get upload information: ' \
+                  f'{upload_info_path}')
+            return False
+
+        # Update and save the upload information
+        up_info['imageCount'] = new_count
+        data = json.dumps(up_info, indent=2)
         minio.put_object(bucket, upload_info_path, BytesIO(data.encode()), len(data),
                                                                     content_type='application/json')
 
@@ -1463,7 +1548,7 @@ class S3Connection:
         uploaded_count = 0
         for one_file in CONFIGURATION_FILES_LIST:
             source = os.path.join(settings_folder, one_file)
-            dest = make_s3_path(SETTINGS_FOLDER, one_file)
+            dest = make_s3_path((SETTINGS_FOLDER, one_file))
             try:
                 put_s3_file(minio, settings_bucket, dest, source, content_type='application/json')
                 uploaded_count += 1
@@ -1506,7 +1591,7 @@ class S3Connection:
         upload_count = 0
         for one_file in list(set(CONFIGURATION_FILES_LIST) - set(found_files)):
             source = os.path.join(settings_folder, one_file)
-            dest = make_s3_path(SETTINGS_FOLDER, one_file)
+            dest = make_s3_path((SETTINGS_FOLDER, one_file))
             try:
                 put_s3_file(minio, settings_bucket, dest, source, content_type='application/json')
                 upload_count += 1

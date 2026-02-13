@@ -4,6 +4,7 @@
 
 import * as React from 'react';
 import Box from '@mui/material/Box';
+import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Grid from '@mui/material/Grid';
@@ -101,6 +102,66 @@ export default function LandingUpload({loadingSandbox, onChange}) {
     return found !== null;
   }, [sandboxItems]);
 
+  /**
+   * Handle the user wanting to repair a sandbox item
+   * @function
+   * @param {object} sandboxItem The sandbox item of the upload
+   * @param {object} uploadItem The upload item to repair
+   */
+  const handleRepairUpload = React.useCallback((sandboxItem, uploadItem) => {
+    onChange(sandboxItem, uploadItem);
+  }, []);
+
+  /**
+   * Generates the sandbox UI items
+   * @function
+   */
+  function generate_sandbox_items() {
+    // Make sure we have something
+    if (!sandboxItems) {
+      return null;
+    }
+
+    let row_index = 0;
+
+    return sandboxItems.map((obj) => {
+      return obj.uploads.map((up_obj) => {
+        row_index += 1;
+        return (
+          up_obj.uploadCompleted === false &&
+            <Grid key={obj.bucket+up_obj.name} container direction="row" alignItems="center" justifyContent="start"
+                  sx={{padding:'3px 0px', width:'100%', backgroundColor: row_index & 1 ? "transparent" : "rgb(0,0,0,0.05)"}}
+            >
+              <Tooltip title="Incomplete upload" placement="left" sx={{paddingLeft:'5px'}}>
+                <PriorityHighOutlinedIcon size="small" sx={{color:"sandybrown"}} />
+              </Tooltip>
+              <Typography variant="body" >
+                {up_obj.name}
+              </Typography>
+              <Tooltip placement="left"
+                        title={
+                          <React.Fragment>
+                            <p>Source folder: {up_obj.path ? up_obj.path : "<unknown>"}</p>
+                            <p>User: {up_obj.uploadUser}</p>
+                            <p>Images: {up_obj.imagesCount}</p>
+                            <p>Location: {up_obj.location}</p>
+                            <p>Folders: {up_obj.folders && up_obj.folders.length > 0 ? up_obj.folders.join(', ') : "<none>"}</p>
+                          </React.Fragment>
+                        }
+              >
+                <InfoOutlinedIcon size="small" sx={{color:"black", paddingTop:"3px", marginLeft:'auto'}} />
+              </Tooltip>
+              <Tooltip placement="left" title="Repair this upload" style={{marginLeft:"3px"}} >
+                <CloudUploadOutlinedIcon
+                      onClick={() => handleRepairUpload(obj, up_obj)}
+                      sx={{color:"black", backgroundColor:'#E0E0E0', border:'1px solid black', borderRadius:'7px', padding:'2px', marginRight:'5px'}} />
+              </Tooltip>
+            </Grid>
+        );
+      })
+    })
+  }
+
   // Render the UI
   return (
     <Stack>
@@ -123,40 +184,9 @@ export default function LandingUpload({loadingSandbox, onChange}) {
               &nbsp;
             </Grid>
           </Grid>
-          <Grid id="sandbox-upload-item-wrapper" container direction="column" alignItems="start" justifyContent="start"
-                sx={{ ...theme.palette.landing_upload, padding:'0px 5px', minHeight:'40px'  }} >
-            {
-              sandboxItems && sandboxItems.map((obj, idx) => {
-                return obj.uploads.map((up_obj) => {
-                  return (
-                    up_obj.uploadCompleted === false &&
-                      <Grid key={obj.bucket+up_obj.name} container direction="row" alignItems="center" justifyContent="start"  sx={{width:'100%'}} >
-                        <Tooltip title="Incomplete upload" placement="left">
-                          <PriorityHighOutlinedIcon size="small" sx={{color:"sandybrown"}} />
-                        </Tooltip>
-                        <Typography variant="body" >
-                          {up_obj.name}
-                        </Typography>
-                        <Tooltip placement="left"
-                                  title={
-                                    <React.Fragment>
-                                      <p>Folder: {up_obj.path}</p>
-                                      <p>User: {up_obj.upload_user}</p>
-                                      <p>Images: {up_obj.imagesCount}</p>
-                                    </React.Fragment>
-                                  }
-                        >
-                          <InfoOutlinedIcon size="small" sx={{color:"black", paddingTop:"3px", marginLeft:'auto'}} />
-                        </Tooltip>
-                        { obj.upload_user === userName && 
-                          <React.Fragment>
-                          </React.Fragment>
-                        }
-                      </Grid>
-                  );
-                })
-              })
-            }
+          <Grid id="sandbox-upload-item-wrapper" container direction="row" alignItems="start" justifyContent="start"
+                sx={{ ...theme.palette.landing_upload, padding:'0px 0px', minHeight:'40px', maxHeight:'120px'}} >
+            {sandboxItems && generate_sandbox_items()}
           </Grid>
         </React.Fragment>
         )

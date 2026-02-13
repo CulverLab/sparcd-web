@@ -343,7 +343,6 @@ def sendnextfile(path_fagment: str):
 
     fullpath = os.path.realpath(os.path.join(RESOURCE_START_PATH, '_next', 'static',\
                                                                         path_fagment.lstrip('/')))
-    print("HACK:   FILE PATH:", fullpath,flush=True)
 
     # Make sure we're only serving something that's in the same location that we are in and that
     # it exists
@@ -597,6 +596,9 @@ def sandbox():
 
     # Get the sandbox information from the database
     sandbox_items = db.get_sandbox(hash2str(s3_url))
+    if not user_info.admin == 1:
+        sandbox_items = [one_item for one_item in sandbox_items if \
+                                                                one_item["user"] == user_info.name]
 
     # Get the collections to fill in the return data (from the DB only - no S3 connection info)
     all_collections = sdc.load_collections(db, hash2str(s3_url), bool(user_info.admin))
@@ -3375,7 +3377,7 @@ def ownercollection_update():
             'message': "Successfully updated the collection"}
 
 
-@app.route('/adminCheckIncomplete', methods = ['PUT'])
+@app.route('/adminCheckIncomplete', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
 def admin_check_incomplete():
     """ Looks for incomplete updated in collections
@@ -3436,7 +3438,7 @@ def admin_check_incomplete():
     # Update the database with unknown incomplete uploads
     db.sandbox_new_incomplete_uploads(hash2str(s3_url), incomplete)
 
-    return {'success': True}
+    return {'success': True, 'count':len(incomplete)}
 
 
 @app.route('/adminCompleteChanges', methods = ['PUT'])
@@ -3709,3 +3711,71 @@ def install_repair():
         return json.dumps({'success': False, 'message': 'Unable to repair this SPARCd instance'})
 
     return json.dumps({'success': True})
+
+@app.route('/setUploadComplete', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+def set_upload_complete():
+    """ Marks an incomplete upload as completed
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True success if the upload could be marked as completed and False otherwise
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('SET UPLOAD COMPLETE', flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
+    col_id = request.form.get('collectionId', None)
+    up_key = request.form.get('uploadKey', None)
+
+    # Check what we have from the requestor
+    if not all(item for item in [col_id, up_key]):
+        return "Not Found", 406
+
+    # Perform the checks on the S3 instance to see that we can support a new installation
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+
+    # Get the collection we need
+    all_colls = sdc.load_collections(db, hash2str(s3_url), user_info.admin == 1, s3_url, 
+                                                            user_info.name, get_password(token, db))
+    if not all_colls:
+        return json.dumps({'success': False,
+                            'message': "Unable to load collections for marking upload complete"})
+
+    coll = [one_coll for one_coll in all_colls if one_coll["id"] == col_id]
+    if not coll:
+        return json.dumps({'success': False,
+                            'message': 'Unable to find the collection needed to mark upload as ' \
+                                        'completed'})
+    coll = coll[0]
+
+    # Find the upload in the collection
+    upload = [one_up for one_up in coll['uploads'] if one_up["key"] == up_key]
+    if not upload:
+        return json.dumps({'success': False,
+                            'message': 'Unable to find the upload in the collection'})
+    upload = upload[0]
+
+    # Make sure this user has permissions to do this
+    if not user_info.admin == 1 and user_info.name == upload['uploadUser']:
+        return "Not Found", 404
+
+    # Update the counts of the uploaded images to reflect what's on the server
+    S3Connection.upload_recalculate_image_count(s3_url, user_info.name, get_password(token, db),
+                                                                coll['bucket'], upload['key'])
+
+    # Remove the upload from the database
+    db.sandbox_upload_complete_by_info(hash2str(s3_url), user_info.name, coll['bucket'],
+                                                                                    upload['key'])
+
+    return json.dumps({'success': True, 'message': 'Successfully marked upload as completed'})

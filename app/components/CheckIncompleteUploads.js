@@ -22,9 +22,11 @@ import * as utils from '../utils';
 /**
  * Handles checking for incomplete uploads
  * @function
+ * @param {function} onSandboxRefresh Function for refreshing the sandbox entries
+ * @param {function} onClose Function for when the user wants to close this
  * @return {object} The UI for editing collection
  */
-export default function CheckIncompleteUploads({onCancel}) {
+export default function CheckIncompleteUploads({onSandboxRefresh, onCancel}) {
   const theme = useTheme();
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const cardRef = React.useRef();   // Used for sizeing
@@ -91,7 +93,7 @@ export default function CheckIncompleteUploads({onCancel}) {
    */
   const handleSelectNone = React.useCallback(() => {
     setSelectedCollections([]);
-  }, [collectionInfo, setSelectedCollections]);
+  }, [setSelectedCollections]);
 
   /**
    * Performs the check for incomplete uploads
@@ -115,7 +117,8 @@ export default function CheckIncompleteUploads({onCancel}) {
 
     try {
       const resp = fetch(checkIncompleteUrl, {
-        method: 'GET',
+        method: 'POST',
+        body: formData,
       }).then(async (resp) => {
             if (resp.ok) {
               return resp.json();
@@ -131,8 +134,8 @@ export default function CheckIncompleteUploads({onCancel}) {
             // Handle the result
             setCheckingForIncomplete(false);
             if (respData.success) {
-              addMessage(Level.Info, 'Successfully checked for incomplete uploads');
-              window.setTimeout(onCancel, 1000);
+              addMessage(Level.Info, `Successfully checked for ${respData.count ? parseInt(respData.count) : 0} incomplete uploads`);
+              window.setTimeout(() => {onSandboxRefresh();onCancel();}, 1000);
             } else {
               addMessage(Level.Warning, 'Failed the check for incomplete uploads');
               checkingFailed(true);
@@ -150,7 +153,7 @@ export default function CheckIncompleteUploads({onCancel}) {
       setCheckingForIncomplete(false);
       setCheckingFailed(true);
     }
-  }, [addMessage, serverURL, setCheckingForIncomplete, checkToken])
+  }, [addMessage, selectedCollections, serverURL, setCheckingForIncomplete, checkToken])
 
   // Return the UI
   return (
@@ -165,27 +168,35 @@ export default function CheckIncompleteUploads({onCancel}) {
     <CardContent>
       <Stack>
         <Typography nowrap="true" variant="body2" sx={{fontWeight:'bold', paddingBottom:'7px'}}>
-           {checkingFailed === true ? "An error occured while checking for incomplete uploads" : ""}
+           {checkingFailed === true ? "An error occured while checking for incomplete uploads" : " "}
         </Typography>
         <Grid id='check-complete-uploads-content' sx={{minHeight:listHeight+'px', maxHeight:listHeight+'px', height:listHeight+'px', minWidth:'250px', overflow:'scroll',
-                        border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
-                        backgroundColor:'rgb(255,255,255,0.3)'
+                        border:checkingForIncomplete === false ? '1px solid black' : '1px solid grey', borderRadius:'5px', paddingLeft:'5px',
+                        backgroundColor:checkingForIncomplete === false ? 'rgb(255,255,255,0.3)' : 'lightgrey'
                       }}>
-          <FormGroup>
-            { collectionInfo.map((item) => 
-                <FormControlLabel key={'check-complete-uploads-collections-' + item.name}
-                                  control={<Checkbox size="small" 
-                                                     checked={selectedCollections.findIndex((curCollections) => curCollections===item.bucket) > -1 ? true : false}
-                                                     onChange={(event) => handleCheckboxChange(event,item.bucket)}
-                                            />} 
-                                  label={<Typography variant="body2">{item.name}</Typography>} />
-              )
-            }
-          </FormGroup>
+          {checkingForIncomplete === false ?
+            <FormGroup>
+              { collectionInfo.map((item) => 
+                  <FormControlLabel key={'check-complete-uploads-collections-' + item.name}
+                                    control={<Checkbox size="small" 
+                                                       checked={selectedCollections.findIndex((curCollections) => curCollections===item.bucket) > -1 ? true : false}
+                                                       onChange={(event) => handleCheckboxChange(event,item.bucket)}
+                                              />} 
+                                    label={<Typography variant="body2">{item.name}</Typography>} />
+                )
+              }
+            </FormGroup>
+          : <Grid container direction="column" alignItems="center" justifyContent="center" sx={{height:'100%'}}>
+              <CircularProgress />
+              <Typography gutterBottom variant="body2">
+                Please wait while checking collections ...
+              </Typography>
+            </Grid>
+          }
         </Grid>
-        <Grid container direction="row" align="center" justifyContent="space-between" sx={{borderBottom:'1px solid grey'}} >
-          <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
-          <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
+        <Grid container direction="row" alignItems="center" justifyContent="space-between" sx={{borderBottom:'1px solid grey'}} >
+          <Button sx={{'flex':'1'}} size="small" disabled={checkingForIncomplete} onClick={handleSelectAll}>Select All</Button>
+          <Button sx={{'flex':'1'}} size="small" disabled={checkingForIncomplete} onClick={handleSelectNone}>Select None</Button>
         </Grid>
       </Stack>
     </CardContent>
@@ -194,7 +205,7 @@ export default function CheckIncompleteUploads({onCancel}) {
               sx={{'flex':'1'}} size="small" onClick={continueCheckIncomplete}>
         Continue
       </Button>
-      <Button id="check-complete-uploads-cancel" disabled={checkingForIncomplete} sx={{'flex':'1'}} size="small" onClick={onCancel}>Cancel</Button>
+      <Button id="check-complete-uploads-cancel" disabled={checkingForIncomplete} sx={{'flex':'1'}} size="small" onClick={onCancel}>Done</Button>
     </CardActions>
   </Card>
   );

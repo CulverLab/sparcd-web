@@ -936,9 +936,9 @@ class SPDSQLite:
 
         # Add the upload
         cursor = self._conn.cursor()
-        cursor.execute('INSERT INTO sandbox(s3_id, bucket, name, s3_base_path, timestamp, ' \
+        cursor.execute('INSERT INTO sandbox(s3_id, path, bucket, name, s3_base_path, timestamp, ' \
                                     'upload_id, recovered) ' \
-                            'VALUES(?, ?, ?, ?, time(?), ?, 1)',
+                            'VALUES(?, "", ?, ?, ?, time(?), ?, 1)',
                         (s3_id, bucket, username, s3_path, timestamp.isoformat(), uuid.uuid4().hex))
 
         self._conn.commit()
@@ -1069,7 +1069,7 @@ class SPDSQLite:
             raise RuntimeError('Attempting to get sandbox S3 information from the database before '\
                                                                                     'connecting')
 
-        # Get the date
+        # Get the S3 information from the sandbox
         cursor = self._conn.cursor()
         cursor.execute('SELECT bucket, s3_base_path FROM sandbox WHERE name=? AND upload_id=?',
                                                                     (username, upload_id))
@@ -1092,7 +1092,7 @@ class SPDSQLite:
             raise RuntimeError('Attempting to count sandbox uploaded files in the database '\
                                                                                 'before connecting')
 
-        # Get the date
+        # Return the sandbox upload count
         cursor = self._conn.cursor()
         cursor.execute('WITH '\
                 'upid AS ' \
@@ -1126,7 +1126,7 @@ class SPDSQLite:
             raise RuntimeError('Attempting to get files not uploaded to the database '\
                                                                                 'before connecting')
 
-        # Get the date
+        # Return the list of IDs for files not loaded
         cursor = self._conn.cursor()
         cursor.execute('WITH upid AS ' \
                     '(SELECT id FROM sandbox ' \
@@ -1196,10 +1196,33 @@ class SPDSQLite:
             raise RuntimeError('Attempting to complete sandbox upload in the database '\
                                                                                 'before connecting')
 
-        # Get the date
+        # Update the sandbox
         cursor = self._conn.cursor()
-        cursor.execute('UPDATE sandbox SET path="" WHERE name=? AND upload_id=?',
+        cursor.execute('UPDATE sandbox SET path="", recovered=0  WHERE name=? AND upload_id=?',
                                                                             (username, upload_id))
+
+        self._conn.commit()
+        cursor.close()
+
+    def sandbox_upload_complete_by_info(self, s3_id: str, username: str, bucket: str, \
+                                                                        upload_name: str) -> None:
+        """ Marks the sandbox upload as completed
+        Arguments:
+            s3_id: the ID of the S3 instance
+            username: the name of the person associated with the upload
+            bucket: the bucket of the upload
+            upload_name: the name of the upload
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to complete repair sandbox upload in the database '\
+                                                                                'before connecting')
+
+        # Mark the sandbox as complete
+        cursor = self._conn.cursor()
+        query = 'UPDATE sandbox SET path="", recovered=0 WHERE name=? AND s3_id=? AND ' \
+                                                                'bucket=? AND s3_base_path like ?'
+        params = (username, s3_id, bucket, '%'+upload_name)
+        cursor.execute(query, params)
 
         self._conn.commit()
         cursor.close()
@@ -1297,7 +1320,7 @@ class SPDSQLite:
             raise RuntimeError('Attempting to get sandbox location information from the database '\
                                                                                 'before connecting')
 
-        # Get the date
+        # Get the location
         cursor = self._conn.cursor()
         cursor.execute('SELECT location_id, location_name, location_lat, location_lon, ' \
                                         'location_ele FROM sandbox WHERE name=? AND upload_id=?',
@@ -1320,7 +1343,7 @@ class SPDSQLite:
             raise RuntimeError('Attempting to get upload mimetypes from the database '\
                                                                                 'before connecting')
 
-        # Get the date
+        # Get the file mime type
         cursor = self._conn.cursor()
         cursor.execute('SELECT source_path, mimetype FROM sandbox_files WHERE sandbox_id IN '\
                         '(SELECT id FROM sandbox WHERE name=? AND upload_id=?)',
@@ -1345,7 +1368,7 @@ class SPDSQLite:
             raise RuntimeError('Attempting to get upload mimetypes from the database '\
                                                                                 'before connecting')
 
-        # Get the date
+        # Return the files species
         cursor = self._conn.cursor()
         query = \
             'WITH loc AS (SELECT id, location_id as loc_id ' \

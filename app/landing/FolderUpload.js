@@ -1,6 +1,6 @@
 'use client'
 
-/** @module components/FolderUpload */
+/** @module landing/FolderUpload */
 
 import * as React from 'react';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -1388,7 +1388,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
       <Grid id="query-running-query-wrapper" container direction="row" alignItems="center" justifyContent="center" 
             sx={{...theme.palette.screen_overlay, backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
       >
-        <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
+        <div style={{backgroundColor:'rgb(212, 230, 241, 0.95)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
           <Grid container direction="column" alignItems="center" justifyContent="center" >
               <Typography gutterBottom variant="body2" color="lightgrey">
                 Please wait while the upload finishes up ...
@@ -1402,7 +1402,7 @@ export default function FolderUpload({loadingCollections, type, onCompleted, onC
       <Grid id="query-running-query-wrapper" container direction="row" alignItems="center" justifyContent="center" 
             sx={{...theme.palette.screen_overlay, backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
       >
-        <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
+        <div style={{backgroundColor:'rgb(212, 230, 241, 0.95)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
           <Grid container direction="column" alignItems="center" justifyContent="center" >
               <Typography gutterBottom variant="body2" color="lightgrey">
                 {notificationMessage.message}

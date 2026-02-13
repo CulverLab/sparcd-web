@@ -191,8 +191,8 @@ class SPARCdDatabase:
 
         return [{'user': row[indexes['user']],
                  'path': row[indexes['path']],
-                 'complete': not row[indexes['path']] or row[indexes['path']] == '' or \
-                                                                    row[indexes['recovered']] != 0,
+                 'complete': (not row[indexes['path']] or row[indexes['path']] == '') and \
+                                                                    row[indexes['recovered']] == 0,
                  'bucket': row[indexes['bucket']],
                  's3_path': row[indexes['s3_path']],
                  'location_id': row[indexes['location_id']],
@@ -394,6 +394,17 @@ class SPARCdDatabase:
             upload_id: the ID of the upload
         """
         self._db.sandbox_upload_complete(username, upload_id)
+
+    def sandbox_upload_complete_by_info(self, s3_id: str, username: str, bucket: str, \
+                                                                        upload_name: str) -> None:
+        """ Marks the sandbox upload as completed
+        Arguments:
+            s3_id: the ID of the S3 instance
+            username: the name of the person associated with the upload
+            bucket: the bucket of the upload
+            upload_name: the name of the upload
+        """
+        self._db.sandbox_upload_complete_by_info(s3_id, username, bucket, upload_name)
 
 
     def sandbox_file_uploaded(self, username: str, upload_id: str, filename: str, \

@@ -401,9 +401,11 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
                                             if one_item['s3_path'].endswith(one_upload['key']) ]
                 if len(found_uploads) > 0:
                     cur_upload = found_uploads[0]
-        else:
+        if cur_upload is None:
+            # Only add the collection if we haven't found it
+            if not found:
+                add_collection = True
             # Try to find the collection in the list of collections, otherwise fetch it
-            add_collection = True
             if all_collections:
                 found = [one_col for one_col in all_collections if one_col['bucket'] == bucket]
                 if found:
@@ -411,7 +413,7 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
                     found = found[0]
 
                     found_uploads = [one_upload for one_upload in found['uploads'] \
-                                            if one_item['s3_path'].endswith(one_upload['key']) ]
+                                            if one_item['s3_path'].endswith(one_upload['key']+'/') ]
                     if len(found_uploads) > 0:
                         cur_upload = found_uploads[0]
             else:
@@ -450,8 +452,6 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
             cur_upload['uploadUser'] = one_item['user']
         if 'path' in one_item:
             cur_upload['path'] = one_item['path']
-        print('HACK: SANDBOXADD:',cur_upload.keys(),flush=True)
-        print('HACK:           :',one_item.keys(),flush=True)
         coll_uploads[bucket]['uploads'].append(cur_upload)
 
         if add_collection is True:
