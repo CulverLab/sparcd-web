@@ -1082,38 +1082,28 @@ class SPDSQLite:
             raise RuntimeError('Attempting to add a new sandbox upload to the database before ' \
                                                                                     'connecting')
 
-        # Make sure we have a recovery upload
+        # Make sure we have a recovery upload by getting the sandbox ID
         cursor = self._conn.cursor()
-        cursor.execute('SELECT count(1) FROM SANDBOX WHERE name=? AND s3_id=? AND ' \
-                                                        'bucket=? AND s3_base_path like ? AND ' \
-                                                        '(recovered=1 OR path="" OR path is NULL)',
+        cursor.execute('SELECT id FROM SANDBOX WHERE name=? AND s3_id=? AND ' \
+                                            'bucket=? AND s3_base_path like ? AND ' \
+                                            '( recovered=1 OR (path != "" AND path is not NULL))',
                         (username, s3_id, bucket, '%'+upload_key+'%'))
         res = cursor.fetchone()
         cursor.close()
-        #HACK
-        print('HACK: DBCHECK:','SELECT count(1) FROM SANDBOX WHERE name=? AND s3_id=? AND ' \
-                                                        'bucket=? AND s3_base_path like ? AND ' \
-                                                        '(recovered=1 OR path="" OR path is NULL)', flush=True)
-        print('HACK:', username, s3_id, bucket, '%'+upload_key+'%',flush=True)
-        #HACK
 
         if not res or len(res) <= 0:
-            print('HACK: NO RES', flush=True)
             return None
 
-        if int(res[0]) == 0:
-            print('HACK: RES = 0', flush=True)
-            return None
+        sandbox_id = res[0]
 
         # Update the upload
         upload_id = uuid.uuid4().hex
         cursor = self._conn.cursor()
         cursor.execute('UPDATE sandbox SET path=?, location_id=?, location_name=?, location_lat=?, '\
-                            'location_lon=?, location_ele=?, recovered=0, upload_id=?', 
+                            'location_lon=?, location_ele=?, recovered=0, upload_id=? WHERE ' \
+                            's3_id=? AND name=? AND bucket=? AND s3_base_path like ?', 
                         (source_path, location_id, location_name, location_lat, location_lon, \
-                            location_ele, upload_id))
-
-        sandbox_id = cursor.lastrowid
+                            location_ele, upload_id, s3_id,username, bucket, "%"+upload_key+"%"))
 
         # Remove the existing files we have
         cursor.execute('DELETE FROM sandbox_files WHERE sandbox_id=?', (sandbox_id,))

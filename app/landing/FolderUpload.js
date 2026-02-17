@@ -255,15 +255,8 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
           .then((respData) => {
               // Process the results
               if (respData.success) {
-                setUploadPath(path);
-
-                // Acknowledge that upload should continue or be restarted or as a new one
-                setWorkingUploadFiles(files);
-                setContinueUploadInfo({files: files,
-                                       loadedFiles: [],
-                                       elapsedSec: 0,
-                                       allFiles: files,
-                                       id:respData.id})
+                setNewUpload(false);
+                window.setTimeout(() => uploadFolder(files, respData.id), 10);
               } else {
                 console.log('Didn\'t find recovery upload');
                 addMessage(Level.Warning, respData.message);

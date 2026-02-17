@@ -100,7 +100,7 @@ export default function CheckIncompleteUploads({onSandboxRefresh, onCancel}) {
    * @function
    * @param {function} onCancel The function to call when the user cancels
    */
-  const continueCheckIncomplete = React.useCallback((onCancel) => {
+  const continueCheckIncomplete = React.useCallback(() => {
     // Check if we have something to do
     if (!selectedCollections || selectedCollections.length <= 0) {
       return;

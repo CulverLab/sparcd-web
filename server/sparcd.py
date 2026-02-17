@@ -1536,7 +1536,7 @@ def sandbox_recovery_update():
                                                 coll['bucket'],
                                                 upload['key'],
                                                 source_path,
-                                                all_files,
+                                                json.loads(all_files),
                                                 our_location['idProperty'],
                                                 our_location['nameProperty'],
                                                 our_location['latProperty'],

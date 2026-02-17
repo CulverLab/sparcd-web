@@ -91,10 +91,10 @@ export default function UploadRepair({collectionInfo, uploadInfo, onUploadImages
    */
   const handleSelUploadContinue = React.useCallback((type) => {
     if (type === 'images') {
-      onUploadImages();
+      onUploadImages(collectionInfo, uploadInfo);
       onClose();
     } else if (type === 'movies') {
-      onUploadMovies();
+      onUploadMovies(collectionInfo, uploadInfo);
       onClose();
     }
   }, []);
