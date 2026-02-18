@@ -218,6 +218,17 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                 'location_updated INTEGER DEFAULT 0, ' \
                 'loc_description TEXT DEFAULT NULL, ' \
                 'timestamp INTEGER)',
+             'CREATE TABLE messages(id INTEGER PRIMARY KEY ASC, '\
+                's3_id TEXT NOT NULL, ' \
+                'sender TEXT NOT NULL, ' \
+                'receiver TEXT NOT NULL, ' \
+                'subject TEXT NOT NULL, ' \
+                'message TEXT NOT NULL, ' \
+                'priority INTEGER DEFAULT 0, ' \
+                'read_timestamp DEFAULT NULL, ' \
+                'prev_id INTEGER DEFAULT NULL, ' \
+                'deleted INTEGER DEFAULT 0, ' \
+                'timestamp INTEGER NOT NULL)',
              'CREATE TABLE db_locks(id INTEGER PRIMARY KEY ASC, ' \
                 'name TEXT NOT NULL, ' \
                 'value INTEGER DEFAULT NULL, ' \

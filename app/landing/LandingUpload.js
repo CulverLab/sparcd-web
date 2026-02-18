@@ -154,7 +154,7 @@ export default function LandingUpload({loadingSandbox, onChange}) {
               <Tooltip placement="left" title="Repair this upload" style={{marginLeft:"3px"}} >
                 <CloudUploadOutlinedIcon
                       onClick={() => handleRepairUpload(obj, up_obj)}
-                      sx={{color:"black", backgroundColor:'#E0E0E0', border:'1px solid black', borderRadius:'7px', padding:'2px', marginRight:'5px'}} />
+                      sx={{color:"black", backgroundColor:'rgb(224, 224, 224, 0.7)', border:'1px solid black', borderRadius:'7px', padding:'2px', marginRight:'5px'}} />
               </Tooltip>
             </Grid>
         );
