@@ -208,11 +208,11 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
         })
         .catch(function(err) {
           console.log('Check For Admin Error: ', err);
-          addMssage(Level.Warning, "An error ocurred while logging in for administration purposes");
+          addMessage(Level.Warning, "An error ocurred while logging in for administration purposes");
       });
     } catch (error) {
       console.log('Check For Admin Unknown Error: ',err);
-      addMssage(Level.Warning, "An unknown error ocurred while logging in for administration purposes");
+      addMessage(Level.Warning, "An unknown error ocurred while logging in for administration purposes");
     }
   }, [addMessage, settingsToken, setIsAdmin])
 

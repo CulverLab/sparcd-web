@@ -85,7 +85,7 @@ COPY --exclude=__pycache__ --exclude=.DS_Store ./server/ ./
 
 # Build the default database
 RUN rm *.sqlite    # Clean up any testing databases
-RUN ./create_db.py --admin ${ADMIN_NAME} --admin_email ${ADMIN_EMAIL} --admin_url ${ADMIN_URL} $PWD sparcd.sqlite
+RUN python3 create_db.py --admin ${ADMIN_NAME} --admin_email ${ADMIN_EMAIL} --admin_url ${ADMIN_URL} $PWD sparcd.sqlite
 RUN rm create_db.py
 
 # Clean up files we don't want on the server
