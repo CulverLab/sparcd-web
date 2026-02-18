@@ -50,6 +50,9 @@ ARG ADMIN_NAME=admin
 # Allow override of the admin email
 ARG ADMIN_EMAIL=admin@arizona.edu
 
+# Allow override of the admin email
+ARG ADMIN_URL=https://S3.endpoint.edu
+
 # Install python stuff
 COPY ./requirements.txt ./
 RUN apk update
@@ -82,7 +85,7 @@ COPY --exclude=__pycache__ --exclude=.DS_Store ./server/ ./
 
 # Build the default database
 RUN rm *.sqlite    # Clean up any testing databases
-RUN ./create_db.py --admin ${ADMIN_NAME} --admin_email ${ADMIN_EMAIL} $PWD sparcd.sqlite
+RUN ./create_db.py --admin ${ADMIN_NAME} --admin_email ${ADMIN_EMAIL} --admin_url ${ADMIN_URL} $PWD sparcd.sqlite
 RUN rm create_db.py
 
 # Clean up files we don't want on the server
