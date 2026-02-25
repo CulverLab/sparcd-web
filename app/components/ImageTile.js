@@ -76,7 +76,7 @@ export default function ImageTile({name, type, species, onClick}) {
                 <Typography variant="body" sx={{textTransform:'uppercase'}}>
                   {name}
                 </Typography>
-                {haveSpecies ? <CheckCircleOutlinedIcon size="small" sx={{color:"#68AB68", leftMargin:'auto'}}/> : null}
+                {haveSpecies ? <CheckCircleOutlinedIcon fontSize="small" sx={{color:"#68AB68", leftMargin:'auto'}}/> : null}
               </Grid>
               <Box>
                 <Typography variant="body" sx={{border:'1px solid black', borderRadius:'7px', backgroundColor:haveSpecies ? 'dimgrey' : 'silver', padding:'2px 5px' }}>

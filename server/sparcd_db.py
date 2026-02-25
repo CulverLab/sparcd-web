@@ -7,6 +7,7 @@ import logging
 import os
 from typing import Optional
 
+from spd_types.message import Message, Priority
 from spd_types.userinfo import UserInfo
 from spd_database.spdsqlite import SPDSQLite
 
@@ -124,7 +125,6 @@ class SPARCdDatabase:
             A dict containing the user's name, email, settings, and admin level.
         """
         res = self._db.get_user_by_name(s3_id, username)
-
         if res and len(res) >= 4:
             user_info = UserInfo(res[0], res[4])  # Name and admin
             user_info.email = res[1]
@@ -1118,3 +1118,88 @@ class SPARCdDatabase:
             otherwise
         """
         return self._db.is_sole_user(s3_id, user)
+
+    def message_add(self, s3_id: str, sender: str, receiver: str, subject: str, message: str, \
+                                                                            priority: str) -> None:
+        """ Adds a message to the database
+        Arguments:
+            s3_id: the ID of the S3 instance
+            sender: the name of the sender
+            receiver: the name of the receiver
+            subject: what the message is about
+            priority: the priority of the message. One of 'normal', 'important', 'urgent'
+        """
+        # Map the priority
+        mapped_priority = Priority.NORMAL
+        match priority.lower():
+            case 'normal':
+                mapped_priority = Priority.NORMAL
+            case 'important':
+                mapped_priority = Priority.IMPORTANT
+            case 'urgent':
+                mapped_priority = Priority.URGENT
+
+        self._db.message_add(s3_id, sender, receiver, subject, message, mapped_priority)
+
+    def messages_get(self, s3_id: str, receiver: str, admin: bool=False) -> tuple:
+        """ Gets the messages for the receiver
+        Arguments:
+            s3_id: the ID of the S3 instance
+            receiver: who to get the messages for
+            admin: Set to True to also get admin messages. False will exclude them
+        Return:
+            A tuple of Message instances containing the message contents
+        """
+        messages = []
+
+        # Get the messages
+        indexes, res = self._db.messages_get(s3_id, receiver, admin)
+
+        # Make sure we have something to work with
+        if not res or len(res) <= 0:
+            return messages
+
+        for one_row in res:
+            cur_mess = Message(one_row[indexes['id']])
+            cur_mess.receiver = one_row[indexes['recipient']]
+            cur_mess.sender = one_row[indexes['sender']]
+            cur_mess.subject = one_row[indexes['subject']]
+            cur_mess.message = one_row[indexes['message']]
+            if one_row[indexes['priority']] in Priority:
+                cur_mess.priority = one_row[indexes['priority']]
+            else:
+                cur_mess.priority = Priority.NORMAL
+            cur_mess.created = one_row[indexes['created_sec']]
+            cur_mess.read = one_row[indexes['read_sec']]
+
+            messages.append(cur_mess)
+
+        return messages
+
+    def messages_are_read(self, s3_id: str, receiver: str, ids: tuple) -> None:
+        """ Marks messages as read
+        Arguments:
+            s3_id: the ID of the S3 instance
+            username: the name of the recipient
+            ids: a tuple of the IDs of the messages to mark as read
+        """
+        self._db.messages_are_read(s3_id, receiver, ids)
+
+    def messages_are_deleted(self, s3_id: str, receiver: str, ids: tuple) -> None:
+        """ Marks messages as read
+        Arguments:
+            s3_id: the ID of the S3 instance
+            username: the name of the recipient
+            ids: a tuple of the IDs of the messages to mark as read
+        """
+        self._db.messages_are_deleted(s3_id, receiver, ids)
+
+    def message_count(self, s3_id: str, receiver: str) -> int:
+        """ Returns the number of messages for this user
+        Arguments:
+            s3_id: the ID of the S3 instance
+            username: the name of the recipient
+        Return:
+            The number of messages for the user
+        """
+        self._db.message_count(s3_id, receiver)

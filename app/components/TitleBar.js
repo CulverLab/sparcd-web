@@ -7,16 +7,18 @@ import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
+import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
 import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import { Level } from './Messages';
 import Settings from './Settings';
 import styles from './components.module.css';
-import { AddMessageContext, TokenContext, UserNameContext, UserSettingsContext } from '../serverInfo';
+import { AddMessageContext, TokenContext, UserMessageContext, UserNameContext, UserSettingsContext } from '../serverInfo';
 
 /**
  * Renders the title bar
@@ -26,17 +28,19 @@ import { AddMessageContext, TokenContext, UserNameContext, UserSettingsContext }
  * @param {string} [size] Optionally one of "small" or "full"
  * @param {function} [onSearch] The function to call to perform a search
  * @param {function} [onBreadcrumb] The breadcrumb click handler
+ * @param {function} onMessages The function to call to display messages
  * @param {function} onSettings The settings click handler
  * @param {function} onLogout The handler for the user wanting to logout
  * @param {function} onAdminSettings The handler for when an admin users wants to edit system-wide settings
  * @param {function} onOwnerSettings The handler for when an admin users wants to edit collection settings
  * @returns {object} The rendered UI
  */
-export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBreadcrumb, onSettings, onLogout, onAdminSettings, onOwnerSettings}) {
+export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBreadcrumb, onSettings, onLogout, onMessages, onAdminSettings, onOwnerSettings}) {
   const theme = useTheme();
   const searchId = React.useMemo(() => "search-" + (searchTitle ? searchTitle.toLowerCase().replaceAll(' ', '-') : "sparcd"), [searchTitle]);
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const loginToken = React.useContext(TokenContext);  // Login token
+  const userMessages = React.useContext(UserMessageContext);  // User messages
   const userName = React.useContext(UserNameContext);  // User display name
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
   const [showSettings, setShowSettings] = React.useState(false);
@@ -169,20 +173,31 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
                  />
                 }
                 { loginToken !== null && 
-                  <IconButton size="small" onClick={() => setShowSettings(true)}>
-                    <MenuOutlinedIcon fontSize="small" />
-                  </IconButton>
+                  <Tooltip title='Messages'>
+                    <IconButton fontSize="small" onClick={() => onMessages(loginToken)}
+                                sx={{ ...(userMessages.count > 0 ? theme.palette.have_messages : {}) }}
+                      >
+                      <MailOutlinedIcon fontSize="small"/>
+                    </IconButton>
+                  </Tooltip>
+                }
+                { loginToken !== null && 
+                  <Tooltip title='Settings'>
+                    <IconButton size="small" onClick={() => setShowSettings(true)}>
+                      <MenuOutlinedIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 }
               </Grid>
             </Grid>
           </Grid>
           <Grid size={{xs:12}} style={{paddingTop:'0', visibility:'visible'}} >
-            <Typography sx={{fontSize:"xx-small"}}>
+            <Typography sx={{fontSize:"small", fontWeight:'bold'}}>
             { breadcrumbs && breadcrumbs.length > 0 ? 
                 breadcrumbs.map((item, idx) => {
                               return (<React.Fragment key={"breadcrumb-" + idx + '-' + item.name} >
                                         &nbsp;
-                                        <Link component="button" underline="hover" sx={{fontSize:'larger'}}
+                                        <Link component="button" underline="hover" sx={{}}
                                               onClick={() => handleNav(item)}
                                         >
                                           {item.name}{idx < (breadcrumbs.length -1) ? ' / ' : ' '}

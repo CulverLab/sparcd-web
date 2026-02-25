@@ -241,8 +241,8 @@ export default function LoginAgain({newInstallToken, repairServer, onCancel}) {
               </Typography>
             }
             <Typography variant="body" sx={{borderBottom:"1px solid lightgrey"}}>
-              <IconButton aria-label="Important" size="small">
-                <PriorityHighOutlinedIcon style={{color:'sandybrown'}}/>
+              <IconButton aria-label="Important" >
+                <PriorityHighOutlinedIcon fontSize="small" style={{color:'sandybrown'}}/>
               </IconButton>
               {getStageMessage(installStep) }
             </Typography>
@@ -327,8 +327,8 @@ export default function LoginAgain({newInstallToken, repairServer, onCancel}) {
             <div id="new-install-repair" style={{backgroundColor:'honeydew', border:'1px solid grey', borderRadius:'15px', padding:'25px 20px'}}>
               <Grid container direction="column" alignItems="center" justifyContent="center">
                 <Typography variant="body" variant="h4" component="h4" sx={{padding:"20px 0px"}}>
-                  <IconButton aria-label="Important" size="small">
-                    <PriorityHighOutlinedIcon style={{color:'crimson'}}/>
+                  <IconButton aria-label="Important">
+                    <PriorityHighOutlinedIcon fontSize="small" style={{color:'crimson'}}/>
                   </IconButton>
                   {installStep === InstallStep.installFailed ? "Install" : "Repair"} has failed to complete
                 </Typography>

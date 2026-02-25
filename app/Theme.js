@@ -268,19 +268,31 @@ let theme = createTheme({
       width: '100px'
     },
     screen_disable: {
-      'position': 'absolute',
-      'left': '0px',
-      'top': '0px',
-      'width': '100vw',
-      'height': '100vh',
-      'backgroundColor': 'rgba(128, 128, 128, 0.65)'
+      position: 'absolute',
+      left: '0px',
+      top: '0px',
+      width: '100vw',
+      height: '100vh',
+      backgroundColor: 'rgba(128, 128, 128, 0.65)'
     },
     screen_overlay: {
-      'position': 'absolute',
-      'left': '0px',
-      'top': '0px',
-      'width': '100vw',
-      'height': '100vh',
+      position: 'absolute',
+      left: '0px',
+      top: '0px',
+      width: '100vw',
+      height: '100vh',
+    },
+    have_messages: {
+      '&:after': {
+        position:'absolute',
+        content:'" "',
+        height:'7px',
+        width:'7px',
+        borderRadius:'3px',
+        backgroundColor:'red',
+        top:'25%',
+        right:'15%'
+      }
     }
   }
 });

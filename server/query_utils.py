@@ -41,7 +41,7 @@ def query_raw2csv(raw_data: tuple, settings: dict, mods: tuple=None) -> str:
 
     for one_row in raw_data:
         # Build up the row based upon modifications
-        cur_row = [one_row['image']]
+        cur_row = [one_row['image'] if one_row['image'] else '']
 
         if isinstance(timestamp_keys, str):
             cur_row.append('"' + one_row['date'] + '"')
@@ -49,12 +49,13 @@ def query_raw2csv(raw_data: tuple, settings: dict, mods: tuple=None) -> str:
             cur_row.append('"' + one_row[timestamp_keys['date']] + ' ' + \
                                             one_row[timestamp_keys['time']] + '"')
 
-        cur_row.append(one_row['locName'])
-        cur_row.append(one_row['locId'])
+        cur_row.append(one_row['locName'] if one_row['locName'] else 'Unknown')
+        cur_row.append(one_row['locId'] if one_row['locId'] else 'unknown')
         for one_key in location_keys:
-            cur_row.append(str(one_row[one_key]))
+            cur_row.append(str(one_row[one_key]) if one_row[one_key] else '0')
         for one_key in elevation_keys:
-            cur_row.append(re.sub(r"[^\d\.]", "", str(one_row[one_key])))
+            cur_row.append(re.sub(r"[^\d\.]", "", str(one_row[one_key]) if one_row[one_key] \
+                                                                                        else '0'))
 
         cur_idx = 1
         while True:

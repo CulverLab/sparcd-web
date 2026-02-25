@@ -1099,9 +1099,10 @@ class SPDSQLite:
         # Update the upload
         upload_id = uuid.uuid4().hex
         cursor = self._conn.cursor()
-        cursor.execute('UPDATE sandbox SET path=?, location_id=?, location_name=?, location_lat=?, '\
-                            'location_lon=?, location_ele=?, recovered=0, upload_id=? WHERE ' \
-                            's3_id=? AND name=? AND bucket=? AND s3_base_path like ?', 
+        cursor.execute('UPDATE sandbox SET path=?, location_id=?, location_name=?, '\
+                                'location_lat=?, location_lon=?, location_ele=?, recovered=0, ' \
+                                'upload_id=? ' \
+                            'WHERE s3_id=? AND name=? AND bucket=? AND s3_base_path like ?', 
                         (source_path, location_id, location_name, location_lat, location_lon, \
                             location_ele, upload_id, s3_id,username, bucket, "%"+upload_key+"%"))
 
@@ -2156,3 +2157,139 @@ class SPDSQLite:
             return False
 
         return int(res[0]) == 1
+
+    def message_add(self, s3_id: str, sender: str, receiver: str, subject: str, message: str, \
+                                                                            priority: int) -> None:
+        """ Adds a message to the database
+        Arguments:
+            s3_id: the ID of the S3 instance
+            sender: the name of the sender
+            receiver: the name of the receiver
+            subject: what the message is about
+            priority: the priority of the message
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to add a message to the database before ' \
+                                                                                    'connecting')
+        cursor = self._conn.cursor()
+        query = 'INSERT INTO messages(s3_id, sender, receiver, subject, message, priority, ' \
+                'timestamp) VALUES(?,?,?,?,?,?,strftime("%s", "now"))'
+        cursor.execute(query, (s3_id, sender, receiver, subject, message, priority))
+
+        self._conn.commit()
+        cursor.close()
+
+    def messages_get(self, s3_id: str, username: str, admin: bool=False) -> tuple:
+        """ Adds a message to the database
+        Arguments:
+            s3_id: the ID of the S3 instance
+            username: the name of the message receipient
+            admin: indicates that the admin messages are also wanted
+        Return:
+            A tuple containing the indexes of the return fields, and a tuple of the retrieved
+            messages
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to add a message to the database before ' \
+                                                                                    'connecting')
+        # Indexes of return values
+        indexes = { 'id':           0,
+                    'recipient':    1,
+                    'sender':       2,
+                    'subject':      3,
+                    'message':      4,
+                    'priority':     5,
+                    'created_sec':  6,
+                    'read_sec':     7,
+                    }
+
+        cursor = self._conn.cursor()
+        query = 'SELECT id, receiver, sender, subject, message, priority, ' \
+                        '(strftime("%s", "now")-timestamp) as elapsed_sec,' \
+                        '(strftime("%s", "now")-read_timestamp) as read_sec ' \
+                    'FROM messages ' \
+                    'WHERE s3_id=? AND deleted=0 AND '
+        query += '(receiver=? OR receiver="admin")' if admin is True else 'receiver=?'
+        cursor.execute(query, (s3_id, username))
+
+        res = cursor.fetchall()
+        cursor.close()
+
+        return indexes, res
+
+    def messages_are_read(self, s3_id: str, username: str, ids: tuple) -> None:
+        """ Marks messages as read
+        Arguments:
+            s3_id: the ID of the S3 instance
+            username: the name of the recipient
+            ids: a tuple of the IDs of the messages to mark as read
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to mark messages as read in the database before ' \
+                                                                                    'connecting')
+        # Check if there's nothing to do
+        if ids is None or len(ids) <= 0:
+            return
+
+        cursor = self._conn.cursor()
+        id_params = ','.join('?' * len(ids))
+        query = 'UPDATE messages SET read_timestamp=strftime("%s", "now") WHERE s3_id=? AND ' \
+                                                        'receiver=? AND id IN (' + id_params + ')'
+        cursor.execute(query, (s3_id, username) + tuple(ids))
+
+        self._conn.commit()
+        cursor.close()
+
+    def messages_are_deleted(self, s3_id: str, username: str, ids: tuple) -> None:
+        """ Marks messages as deleted
+        Arguments:
+            s3_id: the ID of the S3 instance
+            username: the name of the recipient
+            ids: a tuple of the IDs of the messages to mark as deleted
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to mark messages as deleted the database before ' \
+                                                                                    'connecting')
+        # Check if there's nothing to do
+        if ids is None or len(ids) <= 0:
+            return
+
+        cursor = self._conn.cursor()
+        id_params = ','.join('?' * len(ids))
+        query = 'UPDATE messages SET deleted=1 WHERE s3_id=? AND receiver=? AND ' \
+                                                                        'id IN (' + id_params + ')'
+        cursor.execute(query, (s3_id, username) + tuple(ids))
+
+        self._conn.commit()
+        cursor.close()
+
+    def message_count(self, s3_id: str, username: str) -> Optional[int]:
+        """ Returns the number of messages for a recipient
+        Arguments:
+            s3_id: the ID of the S3 instance
+            username: the name of the recipient
+        Return:
+            Returns the number of messages for a recipient
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to count messages in the database before ' \
+                                                                                    'connecting')
+
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT count(1) FROM messages WHERE s3_id=? AND  receiver=?',
+                                                                                (s3_id, username))
+        # Get the count
+        res = cursor.fetchone()
+        cursor.close()
+
+        # Make sure we have something
+        if not res or len(res) <= 0:
+            return None
+
+        # Return the best integer answer
+        try:
+            return int(res[0])
+        except ValueError:
+            pass
+
+        return 0

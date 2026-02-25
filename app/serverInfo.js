@@ -40,6 +40,8 @@ export const SpeciesOtherNamesContext = createContext(null);
 export const UploadEditContext = createContext(null);
 /** React context for user being an admin (or not) */
 export const UserAdminContext = createContext(null);
+/** React context for user messages */
+export const UserMessageContext = createContext(null);
 /** React context for user name */
 export const UserNameContext = createContext(null);
 /** React context for user settings */

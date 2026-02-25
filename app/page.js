@@ -24,10 +24,11 @@ import TitleBar from './components/TitleBar';
 import UploadManage from './UploadManage';
 import UploadEdit from './UploadEdit';
 import UserActions from './components/userActions';
+import UserMessages from './components/UserMessages';
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin';
 import { AddMessageContext, BaseURLContext, CollectionsInfoContext, DisableIdleCheckFuncContext, TokenExpiredFuncContext, 
          LocationsInfoContext, MobileDeviceContext, NarrowWindowContext, SandboxInfoContext, SizeContext, SpeciesInfoContext, 
-         SpeciesOtherNamesContext, TokenContext, UploadEditContext, UserNameContext,
+         SpeciesOtherNamesContext, TokenContext, UploadEditContext, UserMessageContext, UserNameContext,
          UserSettingsContext } from './serverInfo';
 import * as utils from './utils';
 
@@ -152,8 +153,11 @@ export default function Home() {
   const [dbRemember, setDbRemember] = React.useState(false);
   const [dbUser, setDbUser] = React.useState('');
   const [dbURL, setDbURL] = React.useState('');
+  // TODO: Change these to display enumeration
   const [displayAdminSettings, setDisplayAdminSettings] =  React.useState(false); // Admin settings editing
+  const [displayMessages, setDisplayMessages] = React.useState(false);            // Display messages
   const [displayOwnerSettings, setDisplayOwnerSettings] =  React.useState(false); // Collection owner settings editing
+  // TODO: end of above
   const [editing, setEditing] = React.useState(false);
   const [isNarrow, setIsNarrow] = React.useState(null);
   const [lastIdleTimeoutId, setLastIdleTimeoutId] = React.useState(null);   // The last timeout ID we set for checking the idle
@@ -185,6 +189,7 @@ export default function Home() {
   const [speciesOtherInfo, setSpeciesOtherInfo] = React.useState(null);
   const [userLoginAgain, setUserLoginAgain] = React.useState(false);      // The user needs to log in again
   const [userIdleTimedOut, setUserIdleTimedOut] = React.useState(false);  // The user idles out and needs to log in again
+  const [userMessages, setUserMessages] =  React.useState({count:null, messages:null});
   const [userSettings, setUserSettings] =  React.useState(defaultUserSettings);
 
   const loginValidStates = loginValid;
@@ -330,6 +335,8 @@ export default function Home() {
           } else {
             loginStore.clearLoginInfo();
           }
+          // Check for messages
+          window.setTimeout(() => handleFetchMessages(newToken), 100);
           // Load collections if it's not a new instance
           if (!newInstance && !repairServer) {
             window.setTimeout(() => loginAfterActions(newToken), 500);
@@ -775,7 +782,8 @@ export default function Home() {
             curSettings['sandersonOutput'] = !curSettings['sandersonOutput'] ? false : 
                                                       typeof(curSettings['sandersonOutput']) === 'boolean' ? curSettings['sandersonOutput'] :
                                                                               curSettings['sandersonOutput'].toLowerCase() === 'true';
-            setUserSettings({name:respData['name'], settings:curSettings});
+            setUserSettings({name:respData.name, settings:curSettings});
+            setUserMessages({count:respData.messageCount ? respData.messageCount : 0, messages:null, loading: false})
 
             setLoggedIn(true);
             setLastToken(loginToken);
@@ -1126,7 +1134,175 @@ export default function Home() {
       console.log('Settings Unknown Error: ',err);
       addMessage(Level.Error, 'An unknown problem ocurred while saving your settings');
     }
-  }, [addMessage, lastToken, serverURL, setUserSettings, userSettings]);
+  }, [addMessage, lastToken, serverURL, setUserLoginAgain, setUserSettings, userSettings]);
+
+  /**
+   * Fetches the messages from the server
+   * @function
+   */
+  const handleFetchMessages = React.useCallback((loginToken) => {
+    setUserMessages({...userMessages,...{loading:true}});
+
+    const messagesUrl =  serverURL + '/messageGet?t=' + encodeURIComponent(loginToken)
+    try {
+      const resp = fetch(messagesUrl, {
+        method: 'GET'
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setUserLoginAgain(true);
+              }
+              throw new Error(`Failed to get messages: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+          // Save response data
+          if (respData.success) {
+            setUserMessages({count:respData.messages.length, messages:respData.messages, loading:false});
+          } else {
+            addMessage(Level.Warning, respData.message);
+          }
+        })
+        .catch((err) => {
+          console.log('Fetch Message Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while fetching messages');
+      });
+    } catch (error) {
+      console.log('Message Fetch Unknown Error: ',error);
+      addMessage(Level.Error, 'An unknown problem ocurred while fetching messages');
+    }
+  }, [addMessage, lastToken, serverURL, setUserLoginAgain, setUserMessages]);
+
+  /**
+   * Handles adding a new message
+   * @function
+   * @param {string} recipients The comma separated list of recipients
+   * @param {string} subject The subject of the message
+   * @param {string} message The message itself
+   * @param {function} onMessageSent The function to call after the message sent
+   */
+  const handleMewMessage = React.useCallback((recipients, subject, message, onMessageSent) => {
+    const newMessagesUrl = serverURL + '/messageAdd?t=' + encodeURIComponent(lastToken);
+
+    const formData = new FormData();
+
+    formData.append('receiver', recipients.split(',').map((item) => item.trim()) );
+    formData.append('subject', subject);
+    formData.append('message', message);
+
+    try {
+      const resp = fetch(newMessagesUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setUserLoginAgain(true);
+              }
+              throw new Error(`Failed to add new message: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Check the return
+            if (onMessageSent) {
+              onMessageSent(respData.success, respData.message)
+            }
+        })
+        .catch(function(err) {
+          console.log('Add Message Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while adding your message');
+      });
+    } catch (error) {
+      console.log('Add Message Unknown Error: ',err);
+      addMessage(Level.Error, 'An unknown problem ocurred while adding your message');
+    }
+  }, [addMessage, lastToken, serverURL, setUserLoginAgain]);
+
+  /**
+   * Handles marking messages as read
+   * @function
+   * @param {object} msgIds The array of message IDs to mark
+   */
+  const handleReadMessages= React.useCallback((msgIds) => {
+    const readMessagesUrl = serverURL + '/messageRead?t=' + encodeURIComponent(lastToken);
+
+    const formData = new FormData();
+
+    formData.append('ids', JSON.stringify(msgIds));
+
+    try {
+      const resp = fetch(readMessagesUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setUserLoginAgain(true);
+              }
+              throw new Error(`Failed to mark messages as read: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // It appears that everything worked out
+        })
+        .catch(function(err) {
+          console.log('Read Messages Error: ',err);
+//          addMessage(Level.Error, 'A problem ocurred while marking messages as read');
+      });
+    } catch (error) {
+      console.log('Read Messages Unknown Error: ',err);
+//      addMessage(Level.Error, 'An unknown problem ocurred while marking messages as read');
+    }
+  }, [addMessage, lastToken, serverURL, setUserLoginAgain]);
+
+  /**
+   * Handles deleting messages
+   * @function
+   * @param {object} msgIds The array of message IDs to delete
+   */
+  const handleDeleteMessages= React.useCallback((msgIds) => {
+    const delMessagesUrl = serverURL + '/messageDelete?t=' + encodeURIComponent(lastToken);
+
+    const formData = new FormData();
+
+    formData.append('ids', JSON.stringify(msgIds));
+
+    try {
+      const resp = fetch(delMessagesUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              if (resp.status === 401) {
+                // User needs to log in again
+                setUserLoginAgain(true);
+              }
+              throw new Error(`Failed to delete messages: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // It appears that everything worked out
+        })
+        .catch(function(err) {
+          console.log('Delete Messages Error: ',err);
+//          addMessage(Level.Error, 'A problem ocurred while deleting messages');
+      });
+    } catch (error) {
+      console.log('Delete Messages Unknown Error: ',err);
+//      addMessage(Level.Error, 'An unknown problem ocurred while deleting messages');
+    }
+  }, [addMessage, lastToken, serverURL, setUserLoginAgain]);
 
   /**
    * Sets the remember login information flag to true or false (is it truthy, or not?)
@@ -1209,6 +1385,13 @@ export default function Home() {
       setMobileDeviceChecked(true);
     }
   }
+
+  // Check for messages if we haven't already
+  React.useEffect(() => {
+    if (userMessages.count === null && !userMessages.loading && lastToken) {
+      window.setTimeout(() => handleFetchMessages(lastToken), 100);
+    }
+  }, [lastToken, userMessages]);
 
   /**
    * Returns the UI components for the specified action
@@ -1348,10 +1531,19 @@ export default function Home() {
           <TokenContext.Provider value={createNewInstance ? null : lastToken}>
           <AddMessageContext.Provider value={addMessage}>
           <CollectionsInfoContext.Provider value={collectionInfo}>
+          <UserMessageContext.Provider value={userMessages}>
             <Grid id='sparcd-wrapper' container direction="row" alignItems="start" justifyContent="start" sx={{minWidth:'100vw',minHeight:'100vh'}}>
-              <TitleBar searchTitle={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
-                        onLogout={handleLogout} size={narrowWindow?"small":"normal"} 
-                        breadcrumbs={breadcrumbs} onBreadcrumb={restoreBreadcrumb} onAdminSettings={handleAdminSettings} onOwnerSettings={handleOwnerSettings}/>
+              <TitleBar searchTitle={curSearchTitle}
+                        size={narrowWindow?"small":"normal"} 
+                        onSearch={handleSearch}
+                        onSettings={loggedIn ? handleSettings : null}
+                        onLogout={handleLogout}
+                        breadcrumbs={breadcrumbs} 
+                        onBreadcrumb={restoreBreadcrumb}
+                        onAdminSettings={handleAdminSettings}
+                        onOwnerSettings={handleOwnerSettings}
+                        onMessages={() => {setDisplayMessages(true); handleFetchMessages(lastToken);} }
+              />
               <Box id='sparcd-middle-wrapper' sx={{overflow:"scroll"}} >
                 {!curLoggedIn || createNewInstance === true || repairInstance === true ? 
                   <LoginValidContext.Provider value={loginValidStates}>
@@ -1366,6 +1558,7 @@ export default function Home() {
                 </Box>
               <FooterBar />
             </Grid>
+          </UserMessageContext.Provider>
           </CollectionsInfoContext.Provider>
           </AddMessageContext.Provider>
           </TokenContext.Provider>
@@ -1409,12 +1602,22 @@ export default function Home() {
                 </CollectionsInfoContext.Provider>
                 </TokenContext.Provider>
           }
+          { displayMessages && 
+              <UserMessageContext.Provider value={userMessages} >
+                <UserMessages onAdd={(recip,subj,msg,onDone) => {handleMewMessage(recip,subj,msg,onDone)}}
+                              onDelete={(msgIds) => {handleDeleteMessages(msgIds)}}
+                              onRefresh={() => handleFetchMessages(lastToken)}
+                              onRead={(msgIds) => {handleReadMessages(msgIds)}}
+                              onClose={() => setDisplayMessages(false)}
+                />
+              </UserMessageContext.Provider>
+          }
           { (createNewInstance === true || repairInstance === true) &&
-            <BaseURLContext.Provider value={serverURL}>
-            <AddMessageContext.Provider value={addMessage}>
-              <NewInstallation token={lastToken} repair={repairInstance} onCancel={handleCancelNewInstallation} />
-            </AddMessageContext.Provider>
-            </BaseURLContext.Provider>
+              <BaseURLContext.Provider value={serverURL}>
+              <AddMessageContext.Provider value={addMessage}>
+                <NewInstallation token={lastToken} repair={repairInstance} onCancel={handleCancelNewInstallation} />
+              </AddMessageContext.Provider>
+              </BaseURLContext.Provider>
         }
           { // Needs to be next to last (allow messages to overlay)
             (userLoginAgain === true || userIdleTimedOut === true) && 

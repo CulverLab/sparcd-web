@@ -1312,7 +1312,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         <Grid id="admin-settings-panel-done-save" container direction="column" justifyContent="center" alignItems="center"
               sx={{width:'100%', position:'absolute', top:'0px', bottom:'0px'}} >
           <Typography>
-            <WarningAmberOutlinedIcon size="small" style={{color:"CornflowerBlue", transform:'scale(1.5)'}} />
+            <WarningAmberOutlinedIcon fontSize="small" style={{color:"CornflowerBlue", transform:'scale(1.5)'}} />
             &nbsp;&nbsp;&nbsp;&nbsp;There are some unsaved location or species changes to save
           </Typography>
           <Button onClick={handleSaveChanges} >

@@ -1054,7 +1054,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
             <Typography variant="body2">
               {(curUpload.images && curUpload.images.length ? curUpload.images.length : 0) + " Images available"}
             </Typography>
-            <Typography variant="body" sx={{ paddingLeft: '10px', fontSize:'larger'}}>
+            <Typography variant="body" sx={{ paddingLeft: '10px', fontSize:'larger', marginRight:'20px'}}>
               {curUploadLocation && curUploadLocation.nameProperty ? curUploadLocation.nameProperty : '<location>'}
               <IconButton aria-label="edit" size="small" color={'lightgrey'} onClick={handleEditLocation}>
                 <BorderColorOutlinedIcon sx={{fontSize:'smaller'}}/>

@@ -308,29 +308,6 @@ def sanimalbackground():
                                'sanimalBackground.JPG', mimetype='image/jpeg')
 
 
-## Disable this, only serve files like this explicitly
-#@app.route('/<string:filename>', methods = ['GET'])
-#@cross_origin(origins="http://localhost:3000", supports_credentials=True)
-#def sendfile(filename: str):
-#    """Return root files"""
-#    print("RETURN FILENAME:",filename,flush=True)
-#
-#    # Check that the file is allowed
-#    if not os.path.splitext(filename)[1].lower() in REQEST_ALLOWED_FILE_EXTENSIONS:
-#        return 'Resource not found', 404
-#
-#    fullpath = os.path.realpath(os.path.join(RESOURCE_START_PATH, filename.lstrip('/')))
-#    print("HACK:   FILE PATH:", fullpath,flush=True)
-#
-#    # Make sure we're only serving something that's in the same location that we are in and that
-#    # it exists
-#    if not fullpath or not os.path.exists(fullpath) or not \
-#                                                        fullpath.startswith(RESOURCE_START_PATH):
-#        return 'Resource not found', 404
-#
-#    return send_file(fullpath)
-
-
 @app.route('/_next/static/<path:path_fagment>', methods = ['GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def sendnextfile(path_fagment: str):
@@ -470,6 +447,7 @@ def login_token():
                    'name': login_info.name,
                    'settings': \
                         sdu.secure_user_settings(login_info.settings|{'email':login_info.email}),
+                    'messageCount': db.message_count(hash2str(login_info.url), login_info.name),
                     'newInstance': False,
                })
 
@@ -561,7 +539,7 @@ def collections():
         return 423, 'Unable to load collections'
 
     # Return the collections
-    if not user_info.admin:
+    if not bool(user_info.admin):
         # Filter out collections if not an admin
         return_colls = [one_coll for one_coll in return_colls if 'permissions' in one_coll and \
                                                                             one_coll['permissions']]
@@ -596,7 +574,7 @@ def sandbox():
 
     # Get the sandbox information from the database
     sandbox_items = db.get_sandbox(hash2str(s3_url))
-    if not user_info.admin == 1:
+    if not bool(user_info.admin):
         sandbox_items = [one_item for one_item in sandbox_items if \
                                                                 one_item["user"] == user_info.name]
 
@@ -673,13 +651,16 @@ def species():
                                             hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
                                             s3_url, user_info.name, lambda: get_password(token, db))
 
-    keyed_species = {one_species['scientificName']:one_species for one_species in cur_species}
+    if cur_species:
+        keyed_species = {one_species['scientificName']:one_species for one_species in cur_species}
+    else:
+        keyed_species = {}
     keyed_user = {one_species['scientificName']:one_species for one_species in user_species}
 
     # Check the easy path first
     updated = False
     if not user_species:
-        user_species = cur_species
+        user_species = cur_species if cur_species else {}
     else:
         # Try to find meaningfull differences
         all_keys = tuple(set(keyed_species.keys())|set(keyed_user.keys()))
@@ -1393,6 +1374,8 @@ def sandbox_stats():
     # Get all the collections so we can parse them for our stats
     all_collections = sdc.load_collections(db, hash2str(s3_url), bool(user_info.admin), s3_url,
                                                     user_info.name, lambda: get_password(token, db))
+    if not all_collections:
+        return json.dumps([])
 
     now_dt = datetime.datetime.today()
     month_diff = now_dt - relativedelta(months=1) - now_dt
@@ -1496,7 +1479,7 @@ def sandbox_recovery_update():
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
 
     # Get the collection we need
-    all_colls = sdc.load_collections(db, hash2str(s3_url), user_info.admin == 1, s3_url,
+    all_colls = sdc.load_collections(db, hash2str(s3_url), bool(user_info.admin), s3_url,
                                                             user_info.name, get_password(token, db))
     if not all_colls:
         print('Unable to load collections for updating an upload recovery', flush=True)
@@ -1527,7 +1510,7 @@ def sandbox_recovery_update():
         return "Not Found", 404
 
     # Make sure this user has permissions to do this
-    if not user_info.admin == 1 and user_info.name == upload['uploadUser']:
+    if not bool(user_info.admin) and user_info.name == upload['uploadUser']:
         return "Not Found", 404
 
     # Update the upload in the database
@@ -2580,7 +2563,7 @@ def admin_check():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
-    return {'value': user_info.admin == 1}
+    return {'value': bool(user_info.admin)}
 
 @app.route('/adminCheckChanges', methods = ['GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
@@ -2605,7 +2588,7 @@ def admin_check_changes():
         return "Unauthorized", 401
 
     # Make sure this user is an admin
-    if user_info.admin != 1:
+    if not bool(user_info.admin):
         return "Not Found", 404
 
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
@@ -2645,7 +2628,7 @@ def settings_admin():
         return "Not Found", 406
 
     # Make sure this user is an admin
-    if user_info.admin != 1:
+    if not bool(user_info.admin):
         return "Not Found", 404
 
     # Log onto S3 to make sure the information is correct
@@ -2691,7 +2674,7 @@ def settings_owner():
         return "Not Found", 406
 
     # Make sure this user is NOT an admin
-    if user_info.admin == 1:
+    if bool(user_info.admin):
         return "Not Found", 404
 
     # Log onto S3 to make sure the information is correct
@@ -2731,7 +2714,7 @@ def admin_collection_details():
         return "Unauthorized", 401
 
     # Make sure this user is an admin
-    if user_info.admin != 1:
+    if not bool(user_info.admin):
         return "Not Found", 404
 
     bucket = request.form.get('bucket', None)
@@ -2783,7 +2766,7 @@ def owner_collection_details():
         return "Unauthorized", 401
 
     # Make sure this user is NOT an admin
-    if user_info.admin == 1:
+    if bool(user_info.admin):
         return "Not Found", 404
 
     bucket = request.form.get('bucket', None)
@@ -2839,7 +2822,7 @@ def admin_location_details():
         return "Unauthorized", 401
 
     # Make sure this user is an admin
-    if user_info.admin != 1:
+    if not bool(user_info.admin):
         return "Not Found", 404
 
     loc_id = request.form.get('id', None)
@@ -2885,7 +2868,7 @@ def admin_users():
         return "Unauthorized", 401
 
     # Make sure this user is an admin
-    if user_info.admin != 1:
+    if not bool(user_info.admin):
         return "Not Found", 404
 
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
@@ -2950,7 +2933,7 @@ def admin_species():
         return "Unauthorized", 401
 
     # Make sure this user is an admin
-    if user_info.admin != 1:
+    if not bool(user_info.admin):
         return "Not Found", 404
 
     # Get the species
@@ -2993,7 +2976,7 @@ def admin_user_update():
         return "Not Found", 406
 
     # Make sure the user requesting the change is an admin
-    if user_info.admin != 1:
+    if not bool(user_info.admin):
         return "Not Found", 404
 
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
@@ -3043,7 +3026,7 @@ def admin_species_update():
         return "Not Found", 406
 
     # Make sure this user is an admin
-    if user_info.admin != 1:
+    if not bool(user_info.admin):
         return "Not Found", 404
 
     # Get the species
@@ -3144,7 +3127,7 @@ def admin_location_update():
 
 
     # Make sure this user is an admin
-    if user_info.admin != 1:
+    if not bool(user_info.admin):
         return "Not Found", 404
 
     # Get the location
@@ -3251,7 +3234,7 @@ def admin_collection_update():
     col_all_perms = json.loads(col_all_perms)
 
     # Make sure this user is an admin
-    if user_info.admin != 1:
+    if not bool(user_info.admin):
         return "Not Found", 404
 
     # Get existing collection information and permissions
@@ -3343,7 +3326,7 @@ def admin_collection_add():
     col_all_perms = json.loads(col_all_perms)
 
     # Make sure this user is an admin
-    if user_info.admin != 1:
+    if not bool(user_info.admin):
         return "Not Found", 404
 
     # Get existing collection information and permissions
@@ -3417,7 +3400,7 @@ def ownercollection_update():
     col_all_perms = json.loads(col_all_perms)
 
     # Make sure this user is an admin
-    if user_info.admin == 1:
+    if bool(user_info.admin):
         return "Not Found", 404
 
     # Get existing collection information and permissions
@@ -3489,7 +3472,7 @@ def admin_check_incomplete():
         return "Unauthorized", 401
 
     # Make sure this user is an admin
-    if user_info.admin != 1:
+    if not bool(user_info.admin):
         return "Not Found", 404
 
     # Check the parameters we've received
@@ -3553,7 +3536,7 @@ def admin_complete_changes():
         return "Unauthorized", 401
 
     # Make sure this user is an admin
-    if user_info.admin != 1:
+    if not bool(user_info.admin):
         return "Not Found", 404
 
     # Get the locations and species changes logged in the database
@@ -3611,7 +3594,7 @@ def admin_abandon_changes():
         return "Unauthorized", 401
 
     # Make sure this user is an admin
-    if user_info.admin != 1:
+    if not bool(user_info.admin):
         return "Not Found", 404
 
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
@@ -3653,7 +3636,7 @@ def new_install_check():
 
     # Return data
     return_data = { 'success':False,
-                    'admin': user_info.admin,
+                    'admin': bool(user_info.admin),
                     'needsRepair': False,
                     'failedPerms': False,
                     'newInstance': False,
@@ -3686,7 +3669,7 @@ def new_install_check():
     # Check that there aren't any administrators for this endpoint in the database
     # If it's a new install, there shouldn't be an admin in the database (the endpoint is
     # unknown so no one should be an admin)
-    if not user_info.admin:
+    if not bool(user_info.admin):
         if db.have_any_known_admin(hash2str(s3_url)):
             return_data['admin'] = False        # always false or we wouldn't be here
             return_data['message'] = 'You are not authorized to make a new installation or ' \
@@ -3730,7 +3713,7 @@ def install_new():
 
     # Check that we can create
     sole_user = False
-    if not user_info.admin:
+    if not bool(user_info.admin):
         if not db.is_sole_user(hash2str(s3_url), user_info.name):
             return json.dumps({'success': False,
                                 'message': 'You are not authorized to create a new ' \
@@ -3782,7 +3765,7 @@ def install_repair():
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
 
     # Check that we can create
-    if not user_info.admin:
+    if not bool(user_info.admin):
         return json.dumps({'success': False, 'message': 'You are not authorized to repair the ' \
                                                     'SPARCd configuration'})
 
@@ -3831,11 +3814,11 @@ def set_upload_complete():
     if not all(item for item in [col_id, up_key]):
         return "Not Found", 406
 
-    # Perform the checks on the S3 instance to see that we can support a new installation
+    # Mark the setup as complete
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
 
     # Get the collection we need
-    all_colls = sdc.load_collections(db, hash2str(s3_url), user_info.admin == 1, s3_url,
+    all_colls = sdc.load_collections(db, hash2str(s3_url), bool(user_info.admin), s3_url,
                                                             user_info.name, get_password(token, db))
     if not all_colls:
         return json.dumps({'success': False,
@@ -3856,7 +3839,7 @@ def set_upload_complete():
     upload = upload[0]
 
     # Make sure this user has permissions to do this
-    if not user_info.admin == 1 and user_info.name == upload['uploadUser']:
+    if not bool(user_info.admin) and user_info.name == upload['uploadUser']:
         return "Not Found", 404
 
     # Update the counts of the uploaded images to reflect what's on the server
@@ -3868,3 +3851,159 @@ def set_upload_complete():
                                                                                     upload['key'])
 
     return json.dumps({'success': True, 'message': 'Successfully marked upload as completed'})
+
+
+@app.route('/messageAdd', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+def message_add():
+    """ Adds a message to the database
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True success if the message could be added and False otherwise
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADD MESSAGE', flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
+    receiver = request.form.get('receiver', None)
+    subject = request.form.get('subject', None)
+    message = request.form.get('message', None)
+    priority = request.form.get('priority', None)
+
+    # Check what we have from the requestor
+    if not all(item for item in [receiver, subject, message]):
+        return "Not Found", 406
+
+    if priority is None:
+        priority = "normal"
+
+    # Add the message
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+
+    all_receivers = [one_rec.strip() for one_rec in receiver.split(',')]
+
+    # Add the messages
+    s3_id = hash2str(s3_url)
+    for one_rec in all_receivers:
+        db.message_add(s3_id, user_info.name, one_rec, subject, message, priority)
+
+    return json.dumps({'success': True, 'message': 'All messages stored'})
+
+
+@app.route('/messageGet', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+def message_get():
+    """ Gets messages for the user
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True success and the messages if they could be retrieved and False otherwise
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('GET MESSAGE', flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the messages
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+
+    messages = db.messages_get(hash2str(s3_url), user_info.name, bool(user_info.admin))
+
+    return json.dumps({'success': True, 'messages': messages, 'message': 'All messages received'})
+
+
+@app.route('/messageRead', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+def message_read():
+    """ Marks messages are read
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True success if the messages count be marked as read and False otherwise
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('READ MESSAGE', flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
+    ids = request.form.get('ids', None)
+    if ids is None:
+        return "Not Found", 406
+    ids = json.loads(ids)
+
+    # Get the messages
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+
+    all_ids = [int(one_id) for one_id in ids]
+    db.messages_are_read(hash2str(s3_url), user_info.name, all_ids)
+    if bool(user_info.admin):
+        db.messages_are_read(hash2str(s3_url), 'admin', all_ids)
+
+    return json.dumps({'success': True, 'message': 'Messages were marked as read'})
+
+
+@app.route('/messageDelete', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+def message_delete():
+    """ Gets messages for the user
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True success if the messages could me marked as deleted and False otherwise
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('DELETE MESSAGE', flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
+    ids = request.form.get('ids', None)
+    if ids is None:
+        return "Not Found", 406
+    ids = json.loads(ids)
+
+    # Get the messages
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+
+    all_ids = [int(one_id) for one_id in ids]
+    db.messages_are_deleted(hash2str(s3_url), user_info.name, all_ids)
+    if bool(user_info.admin):
+        db.messages_are_deleted(hash2str(s3_url), 'admin', all_ids)
+
+    return json.dumps({'success': True, 'message': 'Messages were marked as deleted'})

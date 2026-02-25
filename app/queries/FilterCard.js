@@ -47,7 +47,7 @@ export default function FilterCard({title, onClose, actions, children, cardRef})
                                         '&:hover':{backgroundColor:'rgba(255,255,255,0.7)', color:'black'}
                                      }}
                             >
-                                <CloseOutlinedIcon size="small" />
+                                <CloseOutlinedIcon fontSize="small" />
                             </Typography>
                           </Tooltip>
                         </div>

@@ -104,7 +104,7 @@ export default function EditSpecies({data, onUpdate, onClose}) {
                                         '&:hover':{backgroundColor:'rgba(255,255,255,0.7)', color:'black'}
                                      }}
                             >
-                                <CloseOutlinedIcon size="small" />
+                                <CloseOutlinedIcon fontSize="small" />
                             </Typography>
                           </Tooltip>
                         </div>
