@@ -810,7 +810,7 @@ def species_stats(db: SPARCdDatabase, colls: tuple, s3_id: str, s3_url: str, use
         if uploads_info is not None and uploads_info:
             uploads_info = [{'bucket':cur_bucket,       \
                              'name':one_upload['name'],                     \
-                             'info':json.loads(one_upload['json'])
+                             'info':json.loads(one_upload['json']) if one_upload['json'] else {}
                              }         \
                                     for one_upload in uploads_info]
         else:
