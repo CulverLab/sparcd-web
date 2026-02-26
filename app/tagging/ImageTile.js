@@ -67,30 +67,30 @@ export default function ImageTile({name, type, species, onClick}) {
         sx={{height: '100%', '&[data-active]': {backgroundColor:'rgb(0, 0, 0, 0.35)'} }}
       >
         <CardContent>
-          <Grid container spacing={1}>
-            <Grid>
-              {generateImageSvg(haveSpecies ? 'grey':undefined, haveSpecies ? '#68AB68':undefined)}
+          <Grid container spacing={1} alignItems="center" sx={{width:'100%'}}>
+            <Grid container direction="row" alignItems="center" justifyContent="space-between">
+              <Typography variant="body" sx={{textTransform:'uppercase'}}>
+                {name}
+              </Typography>
+              {haveSpecies ? <CheckCircleOutlinedIcon fontSize="small" sx={{color:"#68AB68", leftMargin:'auto'}}/> : null}
             </Grid>
-            <Grid container id={name + "-info"} direction="column" alignItems="center" justifyContent="space-between">
-              <Grid container direction="row" alignItems="center" justifyContent="space-between">
-                <Typography variant="body" sx={{textTransform:'uppercase'}}>
-                  {name}
-                </Typography>
-                {haveSpecies ? <CheckCircleOutlinedIcon fontSize="small" sx={{color:"#68AB68", leftMargin:'auto'}}/> : null}
-              </Grid>
-              <Box>
-                <Typography variant="body" sx={{border:'1px solid black', borderRadius:'7px', backgroundColor:haveSpecies ? 'dimgrey' : 'silver', padding:'2px 5px' }}>
-                  {type}
-                </Typography>
-              </Box>
+            {generateImageSvg(haveSpecies ? 'grey':undefined, haveSpecies ? '#68AB68':undefined)}
+            <Typography variant="body" sx={{marginLeft:'auto', border:'1px solid black', borderRadius:'7px', backgroundColor:haveSpecies ? 'dimgrey' : 'silver', padding:'2px 5px' }}>
+              {type}
+            </Typography>
+            <Grid container id={`species-list-${name}-info`} spacing={0} direction="column" alignItems="center" justifyContent="flex-start"
+                  sx={{width:'100%'}}>
+              <Grid container direction="row" alignItems="center" justifyContent="space-between"
+                    sx={{width:'100%'}}>
               { species.map((curSpecies,idxSpecies) => 
-                      <Box key={name+curSpecies.name+idxSpecies} >
+                      <Box key={name+curSpecies.name+idxSpecies} sx={{width:'50%', rightMargin:'auto'}} >
                         <Typography variant="body3" sx={{textTransform:'capitalize'}}>
                           {curSpecies.name + ': ' + curSpecies.count}
                         </Typography>
                       </Box>
                 )
               }
+              </Grid>
             </Grid>
           </Grid>
         </CardContent>

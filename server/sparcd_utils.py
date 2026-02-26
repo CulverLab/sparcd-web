@@ -276,6 +276,7 @@ def update_admin_locations(url: str, user: str, password: str, s3_id: str, chang
 
     all_locs = tuple(all_locs.values())
 
+    print('HACK:   ', all_locs)
     # Save to S3 and the local file system
     S3Connection.put_configuration(LOCATIONS_JSON_FILE_NAME, json.dumps(all_locs, indent=4),
                                     url, user, password)

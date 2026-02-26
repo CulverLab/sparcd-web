@@ -48,6 +48,7 @@ export default function LandingUpload({loadingSandbox, onChange}) {
 
     try {
       const resp = fetch(uploadStatsUrl, {
+          credentials: 'include',
           method: 'GET',
         }).then(async (resp) => {
             if (resp.ok) {
@@ -154,7 +155,7 @@ export default function LandingUpload({loadingSandbox, onChange}) {
               <Tooltip placement="left" title="Repair this upload" style={{marginLeft:"3px"}} >
                 <CloudUploadOutlinedIcon
                       onClick={() => handleRepairUpload(obj, up_obj)}
-                      sx={{color:"black", backgroundColor:'rgb(224, 224, 224, 0.7)', border:'1px solid black', borderRadius:'7px', padding:'2px', marginRight:'5px'}} />
+                      sx={{color:"black", backgroundColor:'rgb(224, 224, 224, 0.7)', border:'1px solid black', borderRadius:'7px', padding:'2px', marginRight:'15px'}} />
               </Tooltip>
             </Grid>
         );
@@ -210,7 +211,7 @@ export default function LandingUpload({loadingSandbox, onChange}) {
             <Typography variant="h4" sx={{color:'#3b5a7d'}} >
               {item[1]}
             </Typography>
-            <Typography variant="body2" sx={{fontSize:'x-small', paddingTop:'7px', textTransform:'uppercase', color:'#3b5a7d'}} >
+            <Typography variant="body3" sx={{paddingTop:'7px', textTransform:'uppercase', color:'#3b5a7d'}} >
               {item[0]}
             </Typography>
           </Grid>

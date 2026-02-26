@@ -22,7 +22,7 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useTheme } from '@mui/material/styles';
 
-import { Level } from './Messages';
+import { Level } from '../components/Messages';
 import { AddMessageContext, CollectionsInfoContext, TokenExpiredFuncContext, geographicCoordinates, 
          TokenContext, UserAdminContext, UserNameContext } from '../serverInfo';
 import * as utils from '../utils';
@@ -188,6 +188,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
     try {
       const isAdminUrl = serverURL + '/adminCheck?t=' + encodeURIComponent(settingsToken)
       const resp = fetch(isAdminUrl, {
+        credentials: 'include',
         method: 'GET'
       }).then(async (resp) => {
             if (resp.ok) {

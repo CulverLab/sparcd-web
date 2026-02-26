@@ -262,6 +262,7 @@ export default function Queries({loadingCollections}) {
     // Make the query
     try {
       const resp = fetch(queryUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       })

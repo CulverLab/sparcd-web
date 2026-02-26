@@ -15,10 +15,12 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { Level } from './Messages';
-import Settings from './Settings';
-import styles from './components.module.css';
-import { AddMessageContext, TokenContext, UserMessageContext, UserNameContext, UserSettingsContext } from '../serverInfo';
+import { Level } from './components/Messages';
+import Settings from './settings/Settings';
+import styles from './components/components.module.css';
+import { AddMessageContext, TokenContext, UserMessageContext, UserNameContext, UserSettingsContext } from './serverInfo';
+
+const WELCOME_TIMEOUT_SEC = 1.5 * 60 * 1000;
 
 /**
  * Renders the title bar
@@ -43,22 +45,35 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
   const userMessages = React.useContext(UserMessageContext);  // User messages
   const userName = React.useContext(UserNameContext);  // User display name
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
+  const welcomeTimeoutRef = React.useRef(null); // Stores the timer ID for removing welcome message
+  const [welcomeTimedOut, setWelcomeTimedOut] = React.useState(false);  // Used to keep the hello message to initial display
   const [showSettings, setShowSettings] = React.useState(false);
   const [welcomeShown, setWelcomeShown] = React.useState(false); // Flag used to show users a welcome message
-  const [welcomeTimeoutId, setWelcomeTimeoutId] = React.useState(null); // Stores the timer ID for removing welcome message
-
-  const WELCOME_TIMEOUT_SEC = 1.5 * 60 * 1000;
 
   // Used to setup the welcome message
-  React.useLayoutEffect(() => {
-    if (!welcomeShown && loginToken) {
-      setWelcomeShown(true);
-      if (!welcomeTimeoutId) {
-        setWelcomeTimeoutId(window.setTimeout(() => setWelcomeTimeoutId(null), WELCOME_TIMEOUT_SEC));
-      }
+  React.useEffect(() => {
+    if (!loginToken || welcomeTimedOut) {
+      return;
     }
-  }, [loginToken, setWelcomeShown, setWelcomeTimeoutId, welcomeShown, welcomeTimeoutId]);
+    setWelcomeShown(true);
 
+    if (welcomeTimeoutRef.current == null) {
+      welcomeTimeoutRef.current = window.setTimeout(() => {
+          setWelcomeShown(false);
+          setWelcomeTimedOut(true);
+          welcomeTimeoutRef.current = null;
+      }, WELCOME_TIMEOUT_SEC);
+    }
+
+    // Clears outstanding timeouts
+    return () => {
+      if (welcomeTimeoutRef.current) {
+        window.clearTimeout(welcomeTimeoutRef.current);
+        welcomeTimeoutRef.current= null;
+      }
+    };
+
+  }, [loginToken, welcomeShown, setWelcomeShown]);
   /**
    * Handles the clicking of the search icon
    * @function
@@ -75,10 +90,10 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
   /**
    * Handles the Enter key to start a search
    * @function
-   * @apram {object} event The event
+   * @param {object} event The event
    */
   function handleSearchChange(event) {
-    if (event.key == 'Enter') {
+    if (event.key === 'Enter') {
       clickHandler();
     }
   }
@@ -107,7 +122,7 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
    */
   const handleAdminSettings = React.useCallback((pw) => {
     onAdminSettings(pw, handleSettingsClose, () => {addMessage(Level.Warning, 'Login check failed');});
-  }, [onAdminSettings, handleSettingsClose, addMessage, Level]);
+  }, [onAdminSettings, handleSettingsClose, addMessage]);
 
   /**
    * Handles the user wanting to make collection changes
@@ -116,9 +131,11 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
    */
   const handleOwnerSettings = React.useCallback((pw) => {
     onOwnerSettings(pw, handleSettingsClose, () => {addMessage(Level.Warning, 'Login check failed');});
-  }, [onOwnerSettings, handleSettingsClose, addMessage, Level]);
+  }, [onOwnerSettings, handleSettingsClose, addMessage]);
 
-  const extraInputSX = size === "small" ? {maxWidth:'10em'} : {};
+  const extraInputSX = React.useMemo(() => {
+    return size === "small" ? { maxWidth: '10em' } : {};
+  }, [size]);
 
   // Render the UI
   return (
@@ -128,35 +145,40 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
           <Grid id='sparcd-header-image-wrapper' container direction="row" spacing={3} sx={{flexGrow:1}}>
             <Grid id='sparcd-header-image-link' size="grow" container direction="row" alignItems="center" sx={{cursor:'pointer'}}>
                 <div onClick={() => window.location.href="/"}
-                  aria-description="Scientific Photo Analysis for Research & Conservation database"
-                  className={styles.titlebar_title}>SPARC&apos;d
+                      aria-label="Scientific Photo Analysis for Research and Conservation database"
+                      role="link"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && (window.location.href="/")}
+                      className={styles.titlebar_title}
+                >
+                  SPARC&apos;d
                 </div>
                 <img id="sparcd-logo" src="/sparcd.png" alt="SPARC'd Logo" className={styles.titlebar_icon}/>
             </Grid>
             <Grid id='sparcd-header-search-wrapper' sx={{marginLeft:'auto'}} style={{paddingLeft:'0px'}}>
               <Grid id='sparcd-header-search' container direction="row">
-                { welcomeTimeoutId !== null && loginToken !== null ? 
+                { welcomeShown && loginToken != null ? 
                     <Grid container alignItems="center" justifyContent="center" sx={{paddingRight:'10px', color:'dimgrey'}}>
-                      <Typography style={{fontSize:'larger'}}>
+                      <Typography sx={{fontSize:'larger'}}>
                         Welcome back
                       </Typography>
-                      <Typography style={{fontSize:'larger', fontFamily:'cursive', fontWeight:'bold'}}>
+                      <Typography sx={{fontSize:'larger', fontFamily:'cursive', fontWeight:'bold'}}>
                         &nbsp;{userName}
                       </Typography>
-                      <Typography style={{fontSize:'larger'}}>
+                      <Typography sx={{fontSize:'larger'}}>
                         !
                       </Typography>
                     </Grid>
                   : loginToken !== null &&
                     <Grid container alignItems="center" justifyContent="center" sx={{paddingRight:'10px', color:'dimgrey'}}>
-                      <Typography style={{fontSize:'larger', fontFamily:'cursive', fontWeight:'bold'}}>
+                      <Typography sx={{fontSize:'larger', fontFamily:'cursive', fontWeight:'bold'}}>
                         &nbsp;{userName}
                       </Typography>
                     </Grid>
                 }
                 { searchTitle &&
-                  <TextField id={searchId} label={searchTitle} placehoder={searchTitle} size="small" variant="outlined" style={extraInputSX}
-                            onKeyPress={handleSearchChange}
+                  <TextField id={searchId} label={searchTitle} placeholder={searchTitle} size="small" variant="outlined" sx={extraInputSX}
+                            onKeyDown={handleSearchChange}
                             slotProps={{
                               input: {
                                 endAdornment:
@@ -175,7 +197,7 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
                 { loginToken !== null && 
                   <Tooltip title='Messages'>
                     <IconButton fontSize="small" onClick={() => onMessages(loginToken)}
-                                sx={{ ...(userMessages.count > 0 ? theme.palette.have_messages : {}) }}
+                                sx={{ ...(userMessages?.count > 0 ? theme.palette.have_messages : {}) }}
                       >
                       <MailOutlinedIcon fontSize="small"/>
                     </IconButton>
@@ -191,9 +213,9 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
               </Grid>
             </Grid>
           </Grid>
-          <Grid size={{xs:12}} style={{paddingTop:'0', visibility:'visible'}} >
+          <Grid size={{xs:12}} sx={{paddingTop:'0', visibility:'visible'}} >
             <Typography sx={{fontSize:"small", fontWeight:'bold'}}>
-            { breadcrumbs && breadcrumbs.length > 0 ? 
+            { breadcrumbs?.length ? 
                 breadcrumbs.map((item, idx) => {
                               return (<React.Fragment key={"breadcrumb-" + idx + '-' + item.name} >
                                         &nbsp;
@@ -212,8 +234,8 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
         </Grid>
       </Box>
       {showSettings && onSettings != null && <Settings curSettings={userSettings} onChange={onSettings} onClose={handleSettingsClose} 
-                                                       onLogout={() => {handleSettingsClose();onLogout();}} onAdminSettings={(pw) => handleAdminSettings(pw)} 
-                                                       onOwnerSettings={(pw) => handleOwnerSettings(pw)} />
+                                                       onLogout={() => {handleSettingsClose();onLogout();}} onAdminSettings={handleAdminSettings} 
+                                                       onOwnerSettings={handleOwnerSettings} />
       }
     </header>
     );

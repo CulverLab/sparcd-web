@@ -20,7 +20,7 @@ from dateutil.relativedelta import relativedelta
 from PIL import Image
 
 import requests
-from flask import Flask, make_response, render_template, request, Response, send_file, \
+from flask import Flask, jsonify, make_response, render_template, request, Response, send_file, \
                   send_from_directory, url_for
 from flask_cors import cross_origin
 from minio import Minio, S3Error
@@ -441,7 +441,7 @@ def login_token():
                                                                             SESSION_EXPIRE_SECONDS)
         if token_valid:
             # Everything checks out
-            return json.dumps(
+            return jsonify(
                 {  'success': True,
                    'value': token,
                    'name': login_info.name,
@@ -504,7 +504,7 @@ def login_token():
 
     user_info.settings = sdu.secure_user_settings(user_info.settings)
 
-    return json.dumps({'success':True, 'value':new_key, 'name':user_info.name,
+    return jsonify({'success':True, 'value':new_key, 'name':user_info.name,
                        'settings':user_info.settings, 'newInstance':new_instance,
                        'needsRepair':needs_repair})
 
@@ -544,7 +544,7 @@ def collections():
         return_colls = [one_coll for one_coll in return_colls if 'permissions' in one_coll and \
                                                                             one_coll['permissions']]
 
-    return json.dumps([one_coll|{'allPermissions':None} for one_coll in return_colls])
+    return jsonify([one_coll|{'allPermissions':None} for one_coll in return_colls])
 
 
 @app.route('/sandbox', methods = ['GET'])
@@ -586,7 +586,7 @@ def sandbox():
                                                 get_password(token, db),
                                                 sandbox_items, all_collections)
 
-    return json.dumps(return_sandbox)
+    return jsonify(return_sandbox)
 
 
 @app.route('/locations', methods = ['GET'])
@@ -617,7 +617,7 @@ def locations():
                                         hash2str(s3_url))
 
     # Return the locations
-    return json.dumps(cur_locations)
+    return jsonify(cur_locations)
 
 
 @app.route('/species', methods = ['GET'])
@@ -687,7 +687,7 @@ def species():
         return species_json
 
     # Return the collections
-    return json.dumps(user_species)
+    return jsonify(user_species)
 
 
 @app.route('/speciesStats', methods = ['GET'])
@@ -725,7 +725,7 @@ def species_stats():
     if stats is None:
         return "Not Found", 404
 
-    return json.dumps([[key, value['count']] for key, value in stats.items() if key \
+    return jsonify([[key, value['count']] for key, value in stats.items() if key \
                                                                     not in SPECIES_STATS_EXCLUDE])
 
 
@@ -757,21 +757,21 @@ def species_other():
                                                             TEMP_OTHER_SPECIES_FILE_NAME_POSTFIX)
     others = sdfu.load_timed_info(otherspecies_temp_filename, 30 *24 * 60 * 60)
     if others:
-        return json.dumps(others)
+        return jsonify(others)
 
     # Check if we have the stats needed to regenerate the unofficial species
     stats_temp_filename = os.path.join(tempfile.gettempdir(), hash2str(s3_url) + \
                                                             TEMP_SPECIES_STATS_FILE_NAME_POSTFIX)
     cur_stats = sdfu.load_timed_info(stats_temp_filename, TEMP_SPECIES_STATS_FILE_TIMEOUT_SEC)
     if cur_stats is None:
-        return json.dumps([])
+        return jsonify([])
 
     # Get the official species
     cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME,
                                             hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
                                             s3_url, user_info.name, lambda: get_password(token, db))
     if not cur_species:
-        return json.dumps([])
+        return jsonify([])
 
     # For each species in the official list, we mark that species
     for one_species in cur_species:
@@ -784,7 +784,7 @@ def species_other():
 
     sdfu.save_timed_info(otherspecies_temp_filename, other_species)
 
-    return json.dumps(other_species)
+    return jsonify(other_species)
 
 
 @app.route('/uploadImages', methods = ['POST'])
@@ -835,7 +835,7 @@ def upload_images():
 
     # Check that we have images
     if all_images is None or len(all_images) <= 0:
-        return json.dumps([])
+        return jsonify([])
 
     # Get species data from the database and update the images
     edits = {}
@@ -899,7 +899,7 @@ def upload_images():
         del one_img['s3_url']
         del one_img['key']
 
-    return json.dumps(all_images)
+    return jsonify(all_images)
 
 
 @app.route('/image', methods = ['GET'])
@@ -1003,7 +1003,7 @@ def check_changes():
     have_changes = db.have_upload_changes(hash2str(s3_url), SPARCD_PREFIX+collection_id,
                                                                                 collection_upload)
 
-    return json.dumps({'changesMade': have_changes})
+    return jsonify({'changesMade': have_changes})
 
 
 @app.route('/query', methods = ['POST'])
@@ -1114,7 +1114,7 @@ def query():
     sdfu.save_timed_info(save_path, return_info)
     db.save_query_path(token, save_path)
 
-    return json.dumps(return_info)
+    return jsonify(return_info)
 
 
 @app.route('/query_dl', methods = ['GET'])
@@ -1280,7 +1280,7 @@ def set_settings():
 
     user_info.settings = sdu.secure_user_settings(user_info.settings|{'email':user_info.email})
 
-    return json.dumps(user_info.settings)
+    return jsonify(user_info.settings)
 
 
 @app.route('/locationInfo', methods = ['POST'])
@@ -1333,9 +1333,9 @@ def location_info():
         if one_loc['idProperty'] == loc_id and one_loc['nameProperty'] == loc_name and \
                         one_loc['latProperty'] == loc_lat and one_loc['lngProperty'] == loc_lon and\
                         one_loc['elevationProperty'] == loc_ele:
-            return json.dumps(one_loc)
+            return jsonify(one_loc)
 
-    return json.dumps({'idProperty': loc_id, 'nameProeprty': 'Unknown', 'latProperty':0.0, \
+    return jsonify({'idProperty': loc_id, 'nameProeprty': 'Unknown', 'latProperty':0.0, \
                             'lngProperty':0.0, 'elevationProperty':0.0,
                             'utm_code':DEFAULT_UTM_ZONE, 'utm_x':0.0, 'utm_y':0.0})
 
@@ -1367,15 +1367,19 @@ def sandbox_stats():
     # Check if we already have the stats
     stats_temp_filename = os.path.join(tempfile.gettempdir(), hash2str(s3_url) + \
                                                                 TEMP_UPLOAD_STATS_FILE_NAME_POSTFIX)
+    print('HACK: SANDBOXSTATS: BEFORE LOAD TIMED INFO', flush=True)
     stats = sdfu.load_timed_info(stats_temp_filename, TEMP_UPLOAD_STATS_FILE_TIMEOUT_SEC)
+    print('HACK:             : AFTER LOAD TIMED INFO', flush=True)
     if stats is not None:
-        return json.dumps(stats)
+        return jsonify(stats)
 
     # Get all the collections so we can parse them for our stats
+    print('HACK: SANDBOXSTATS: BEFORE LOAD COLLECTION', flush=True)
     all_collections = sdc.load_collections(db, hash2str(s3_url), bool(user_info.admin), s3_url,
                                                     user_info.name, lambda: get_password(token, db))
+    print('HACK:              : AFTER LOAD COLLECTION', flush=True)
     if not all_collections:
-        return json.dumps([])
+        return jsonify([])
 
     now_dt = datetime.datetime.today()
     month_diff = now_dt - relativedelta(months=1) - now_dt
@@ -1402,7 +1406,7 @@ def sandbox_stats():
                                                                     ['Total uploads', num_total]]
     sdfu.save_timed_info(stats_temp_filename, stats)
 
-    return json.dumps(stats)
+    return jsonify(stats)
 
 
 @app.route('/sandboxPrev', methods = ['POST'])
@@ -1439,7 +1443,7 @@ def sandbox_prev():
                                                                                 user_info.name,
                                                                                 rel_path,
                                                                                 True)
-    return json.dumps({'exists': (uploaded_files is not None), 'path': rel_path, \
+    return jsonify({'exists': (uploaded_files is not None), 'path': rel_path, \
                         'uploadedFiles': uploaded_files, 'elapsed_sec': elapsed_sec, \
                         'id': upload_id})
 
@@ -1526,10 +1530,10 @@ def sandbox_recovery_update():
                                                 our_location['lngProperty'],
                                                 our_location['elevationProperty'])
     if upload_id is None:
-        return json.dumps({'success': False,
+        return jsonify({'success': False,
                             'message': 'Unable to update the upload to receive the files'})
 
-    return json.dumps({'success': True, 'id': upload_id,
+    return jsonify({'success': True, 'id': upload_id,
                         'message': 'Successfully updated for the file upload'})
 
 
@@ -1623,7 +1627,7 @@ def sandbox_check_continue_upload():
         if all_match is not True:
             break
 
-    return json.dumps({'success': all_match is True,
+    return jsonify({'success': all_match is True,
                         'missing': all_match == 'missing',
                         'message': message})
 
@@ -1733,7 +1737,7 @@ def sandbox_new():
         sdc.collection_update(db, hash2str(s3_url), updated_collection)
 
     # Return the new ID
-    return json.dumps({'id': upload_id})
+    return jsonify({'id': upload_id})
 
 
 @app.route('/sandboxFile', methods = ['POST'])
@@ -1863,7 +1867,7 @@ def sandbox_file():
         if os.path.exists(upload_file):
             os.unlink(upload_file)
 
-    return json.dumps({'success': True})
+    return jsonify({'success': True})
 
 
 @app.route('/sandboxCounts', methods = ['GET'])
@@ -1896,7 +1900,7 @@ def sandbox_counts():
     # Get the count of uploaded files
     counts = db.sandbox_upload_counts(user_info.name, upload_id)
 
-    return json.dumps({'total': counts[0], 'uploaded': counts[1]})
+    return jsonify({'total': counts[0], 'uploaded': counts[1]})
 
 
 @app.route('/sandboxUnloadedFiles', methods = ['GET'])
@@ -1928,7 +1932,7 @@ def sandbox_unloaded_files():
         return "Not Found", 406
 
     # Get the list of files not uploaded
-    return json.dumps(db.sandbox_files_not_uploaded(user_info.name, upload_id))
+    return jsonify(db.sandbox_files_not_uploaded(user_info.name, upload_id))
 
 @app.route('/sandboxReset', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
@@ -1968,7 +1972,7 @@ def sandbox_reset():
     # Check with the DB if the upload has been started before
     upload_id = db.sandbox_reset_upload(user_info.name, upload_id, all_files)
 
-    return json.dumps({'id': upload_id})
+    return jsonify({'id': upload_id})
 
 
 @app.route('/sandboxAbandon', methods = ['POST'])
@@ -2013,7 +2017,7 @@ def sandbox_abandon():
     #    S3Connection.remove_upload(s3_url, user_info.name, get_password(token, db), s3_bucket, \
     #                                                                                       s3_path)
 
-    return json.dumps({'id': upload_id, 'completed': completed_count})
+    return jsonify({'id': upload_id, 'completed': completed_count})
 
 
 @app.route('/sandboxCompleted', methods = ['POST'])
@@ -2111,7 +2115,7 @@ def sandbox_completed():
     # Mark the upload as completed
     db.sandbox_upload_complete(user_info.name, upload_id)
 
-    return json.dumps({'success': True})
+    return jsonify({'success': True})
 
 
 @app.route('/uploadLocation', methods = ['POST'])
@@ -2218,7 +2222,7 @@ def image_location():
         # Update the collection entry in the database
         sdc.collection_update(db, hash2str(s3_url), updated_collection)
 
-    return json.dumps({'success': True})
+    return jsonify({'success': True})
 
 
 @app.route('/imageSpecies', methods = ['POST'])
@@ -2269,7 +2273,7 @@ def image_species():
     db.add_image_species_edit(hash2str(s3_url), bucket, path, user_info.name, timestamp,
                                                 common_name, scientific_name, count, str(reqid))
 
-    return json.dumps({'success': True})
+    return jsonify({'success': True})
 
 
 @app.route('/imageEditComplete', methods = ['POST'])
@@ -2538,7 +2542,7 @@ def species_keybind():
 
     db.save_user_species(hash2str(s3_url), user_info.name, json.dumps(cur_species))
 
-    return json.dumps({'success': True})
+    return jsonify({'success': True})
 
 
 @app.route('/adminCheck', methods = ['GET'])
@@ -2642,7 +2646,7 @@ def settings_admin():
         print(f'Admin password check failed for {user_info.name}:', ex)
         return "Not Found", 401
 
-    return json.dumps({'success': pw_ok})
+    return jsonify({'success': pw_ok})
 
 
 
@@ -2688,7 +2692,7 @@ def settings_owner():
         print(f'Owner password check failed for {user_info.name}:', ex)
         return "Not Found", 401
 
-    return json.dumps({'success': pw_ok})
+    return jsonify({'success': pw_ok})
 
 
 @app.route('/adminCollectionDetails', methods = ['POST'])
@@ -2740,7 +2744,7 @@ def admin_collection_details():
     if not collection:
         return "Not Found", 404
 
-    return json.dumps(collection)
+    return jsonify(collection)
 
 
 @app.route('/ownerCollectionDetails', methods = ['POST'])
@@ -2796,7 +2800,7 @@ def owner_collection_details():
                                                 collection['permissions']['ownerProperty'] is True:
         return "Not Found", 404
 
-    return json.dumps(collection)
+    return jsonify(collection)
 
 
 @app.route('/adminLocationDetails', methods = ['POST'])
@@ -2843,7 +2847,7 @@ def admin_location_details():
     if not location:
         return "Not Found", 404
 
-    return json.dumps(location)
+    return jsonify(location)
 
 @app.route('/adminUsers', methods = ['GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
@@ -2877,7 +2881,7 @@ def admin_users():
     all_users = db.get_admin_edit_users(hash2str(s3_url))
 
     if not all_users:
-        return json.dumps(all_users)
+        return jsonify(all_users)
 
     # Organize the collection permissions by user
     all_collections = sdc.load_collections(db, hash2str(s3_url), bool(user_info.admin), s3_url,
@@ -2908,7 +2912,7 @@ def admin_users():
                          'collections': user_collections[one_user[0]] if \
                                     user_collections and one_user[0] in user_collections else []})
 
-    return json.dumps(return_users)
+    return jsonify(return_users)
 
 @app.route('/adminSpecies', methods = ['GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
@@ -2942,7 +2946,7 @@ def admin_species():
                                             hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
                                             s3_url, user_info.name, lambda: get_password(token, db))
 
-    return json.dumps(cur_species)
+    return jsonify(cur_species)
 
 @app.route('/adminUserUpdate', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
@@ -3450,7 +3454,7 @@ def ownercollection_update():
 
 
 @app.route('/adminCheckIncomplete', methods = ['POST'])
-@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def admin_check_incomplete():
     """ Looks for incomplete updated in collections
     Arguments: (GET)
@@ -3490,7 +3494,7 @@ def admin_check_incomplete():
 
     # Check if we're all done
     if len(cur_colls) <= 0:
-        return json.dumps({'success': True})
+        return jsonify({'success': True})
 
     # Get the locations and species changes logged in the database
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
@@ -3501,11 +3505,11 @@ def admin_check_incomplete():
     if incomplete is None:
         print('ERROR: unable to check for incomplete uploads in indicated collections', cur_colls,
                                                                                         flush=True)
-        return json.dumps({'success': False})
+        return jsonify({'success': False})
 
     # Nothing found
     if len(incomplete) == 0:
-        return json.dumps({'success': True})
+        return jsonify({'success': True})
 
     # Update the database with unknown incomplete uploads
     db.sandbox_new_incomplete_uploads(hash2str(s3_url), incomplete)
@@ -3514,7 +3518,7 @@ def admin_check_incomplete():
 
 
 @app.route('/adminCompleteChanges', methods = ['PUT'])
-@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def admin_complete_changes():
     """ Adds/updates a saved location and species information
     Arguments: (GET)
@@ -3572,7 +3576,7 @@ def admin_complete_changes():
     return {'success': True, 'message': "All changes were successully applied"}
 
 @app.route('/adminAbandonChanges', methods = ['PUT'])
-@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def admin_abandon_changes():
     """ Adds/updates a saved location and species information
     Arguments: (GET)
@@ -3608,7 +3612,7 @@ def admin_abandon_changes():
     return {'success': True, 'message': "All changes were successully abandoned"}
 
 @app.route('/installCheck', methods = ['GET'])
-@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def new_install_check():
     """ Checks if the S3 endpoint can support a new installation
     Arguments: (GET)
@@ -3649,13 +3653,13 @@ def new_install_check():
     if needs_repair:
         return_data['needsRepair'] = True
         return_data['message'] = 'You can try to perform a repair on the S3 endpoint'
-        return json.dumps(return_data)
+        return jsonify(return_data)
     if has_everything:
         # The endpoint has everything needed (what are they up to?)
         return_data['success'] = True
         return_data['admin'] = False
         return_data['message'] = 'The endpoint already is configured for SPARCd'
-        return json.dumps(return_data)
+        return jsonify(return_data)
 
     # Check if they can make a new install
     can_create, test_bucket = S3Connection.check_new_install_possible(s3_url, user_info.name,
@@ -3664,7 +3668,7 @@ def new_install_check():
         return_data['failedPerms'] = True
         return_data['message'] = 'Unable to install SPARCd at the S3 endpoint. Please ' \
                                         'contact your S3 administrator about permissions'
-        return json.dumps(return_data)
+        return jsonify(return_data)
 
     # Check that there aren't any administrators for this endpoint in the database
     # If it's a new install, there shouldn't be an admin in the database (the endpoint is
@@ -3675,7 +3679,7 @@ def new_install_check():
             return_data['message'] = 'You are not authorized to make a new installation or ' \
                                             'repair an existing one. Please contact your ' \
                                             'administrator'
-            return json.dumps(return_data)
+            return jsonify(return_data)
 
     # TODO: When have messages to users and the test bucket isn't removed, inform the admin(s)
     if test_bucket is not None:
@@ -3683,10 +3687,10 @@ def new_install_check():
 
     return_data['success'] = True
     return_data['newInstance'] = True
-    return json.dumps(return_data)
+    return jsonify(return_data)
 
 @app.route('/installNew', methods = ['GET'])
-@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def install_new():
     """ Attempts to create a new SPARCd installation
     Arguments: (GET)
@@ -3715,7 +3719,7 @@ def install_new():
     sole_user = False
     if not bool(user_info.admin):
         if not db.is_sole_user(hash2str(s3_url), user_info.name):
-            return json.dumps({'success': False,
+            return jsonify({'success': False,
                                 'message': 'You are not authorized to create a new ' \
                                             'SPARCd configuration'})
         sole_user = True
@@ -3725,22 +3729,22 @@ def install_new():
                                                                         get_password(token, db))
 
     if needs_repair or has_everything:
-        return json.dumps({'success': False, 'message': 'There is already an existing SPARCd ' \
+        return jsonify({'success': False, 'message': 'There is already an existing SPARCd ' \
                                                         'configuration'})
 
     # The user is apparently the sole user or an admin, and the S3 instance is not setup for SPARCd
     if not S3Connection.create_sparcd(s3_url, user_info.name, get_password(token, db),
                                                                             DEFAULT_SETTINGS_PATH):
-        return json.dumps({'success': False, 'message': 'Unable to configure new SPARCd instance'})
+        return jsonify({'success': False, 'message': 'Unable to configure new SPARCd instance'})
 
     # Make this user the admin if they're the only one in the DB
     if sole_user:
         db.update_user(hash2str(s3_url), user_info.name, user_info.email, True)
 
-    return json.dumps({'success': True})
+    return jsonify({'success': True})
 
 @app.route('/installRepair', methods = ['GET'])
-@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def install_repair():
     """ Attempts to repair an existing SPARCd installation
     Arguments: (GET)
@@ -3766,7 +3770,7 @@ def install_repair():
 
     # Check that we can create
     if not bool(user_info.admin):
-        return json.dumps({'success': False, 'message': 'You are not authorized to repair the ' \
+        return jsonify({'success': False, 'message': 'You are not authorized to repair the ' \
                                                     'SPARCd configuration'})
 
     # Check if the S3 instance needs repairs and of is all set
@@ -3774,18 +3778,18 @@ def install_repair():
                                                                         get_password(token, db))
 
     if not needs_repair or has_everything:
-        return json.dumps({'success': True, \
+        return jsonify({'success': True, \
                             'message': 'The SPARCd installation doesn\'t need repair'})
 
     # Make repairs
     if not S3Connection.repair_sparcd(s3_url, user_info.name, get_password(token, db),
                                                                             DEFAULT_SETTINGS_PATH):
-        return json.dumps({'success': False, 'message': 'Unable to repair this SPARCd instance'})
+        return jsonify({'success': False, 'message': 'Unable to repair this SPARCd instance'})
 
-    return json.dumps({'success': True})
+    return jsonify({'success': True})
 
 @app.route('/setUploadComplete', methods = ['POST'])
-@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def set_upload_complete():
     """ Marks an incomplete upload as completed
     Arguments: (GET)
@@ -3821,12 +3825,12 @@ def set_upload_complete():
     all_colls = sdc.load_collections(db, hash2str(s3_url), bool(user_info.admin), s3_url,
                                                             user_info.name, get_password(token, db))
     if not all_colls:
-        return json.dumps({'success': False,
+        return jsonify({'success': False,
                             'message': "Unable to load collections for marking upload complete"})
 
     coll = [one_coll for one_coll in all_colls if one_coll["id"] == col_id]
     if not coll:
-        return json.dumps({'success': False,
+        return jsonify({'success': False,
                             'message': 'Unable to find the collection needed to mark upload as ' \
                                         'completed'})
     coll = coll[0]
@@ -3834,7 +3838,7 @@ def set_upload_complete():
     # Find the upload in the collection
     upload = [one_up for one_up in coll['uploads'] if one_up["key"] == up_key]
     if not upload:
-        return json.dumps({'success': False,
+        return jsonify({'success': False,
                             'message': 'Unable to find the incomplete upload in the collections'})
     upload = upload[0]
 
@@ -3850,11 +3854,11 @@ def set_upload_complete():
     db.sandbox_upload_complete_by_info(hash2str(s3_url), user_info.name, coll['bucket'],
                                                                                     upload['key'])
 
-    return json.dumps({'success': True, 'message': 'Successfully marked upload as completed'})
+    return jsonify({'success': True, 'message': 'Successfully marked upload as completed'})
 
 
 @app.route('/messageAdd', methods = ['POST'])
-@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def message_add():
     """ Adds a message to the database
     Arguments: (GET)
@@ -3898,11 +3902,11 @@ def message_add():
     for one_rec in all_receivers:
         db.message_add(s3_id, user_info.name, one_rec, subject, message, priority)
 
-    return json.dumps({'success': True, 'message': 'All messages stored'})
+    return jsonify({'success': True, 'message': 'All messages stored'})
 
 
 @app.route('/messageGet', methods = ['GET'])
-@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def message_get():
     """ Gets messages for the user
     Arguments: (GET)
@@ -3928,11 +3932,11 @@ def message_get():
 
     messages = db.messages_get(hash2str(s3_url), user_info.name, bool(user_info.admin))
 
-    return json.dumps({'success': True, 'messages': messages, 'message': 'All messages received'})
+    return jsonify({'success': True, 'messages': messages, 'message': 'All messages received'})
 
 
 @app.route('/messageRead', methods = ['POST'])
-@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def message_read():
     """ Marks messages are read
     Arguments: (GET)
@@ -3967,11 +3971,11 @@ def message_read():
     if bool(user_info.admin):
         db.messages_are_read(hash2str(s3_url), 'admin', all_ids)
 
-    return json.dumps({'success': True, 'message': 'Messages were marked as read'})
+    return jsonify({'success': True, 'message': 'Messages were marked as read'})
 
 
 @app.route('/messageDelete', methods = ['POST'])
-@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def message_delete():
     """ Gets messages for the user
     Arguments: (GET)
@@ -4006,4 +4010,4 @@ def message_delete():
     if bool(user_info.admin):
         db.messages_are_deleted(hash2str(s3_url), 'admin', all_ids)
 
-    return json.dumps({'success': True, 'message': 'Messages were marked as deleted'})
+    return jsonify({'success': True, 'message': 'Messages were marked as deleted'})

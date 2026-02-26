@@ -1,5 +1,6 @@
 
 import * as React from 'react';
+import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import { useTheme } from '@mui/material/styles';
 
@@ -34,15 +35,15 @@ export default function SpeciesSidebar({species, position, speciesSidebarRef, wo
   }
 
   return (
-    <div id='species-sidebar' style={{ ...sidebarStyleAttributes, overflow:'scroll' }} >
-    <Grid ref={speciesSidebarRef} container alignItems='stretch' {...sidebarPositionalAttributes}
-        >
-      { species.map((item) => <SpeciesSidebarItem id={'card-' + item.name}  species={item} key={item.name} {...speciesSidebarItemAttributes}
-                                                  onKeybindClick={(event) => onKeybind(event, item)}
-                                                  onZoomClick={(event) => onZoom(event, item)}
-                              />)
-      }
-    </Grid>
-    </div>
+    <Box ref={speciesSidebarRef} id='species-sidebar' sx={{ ...sidebarStyleAttributes, overflow:'scroll' }} >
+      <Grid container alignItems='stretch' {...sidebarPositionalAttributes}
+          >
+        { species.map((item) => <SpeciesSidebarItem id={'card-' + item.name}  species={item} key={item.name} {...speciesSidebarItemAttributes}
+                                                    onKeybindClick={(event) => onKeybind(event, item)}
+                                                    onZoomClick={(event) => onZoom(event, item)}
+                                />)
+        }
+      </Grid>
+    </Box>
   );
 }

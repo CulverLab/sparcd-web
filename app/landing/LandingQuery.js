@@ -38,6 +38,7 @@ export default function LandingQuery() {
 
     try {
       const resp = fetch(speciesStatsUrl, {
+          credentials: 'include',
           method: 'GET',
         }).then(async (resp) => {
             if (resp.ok) {
@@ -112,7 +113,7 @@ export default function LandingQuery() {
                     <Typography variant="h4" sx={{color:'#3b5a7d'}} >
                       {item[1]}
                     </Typography>
-                    <Typography variant="body2" sx={{fontSize:'x-small', paddingTop:'7px', textTransform:'uppercase', color:'#3b5a7d'}} >
+                    <Typography variant="body3" sx={{paddingTop:'7px', textTransform:'uppercase', color:'#3b5a7d'}} >
                       {item[0]}
                     </Typography>
                   </Grid>

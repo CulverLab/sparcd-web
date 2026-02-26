@@ -17,7 +17,7 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import { AddMessageContext, DefaultImageIconURL } from '../serverInfo';
-import { Level } from './Messages';
+import { Level } from '../components/Messages';
 
 /**
  * Handles editing a species' entry

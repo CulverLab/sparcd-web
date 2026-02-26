@@ -13,7 +13,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import { SpeciesInfoContext } from '../serverInfo';
-import InputSlider from './InputSlider';
+import InputSlider from '../components/InputSlider';
 
 // Width of the input field
 const Input = styled(MuiInput)`

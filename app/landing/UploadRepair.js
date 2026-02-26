@@ -48,6 +48,7 @@ export default function UploadRepair({collectionInfo, uploadInfo, onUploadImages
 
     try {
       const resp = fetch(uploadCompleteUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData,
       }).then(async (resp) => {

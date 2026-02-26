@@ -20,10 +20,10 @@ import Typography from '@mui/material/Typography';
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { v4 as uuidv4 } from 'uuid';
 
-import { SpeciesInfoContext, UserSettingsContext } from './serverInfo';
-import ImageAdjustments from './components/ImageAdjustments';
-import ImageEditSpecies from './components/ImageEditSpecies';
-import InputSlider from './components/InputSlider';
+import { SpeciesInfoContext, UserSettingsContext } from '../serverInfo';
+import ImageAdjustments from './ImageAdjustments';
+import ImageEditSpecies from './ImageEditSpecies';
+import InputSlider from '../components/InputSlider';
 
 // Width of the input field
 const Input = styled(MuiInput)`

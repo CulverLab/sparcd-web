@@ -286,10 +286,11 @@ let theme = createTheme({
       '&:after': {
         position:'absolute',
         content:'" "',
-        height:'7px',
-        width:'7px',
+        height:'5px',
+        width:'5px',
+        border:'1px solid red',
         borderRadius:'3px',
-        backgroundColor:'red',
+        backgroundColor:'coral',
         top:'25%',
         right:'15%'
       }

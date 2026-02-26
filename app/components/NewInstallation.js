@@ -64,6 +64,7 @@ export default function LoginAgain({newInstallToken, repairServer, onCancel}) {
 
     try {
       const resp = fetch(newInstallCheckUrl, {
+        credentials: 'include',
         method: 'GET',
       }).then(async (resp) => {
             if (resp.ok) {
@@ -130,6 +131,7 @@ export default function LoginAgain({newInstallToken, repairServer, onCancel}) {
 
     try {
       const resp = fetch(newInstallUrl, {
+        credentials: 'include',
         method: 'GET',
       }).then(async (resp) => {
             if (resp.ok) {
@@ -172,6 +174,7 @@ export default function LoginAgain({newInstallToken, repairServer, onCancel}) {
 
     try {
       const resp = fetch(installRepairlUrl, {
+        credentials: 'include',
         method: 'GET',
       }).then(async (resp) => {
             if (resp.ok) {

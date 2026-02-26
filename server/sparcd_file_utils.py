@@ -10,6 +10,8 @@ from typing import Optional
 
 # Maximum number of times to try updating a temporary file
 TEMP_FILE_MAX_WRITE_TRIES = 7
+# Maximum number of times to try opening a temporary file
+TEMP_FILE_MAX_OPEN_TRIES = 3
 # Number of seconds to keep the temporary file around before it's invalid
 TEMP_FILE_EXPIRE_SEC = 1 * 60 * 60
 
@@ -67,21 +69,38 @@ def load_timed_info(load_path: str, timeout_sec: int=TEMP_FILE_EXPIRE_SEC):
     if not os.path.exists(load_path):
         return None
 
-    with open(load_path, 'r', encoding='utf-8') as infile:
+    tries = 0
+    while tries < TEMP_FILE_MAX_OPEN_TRIES:
         try:
-            loaded_data = json.loads(infile.read())
-        except json.JSONDecodeError as ex:
-            infile.close()
-            print(f'WARN: Timed file has invalid contents: {load_path}')
-            print(ex)
-            print('      Removing invalid file')
-            try:
-                os.unlink(load_path)
-            except Exception as ex_2:
-                print(f'Unable to remove bad timed file: {load_path}')
-                print(ex_2)
+            with open(load_path, 'r', encoding='utf-8') as infile:
+                print('HACK:   OPENED:',tries, load_path, flush=True)
+                try:
+                    print('HACK:   BEFORE LOAD:',tries, load_path, flush=True)
+                    loaded_data = json.loads(infile.read())
+                    print('HACK:   AFTER LOAD:',tries, load_path, flush=True)
+                    break
+                except json.JSONDecodeError as ex:
+                    infile.close()
+                    print(f'WARN: Timed file has invalid contents: {load_path}')
+                    print(ex)
+                    print('      Removing invalid file')
+                    try:
+                        os.unlink(load_path)
+                        break
+                    except Exception as ex_2:
+                        print(f'Unable to remove bad timed file: {load_path}')
+                        print(ex_2)
 
-            return None
+                    return None
+        except FileNotFoundError:
+            # We have some kind of opening error. Keep trying
+            print('HACK: UNABLE TO OPEN TEMP FILE:',tries, load_path, flush=True)
+            if tries < TEMP_FILE_MAX_OPEN_TRIES:
+                tries += 1
+                time.sleep(1)
+                continue
+            else:
+                return None
 
     # Check if the contents are too old
     if not isinstance(loaded_data, dict) or 'timestamp' not in loaded_data or \

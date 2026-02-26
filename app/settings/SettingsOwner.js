@@ -19,7 +19,7 @@ import { useTheme } from '@mui/material/styles';
 import PropTypes from 'prop-types';
 
 import EditCollection from './EditCollection';
-import { Level } from './Messages';
+import { Level } from '../components/Messages';
 import { AddMessageContext, CollectionsInfoContext, TokenExpiredFuncContext, SizeContext, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
 
@@ -142,6 +142,7 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
 
     try {
       const resp = fetch(userUpdateCollUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -195,6 +196,7 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
 
     try {
       const resp = fetch(adminCompleteUrl, {
+        credentials: 'include',
         method: 'PUT',
       }).then(async (resp) => {
             if (resp.ok) {
@@ -231,6 +233,7 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
 
     try {
       const resp = fetch(adminCompleteUrl, {
+        credentials: 'include',
         method: 'PUT',
       }).then(async (resp) => {
             if (resp.ok) {
@@ -273,6 +276,7 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
 
     try {
       const resp = fetch(adminCollectionUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData,
       }).then(async (resp) => {

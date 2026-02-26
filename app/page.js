@@ -17,14 +17,14 @@ import { Level, makeMessage, Messages } from './components/Messages';
 import Maps from './Maps';
 import NewInstallation from './components/NewInstallation';
 import Queries from './Queries';
-import SettingsAdmin from './components/SettingsAdmin';
-import SettingsOwner from './components/SettingsOwner';
+import SettingsAdmin from './settings/SettingsAdmin';
+import SettingsOwner from './settings/SettingsOwner';
 import theme from './Theme';
-import TitleBar from './components/TitleBar';
+import TitleBar from './TitleBar';
 import UploadManage from './UploadManage';
 import UploadEdit from './UploadEdit';
 import UserActions from './components/userActions';
-import UserMessages from './components/UserMessages';
+import UserMessages from './messages/UserMessages';
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin';
 import { AddMessageContext, BaseURLContext, CollectionsInfoContext, DisableIdleCheckFuncContext, TokenExpiredFuncContext, 
          LocationsInfoContext, MobileDeviceContext, NarrowWindowContext, SandboxInfoContext, SizeContext, SpeciesInfoContext, 
@@ -516,6 +516,7 @@ export default function Home() {
     const collectionUrl =  serverURL + '/collections?t=' + encodeURIComponent(cur_token)
     try {
       const resp = fetch(collectionUrl, {
+        credentials: 'include',
         method: 'GET'
       }).then(async (resp) => {
             if (resp.ok) {
@@ -567,6 +568,7 @@ export default function Home() {
     const sandboxUrl =  serverURL + '/sandbox?t=' + encodeURIComponent(cur_token)
     try {
       const resp = fetch(sandboxUrl, {
+        credentials: 'include',
         method: 'GET'
       }).then(async (resp) => {
             if (resp.ok) {
@@ -608,6 +610,7 @@ export default function Home() {
     const locationsUrl =  serverURL + '/locations?t=' + encodeURIComponent(cur_token)
     try {
       const resp = fetch(locationsUrl, {
+        credentials: 'include',
         method: 'GET'
       }).then(async (resp) => {
             if (resp.ok) {
@@ -650,6 +653,7 @@ export default function Home() {
     const speciesUrl =  serverURL + '/species?t=' + encodeURIComponent(cur_token)
     try {
       const resp = fetch(speciesUrl, {
+        credentials: 'include',
         method: 'GET'
       }).then(async (resp) => {
             if (resp.ok) {
@@ -694,6 +698,7 @@ export default function Home() {
     const othersUrl =  serverURL + '/speciesOther?t=' + encodeURIComponent(cur_token)
     try {
       const resp = fetch(othersUrl, {
+        credentials: 'include',
         method: 'GET'
       }).then(async (resp) => {
             if (resp.ok) {
@@ -787,6 +792,8 @@ export default function Home() {
 
             setLoggedIn(true);
             setLastToken(loginToken);
+            window.setTimeout(() => handleFetchMessages(loginToken), 1000);
+
             if (onSuccess && typeof(onSuccess) === 'function') {
               onSuccess(loginToken, respData['newInstance'], respData['needsRepair']);
             } else if (respData['newInstance']) {
@@ -852,6 +859,7 @@ export default function Home() {
     // Get the information on the upload
     try {
       const resp = fetch(uploadUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -1146,12 +1154,13 @@ export default function Home() {
     const messagesUrl =  serverURL + '/messageGet?t=' + encodeURIComponent(loginToken)
     try {
       const resp = fetch(messagesUrl, {
+        credentials: 'include',
         method: 'GET'
       }).then(async (resp) => {
             if (resp.ok) {
               return resp.json();
             } else {
-              if (resp.status === 401) {
+              if (resp.status === 401 || resp.status === 404) {
                 // User needs to log in again
                 setUserLoginAgain(true);
               }
@@ -1164,15 +1173,18 @@ export default function Home() {
             setUserMessages({count:respData.messages.length, messages:respData.messages, loading:false});
           } else {
             addMessage(Level.Warning, respData.message);
+            setUserMessages({...userMessages,...{loading:false, count:0, messages:[]}});
           }
         })
         .catch((err) => {
           console.log('Fetch Message Error: ',err);
           addMessage(Level.Error, 'A problem ocurred while fetching messages');
+          setUserMessages({...userMessages,...{loading:false, count:0, messages:[]}});
       });
     } catch (error) {
       console.log('Message Fetch Unknown Error: ',error);
       addMessage(Level.Error, 'An unknown problem ocurred while fetching messages');
+      setUserMessages({...userMessages,...{loading:false, count:0, messages:[]}});
     }
   }, [addMessage, lastToken, serverURL, setUserLoginAgain, setUserMessages]);
 
@@ -1195,6 +1207,7 @@ export default function Home() {
 
     try {
       const resp = fetch(newMessagesUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -1238,6 +1251,7 @@ export default function Home() {
 
     try {
       const resp = fetch(readMessagesUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -1278,6 +1292,7 @@ export default function Home() {
 
     try {
       const resp = fetch(delMessagesUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -1385,13 +1400,6 @@ export default function Home() {
       setMobileDeviceChecked(true);
     }
   }
-
-  // Check for messages if we haven't already
-  React.useEffect(() => {
-    if (userMessages.count === null && !userMessages.loading && lastToken) {
-      window.setTimeout(() => handleFetchMessages(lastToken), 100);
-    }
-  }, [lastToken, userMessages]);
 
   /**
    * Returns the UI components for the specified action

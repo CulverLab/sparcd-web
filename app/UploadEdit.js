@@ -16,13 +16,13 @@ import { useTheme } from '@mui/material/styles';
 
 import { AddMessageContext, TokenExpiredFuncContext, LocationsInfoContext, NarrowWindowContext, SizeContext, 
           SpeciesInfoContext, TokenContext, UploadEditContext, UserSettingsContext } from './serverInfo';
-import ImageEdit from './ImageEdit';
-import ImageTile from './components/ImageTile';
+import ImageEdit from './tagging/ImageEdit';
+import ImageTile from './tagging/ImageTile';
 import { Level } from './components/Messages';
-import LocationSelection from './LocationSelection';
-import SpeciesKeybind from './components/SpeciesKeybind';
-import SpeciesSidebar from './components/SpeciesSidebar';
-import SpeciesSidebarItem from './components/SpeciesSidebarItem';
+import LocationSelection from './tagging/LocationSelection';
+import SpeciesKeybind from './tagging/SpeciesKeybind';
+import SpeciesSidebar from './tagging/SpeciesSidebar';
+import SpeciesSidebarItem from './tagging/SpeciesSidebarItem';
 import * as utils from './utils';
 
 import styles from './page.module.css'
@@ -95,17 +95,15 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
     setWorkingTop(uiSizes.workspace.top);
 
     // Get the top sidebar and add in the species sidebar if it's on top as well
-    const elTopSidebar = document.getElementById('top-sidebar');
-    if (elTopSidebar) {
-      const elTopSidebarSize = elTopSidebar.getBoundingClientRect();
+    if (sidebarTopRef.current) {
+      const elTopSidebarSize = sidebarTopRef.current.getBoundingClientRect();
       setSidebarHeightTop(elTopSidebarSize.height);
     } else {
       setSidebarHeightTop(0);
     }
 
-    const elSpeciesSidebar = document.getElementById('species-sidebar');
-    if (elSpeciesSidebar) {
-      const elSpeciesSidebarSize = elSpeciesSidebar.getBoundingClientRect();
+    if (sidebarSpeciesRef.current) {
+      const elSpeciesSidebarSize = sidebarSpeciesRef.current.getBoundingClientRect();
       if (narrowWindow) {
         setSidebarHeightSpecies(elSpeciesSidebarSize.height);
         setSidebarWidthLeft(0);
@@ -160,6 +158,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
 
     try {
       const resp = fetch(speciesUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -453,6 +452,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
 
       try {
         const resp = fetch(checkChangesUrl, {
+          credentials: 'include',
           method: 'POST',
           body: formData
         })
@@ -550,6 +550,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
 
       try {
         const resp = fetch(updateLocationUrl, {
+          credentials: 'include',
           method: 'POST',
           body: formData
         }).then(async (resp) => {
@@ -663,6 +664,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
 
     try {
       const resp = fetch(keybindUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -747,6 +749,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
 
     try {
       const resp = fetch(allEditedUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -845,6 +848,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
 
     try {
       const resp = fetch(completedUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {

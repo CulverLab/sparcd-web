@@ -1,6 +1,6 @@
 'use client';
 
-/** @module components/NewUserMessage */
+/** @module components/ViewMessage */
 
 import * as React from 'react';
 import Button from '@mui/material/Button';
@@ -41,7 +41,7 @@ export const MESSAGE_TYPE = {
  * @param {function} onClose Called when the user is finished
  * @returns {object} The UI for managing messages
  */
-export default function UserMessage({curMessage, messageType, onRead, onAdd, onReply, onReplyAll, onClose}) {
+export default function ViewMessage({curMessage, messageType, onRead, onAdd, onReply, onReplyAll, onClose}) {
   const theme = useTheme();
   const recipientRef = React.useRef(null);
   const subjectRef = React.useRef(null);

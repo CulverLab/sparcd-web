@@ -152,6 +152,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
     try {
       const resp = fetch(sandboxPrevUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -239,6 +240,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
       try {
         const resp = fetch(sandboxRecoveryUrl, {
+          credentials: 'include',
           method: 'POST',
           body: formData
         }).then(async (resp) => {
@@ -294,6 +296,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
     try {
       const resp = fetch(failedUploadsUrl, {
+        credentials: 'include',
         method: 'GET'
       }).then(async (resp) => {
             if (resp.ok) {
@@ -355,6 +358,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
     try {
       const resp = fetch(sandboxCountsUrl, {
+        credentials: 'include',
         method: 'GET'
       }).then(async (resp) => {
             if (resp.ok) {
@@ -468,6 +472,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
     try {
       const resp = fetch(sandboxCompleteUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -555,6 +560,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
     try {
       const resp = fetch(sandboxFileUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -630,6 +636,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
     try {
       const resp = fetch(sandboxCheckUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -972,6 +979,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
       try {
         const resp = fetch(sandboxNewUrl, {
+          credentials: 'include',
           method: 'POST',
           body: formData
         }).then(async (resp) => {
@@ -1081,6 +1089,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
     try {
       const resp = fetch(sandboxResetUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -1133,6 +1142,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
     try {
       const resp = fetch(sandboxAbandonUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {

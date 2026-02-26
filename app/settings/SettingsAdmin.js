@@ -25,7 +25,7 @@ import EditCollection from './EditCollection';
 import EditLocation from './EditLocation';
 import EditSpecies from './EditSpecies';
 import EditUser from './EditUser';
-import { Level } from './Messages';
+import { Level } from '../components/Messages';
 import { AddMessageContext, CollectionsInfoContext, TokenExpiredFuncContext, LocationsInfoContext, 
          SizeContext, SpeciesInfoContext, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
@@ -90,6 +90,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
       try {
         const resp = fetch(adminCheckUrl, {
+          credentials: 'include',
           method: 'GET',
         }).then(async (resp) => {
               if (resp.ok) {
@@ -205,6 +206,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     try {
       const resp = fetch(adminUsersUrl, {
+        credentials: 'include',
         method: 'GET',
       }).then(async (resp) => {
             if (resp.ok) {
@@ -241,6 +243,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     try {
       const resp = fetch(adminSpeciesUrl, {
+        credentials: 'include',
         method: 'GET',
       }).then(async (resp) => {
             if (resp.ok) {
@@ -289,6 +292,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     try {
       const resp = fetch(userUpdateCollUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -349,6 +353,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     try {
       const resp = fetch(userUpdateCollUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -418,6 +423,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     try {
       const resp = fetch(userUpdateUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -478,6 +484,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     try {
       const resp = fetch(speciesUpdateUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -568,6 +575,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     try {
       const resp = fetch(locationsUpdateUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -645,6 +653,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     try {
       const resp = fetch(adminCompleteUrl, {
+        credentials: 'include',
         method: 'PUT',
       }).then(async (resp) => {
             if (resp.ok) {
@@ -681,6 +690,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     try {
       const resp = fetch(adminCompleteUrl, {
+        credentials: 'include',
         method: 'PUT',
       }).then(async (resp) => {
             if (resp.ok) {
@@ -742,6 +752,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     try {
       const resp = fetch(adminCollectionUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData,
       }).then(async (resp) => {
@@ -804,6 +815,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     try {
       const resp = fetch(adminLocationnUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData,
       }).then(async (resp) => {

@@ -15,7 +15,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { Level } from './Messages';
+import { Level } from '../components/Messages';
 import { AddMessageContext, CollectionsInfoContext, SizeContext, TokenExpiredFuncContext, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
 
@@ -117,6 +117,7 @@ export default function CheckIncompleteUploads({onSandboxRefresh, onCancel}) {
 
     try {
       const resp = fetch(checkIncompleteUrl, {
+        credentials: 'include',
         method: 'POST',
         body: formData,
       }).then(async (resp) => {
@@ -170,7 +171,8 @@ export default function CheckIncompleteUploads({onSandboxRefresh, onCancel}) {
         <Typography nowrap="true" variant="body2" sx={{fontWeight:'bold', paddingBottom:'7px'}}>
            {checkingFailed === true ? "An error occured while checking for incomplete uploads" : " "}
         </Typography>
-        <Grid id='check-complete-uploads-content' sx={{minHeight:listHeight+'px', maxHeight:listHeight+'px', height:listHeight+'px', minWidth:'250px', overflow:'scroll',
+        <Grid id='check-complete-uploads-content' sx={{minHeight:listHeight+'px', maxHeight:listHeight+'px', height:listHeight+'px', minWidth:'250px',
+                        overflowY:'scroll',
                         border:checkingForIncomplete === false ? '1px solid black' : '1px solid grey', borderRadius:'5px', paddingLeft:'5px',
                         backgroundColor:checkingForIncomplete === false ? 'rgb(255,255,255,0.3)' : 'lightgrey'
                       }}>

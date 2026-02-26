@@ -11,9 +11,9 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import LocationItem from './components/LocationItem'
-import { UserSettingsContext } from './serverInfo';
-import { meters2feet } from './utils';
+import LocationItem from '../components/LocationItem'
+import { UserSettingsContext } from '../serverInfo';
+import { meters2feet } from '../utils';
 
 /**
  * Returns the UI for selecting locations

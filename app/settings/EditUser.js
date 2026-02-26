@@ -23,7 +23,7 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
 import { AddMessageContext } from '../serverInfo';
-import { Level } from './Messages';
+import { Level } from '../components/Messages';
 
 /**
  * Handles editing a user's entry
