@@ -98,6 +98,9 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
   const uiSizes = React.useContext(SizeContext);
   const uploadToken = React.useContext(TokenContext);
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
+  const disableUploadDetailsRef = React.useRef(false); // Used to lock out multiple clicks
+  const disableUploadPrevRef = React.useRef(false); // Used to lock out multiple clicks
+  const disableUploadCheckRef = React.useRef(false); // Used to lock out multiple clicks (resets next time page is redrawn)
   const uploadStateRef = React.useRef(uploadingState.none);  // Used to keep upload state up to date for functions
   const [collectionSelection, setCollectionSelection] = React.useState(null);
   const [comment, setComment] = React.useState(null);
@@ -123,10 +126,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
   const { options, parseTimezone } = useTimezoneSelect({ labelStyle:'altName', allTimezones });
   const [selectedTimezone, setSelectedTimezone] = React.useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
-
-  let disableUploadDetails = false; // Used to lock out multiple clicks
-  let disableUploadPrev = false; // Used to lock out multiple clicks
-  let disableUploadCheck = false; // Used to lock out multiple clicks (resets next time page is redrawn)
 
   let displayCoordSystem = 'LATLON';
   if (userSettings['coordinatesDisplay']) {
@@ -444,7 +443,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       setUploadState(uploadingState.error);
       disabledIdleCheckFunc(false);    // Enable checking for idle
     }
-  }, [addMessage, haveFailedUpload, serverURL, setUploadingFileCounts, setUploadCompleted, setUploadState, uploadStateRef, uploadToken])
+  }, [addMessage, serverURL, setUploadingFileCounts, setUploadCompleted, setUploadState, uploadStateRef, uploadToken])
 
   /**
    * Gets the counts of an upload
@@ -927,15 +926,15 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const cancelDetails = React.useCallback(() => {
     // Set to disable multiple clicks
-    if (disableUploadDetails === true) {
+    if (disableUploadDetailsRef.current === true) {
       return;
     }
-    disableUploadDetails = true;
+    disableUploadDetailsRef.current = true;
 
     setNewUpload(false);
     setNewUploadFiles(null);
-    disableUploadDetails = false;
-  }, [disableUploadDetails, setNewUpload, setNewUploadFiles]);
+    disableUploadDetailsRef.current = false;
+  }, [disableUploadDetailsRef, setNewUpload, setNewUploadFiles]);
 
   /**
    * Handles when the user wants to continue a new upload
@@ -943,10 +942,10 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const continueNewUpload = React.useCallback(() => {
     // Set to disable multiple clicks
-    if (disableUploadDetails === true) {
+    if (disableUploadDetailsRef.current === true) {
       return;
     }
-    disableUploadDetails = true;
+    disableUploadDetailsRef.current = true;
     setUploadingFileCounts({total:newUploadFiles.length, uploaded:0});
     setDisableDetails(true);
 
@@ -1009,7 +1008,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
         addMessage(Level.Error, 'An unknown problem ocurred while preparing for new sandbox upload');
       }
     }, 100);
-  }, [addMessage, collectionSelection, comment, disableUploadDetails, locationSelection, newUploadFiles, serverURL, setDisableDetails, 
+  }, [addMessage, collectionSelection, comment, disableUploadDetailsRef, locationSelection, newUploadFiles, serverURL, setDisableDetails, 
       setNewUpload, setUploadingFileCounts, uploadPath, uploadToken]);
 
   /**
@@ -1018,10 +1017,10 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const prevUploadContinue = React.useCallback(() => {
     // Used to prevent multiple clicks
-    if (disableUploadPrev === true) {
+    if (disableUploadPrevRef.current === true) {
       return;
     }
-    disableUploadPrev = true;
+    disableUploadPrevRef.current = true;
     setUploadingFileCounts({total:continueUploadInfo.files.length, uploaded:0});
 
     setUploadingFiles(true);
@@ -1036,7 +1035,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       }
     );
     setContinueUploadInfo(null);
-  }, [continueUploadInfo, disableUploadPrev, setContinueUploadInfo, setUploadingFiles, setUploadingFileCounts, uploadFolder]);
+  }, [continueUploadInfo, disableUploadPrevRef, setContinueUploadInfo, setUploadingFiles, setUploadingFileCounts, uploadFolder]);
 
   /**
    * Restarts a folder upload
@@ -1044,14 +1043,14 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const prevUploadRestart = React.useCallback(() => {
     // Used to prevent multiple clicks
-    if (disableUploadPrev === true) {
+    if (disableUploadPrevRef.current === true) {
       return;
     }
-    disableUploadPrev = true;
+    disableUploadPrevRef.current = true;
 
     setPrevUploadCheck(prevUploadCheckState.checkReset);
-    disableUploadPrev = false;
-  }, [disableUploadPrev, prevUploadCheckState, setPrevUploadCheck]);
+    disableUploadPrevRef.current = false;
+  }, [disableUploadPrevRef, prevUploadCheckState, setPrevUploadCheck]);
 
   /**
    * Restarts a folder upload
@@ -1059,14 +1058,14 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const prevUploadAbandon = React.useCallback(() => {
     // Used to prevent multiple clicks
-    if (disableUploadPrev === true) {
+    if (disableUploadPrevRef.current === true) {
       return;
     }
-    disableUploadPrev = true;
+    disableUploadPrevRef.current = true;
 
     setPrevUploadCheck(prevUploadCheckState.abandon);
-    disableUploadPrev = false;
-  }, [disableUploadPrev, prevUploadCheckState, setPrevUploadCheck]);
+    disableUploadPrevRef.current = false;
+  }, [disableUploadPrevRef, prevUploadCheckState, setPrevUploadCheck]);
 
   /**
    * Handles restarting an upload from the beginning
@@ -1074,10 +1073,10 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const prevUploadResetContinue = React.useCallback(() => {
     // Used to prevent multiple clicks
-    if (disableUploadCheck === true) {
+    if (disableUploadCheckRef.current === true) {
       return;
     }
-    disableUploadCheck = true;
+    disableUploadCheckRef.current = true;
     setUploadingFileCounts({total:continueUploadInfo.files.length, uploaded:0});
 
     // Reset the upload on the server and then restart the upload
@@ -1093,7 +1092,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
         method: 'POST',
         body: formData
       }).then(async (resp) => {
-            disableUploadCheck = false;
+            disableUploadCheckRef.current = false;
             if (resp.ok) {
               return resp.json();
             } else {
@@ -1120,7 +1119,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       console.log('Reset Upload Unknown Error: ',err);
       addMessage(Level.Error, 'An unknown problem ocurred while preparing for reset sandbox upload');
     }
-  }, [addMessage, continueUploadInfo, disableUploadCheck, Level, prevUploadCheckState, serverURL, setContinueUploadInfo, setPrevUploadCheck,
+  }, [addMessage, continueUploadInfo, disableUploadCheckRef, Level, prevUploadCheckState, serverURL, setContinueUploadInfo, setPrevUploadCheck,
       setUploadingFileCounts, uploadFolder, uploadToken]);
 
   /**
@@ -1129,10 +1128,10 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const prevUploadAbandonContinue = React.useCallback(() => {
     // Used to prevent multiple clicks
-    if (disableUploadCheck === true) {
+    if (disableUploadCheckRef.current === true) {
       return;
     }
-    disableUploadCheck = true;
+    disableUploadCheckRef.current = true;
 
     // Reset the upload on the server and then restart the upload
     const sandboxAbandonUrl = serverURL + '/sandboxAbandon?t=' + encodeURIComponent(uploadToken);
@@ -1146,7 +1145,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
         method: 'POST',
         body: formData
       }).then(async (resp) => {
-            disableUploadCheck = false;
+            disableUploadCheckRef.current = false;
             if (resp.ok) {
               return resp.json();
             } else {
@@ -1177,7 +1176,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       console.log('Abandon Upload Unknown Error: ',err);
       addMessage(Level.Error, 'An unknown problem ocurred while preparing for abandoning sandbox upload');
     }
-  }, [addMessage, continueUploadInfo, disableUploadCheck, newUploadFiles, onCompleted, prevUploadCheckState, serverURL, setCollectionSelection,
+  }, [addMessage, continueUploadInfo, disableUploadCheckRef, newUploadFiles, onCompleted, prevUploadCheckState, serverURL, setCollectionSelection,
       setComment, setContinueUploadInfo, setLocationSelection, setNewUpload, setPrevUploadCheck, setUploadingFileCounts, uploadToken]);
 
   /**
@@ -1186,14 +1185,14 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const prevUploadCreateNew = React.useCallback(() => {
     // Used to prevent multiple clicks
-    if (disableUploadPrev === true) {
+    if (disableUploadPrevRef.current === true) {
       return;
     }
-    disableUploadPrev = true;
+    disableUploadPrevRef.current = true;
 
     setPrevUploadCheck(prevUploadCheckState.checkNew);
-    disableUploadPrev = false;
-  }, [disableUploadPrev, prevUploadCheckState, setPrevUploadCheck]);
+    disableUploadPrevRef.current = false;
+  }, [disableUploadPrevRef, prevUploadCheckState, setPrevUploadCheck]);
 
 /**
    * Cancel the upload for these files
@@ -1201,8 +1200,8 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const prevUploadCancel = React.useCallback(() => {
     setContinueUploadInfo(null)
-    disableUploadPrev = false;
-  }, [disableUploadPrev, setContinueUploadInfo]);
+    disableUploadPrevRef.current = false;
+  }, [disableUploadPrevRef, setContinueUploadInfo]);
 
   /**
    * Handles creating a new upload separate from an existing one
@@ -1210,10 +1209,10 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const prevUploadCreateNewContinue = React.useCallback(() => {
     // Used to prevent multiple clicks
-    if (disableUploadCheck === true) {
+    if (disableUploadCheckRef.current === true) {
       return;
     }
-    disableUploadCheck = true;
+    disableUploadCheckRef.current = true;
 
     serverUploadCompleted(continueUploadInfo.id,
       () => { // Success
@@ -1225,10 +1224,10 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
           setComment(null);
           setNewUpload(true);
           setNewUploadFiles(uploadFiles);
-          disableUploadCheck = true;
+          disableUploadCheckRef.current = true;
       }
     )
-  }, [continueUploadInfo, disableUploadCheck, serverUploadCompleted, setCollectionSelection, setComment,
+  }, [continueUploadInfo, disableUploadCheckRef, serverUploadCompleted, setCollectionSelection, setComment,
       setContinueUploadInfo, setLocationSelection, setNewUpload, setNewUploadFiles, setUploadingFileCounts]);
 
   /**
@@ -1237,7 +1236,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const prevUploadResetCreateCancel = React.useCallback(() => {
     setPrevUploadCheck(prevUploadCheckState.noCheck);
-  }, [disableUploadCheck, prevUploadCheckState, setPrevUploadCheck]);
+  }, [prevUploadCheckState, setPrevUploadCheck]);
 
   /**
    * Keeps track of a new user collection selection
@@ -1250,7 +1249,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     if (locationSelection !== null && comment != null && comment.length > MIN_COMMENT_LEN) {
       setForceRedraw(forceRedraw + 1);
     }
-  }, [comment, forceRedraw, locationSelection, setCollectionSelection, setForceRedraw, MIN_COMMENT_LEN]);
+  }, [comment, forceRedraw, locationSelection, setCollectionSelection, setForceRedraw]);
 
   /**
    * Keeps track of a new user location selection
@@ -1263,7 +1262,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     if (collectionSelection !== null && comment != null && comment.length > MIN_COMMENT_LEN) {
       setForceRedraw(forceRedraw + 1);
     }
-  }, [collectionSelection, comment, forceRedraw, setForceRedraw, setLocationSelection, MIN_COMMENT_LEN]);
+  }, [collectionSelection, comment, forceRedraw, setForceRedraw, setLocationSelection]);
 
   /**
    * Handles the user changing the comment
@@ -1275,7 +1274,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     if (event.target.value != null && event.target.value.length > MIN_COMMENT_LEN && collectionSelection != null && locationSelection != null) {
       setForceRedraw(forceRedraw + 1);
     }
-  }, [forceRedraw, collectionSelection, locationSelection, setComment, setForceRedraw, MIN_COMMENT_LEN]);
+  }, [forceRedraw, collectionSelection, locationSelection, setComment, setForceRedraw]);
 
   /**
    * Renders the UI based upon how many images have been uploaded
