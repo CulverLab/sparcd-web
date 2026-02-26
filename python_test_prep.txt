@@ -1,1 +1,0 @@
-S3_SECRET="" python3 tests/prep_for_testing.py -s3 wildcats.sparcd.arizona.edu:443  -u schnaufer  -b sparcd-ffffffff-ffff-ffff-ffff-ffffffffffff  -p 2026.01.06.13.09.23_schnaufer -d

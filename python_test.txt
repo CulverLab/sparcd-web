@@ -1,1 +1,0 @@
-PYTHONPATH=$PYTHONPATH:$PWD/server python3 -m pytest -s --s3_endpoint=wildcats.sparcd.arizona.edu:443 --s3_name=schnaufer --s3_secret=""

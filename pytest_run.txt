@@ -1,1 +1,0 @@
-PYTHONPATH=:$PWD/server python3 -m pytest -s --s3_endpoint=wildcats.sparcd.arizona.edu:443 --s3_name=schnaufer --s3_secret=etymological doodle childhood amusingly --s3_test_bucket=sparcd-automated-test --s3_test_upload=2025.12.22.12.21.22_schnaufer
