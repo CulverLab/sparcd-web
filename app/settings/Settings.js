@@ -333,6 +333,11 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
       return;
     }
 
+    // Make sure we have something to set
+    if (email1 === null) {
+      return;
+    }
+
     // Make the comparisons and help the user 
     if (email1 === email2) {
       const curSettings = userSettings;

@@ -173,7 +173,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     cbComplete ||= () => {};
     cbFail ||= () => {};
 
-    const err = Server.handleFailedUploads(serverURL, uploadToken, uploadId, uploadedFiles,
+    const success = Server.handleFailedUploads(serverURL, uploadToken, uploadId, uploadedFiles,
       (respData) => { // Success
           // Build up list of files to retry
           if (respData.length > 0) {
@@ -199,7 +199,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     );
 
     // Check for a problem
-    if (err) {
+    if (!success) {
       addMessage(Level.Error, 'An unknown problem ocurred while getting failed files for the upload');
       setUploadState(uploadingState.error);
     }
@@ -281,7 +281,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const internalGetUploadCounts = React.useCallback((uploadId, uploadFiles, numRetries = 0, prevUploadCount = null, startTs = null) => {
 
-    let err = Server.getUploadCounts(serverURL, uploadToken, uploadId, uploadFiles, tokenExpiredFunc,
+    let success = Server.getUploadCounts(serverURL, uploadToken, uploadId, uploadFiles, tokenExpiredFunc,
       (respData) => { // Success
         haveGetUploadCountsSuccess(respData, uploadId, uploadFiles, prevUploadCount, startTs)
       },
@@ -299,7 +299,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     );
 
     // Check for an error
-    if (err) {
+    if (!success) {
       addMessage(Level.Error, 'An unknown problem ocurred while checking upload image counts');
       setUploadState(uploadingState.error);
       disabledIdleCheckFunc(false);    // Enable checking for idle
@@ -329,7 +329,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     onSuccess ||= () => {};
     onFailure ||= () => {};
 
-    let err = Server.uploadCompleted(serverURL, uploadToken, uploadId, tokenExpiredFunc,
+    let success = Server.uploadCompleted(serverURL, uploadToken, uploadId, tokenExpiredFunc,
       (respData) => { // Success
         onSuccess(uploadId, respData);
       },
@@ -340,7 +340,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     );
 
     // Check for an error
-    if (err) {
+    if (!success) {
       addMessage(Level.Error, 'An unknown problem ocurred while completing image upload');
       onFailure(uploadId);
     }
@@ -386,7 +386,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     const tzinfo = options.find((item) => item.value === selectedTimezone);
     const startTs = Date.now();
 
-    const err = Server.uploadChunk(serverURL, uploadToken, fileChunk, uploadId, numFiles, tzinfo, tokenExpiredFunc,
+    const success = Server.uploadChunk(serverURL, uploadToken, fileChunk, uploadId, numFiles, tzinfo, tokenExpiredFunc,
       (respData) => { // Success
         // Process the results
         const nextFiles = getNextUploadChunk(fileChunk, numFiles, startTs);
@@ -414,7 +414,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     );
 
     // Check for a problem making the call
-    if (err) {
+    if (!success) {
       console.log('Upload Images Unknown Error: ',err);
       addMessage(Level.Error, 'An unknown problem ocurred while uploading images');
     }
@@ -628,7 +628,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     relativePath = relativePath.substr(0, relativePath.length - allowedFiles[0].name.length - 1);
 
     if (!recovery) {
-      const err = Server.checkPreviousUpload(serverURL, uploadToken, relativePath, tokenExpiredFunc, 
+      const success = Server.checkPreviousUpload(serverURL, uploadToken, relativePath, tokenExpiredFunc, 
                         (respData) => {havePrevUploadSuccess(respData, relativePath, allowedFiles)},     // Success
                         (err) => {  // Failure
                           if (folderUploadRef.current) {
@@ -643,7 +643,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
         );
 
       // Check for an error
-      if (err) {
+      if (!success) {
         addMessage(Level.Error, 'An unknown problem ocurred while preparing for upload');
         setUploadState(uploadingState.error);
       }
@@ -651,7 +651,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       setUploadingFileCounts({total:allowedFiles.length, uploaded:0});
       setDisableDetails(true);
       window.setTimeout(() => {
-                  const err = Server.updateUploadRecovery(serverURL,
+                  const success = Server.updateUploadRecovery(serverURL,
                                                     uploadToken,
                                                     recovery.coll_info.id,
                                                     recovery.upload_info.location,
@@ -672,8 +672,8 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                                                       cancelUpload();
                                                     });
                   // Check for an error
-                  if (err) {
-                    addMessage(Level.Error, 'An unknown problem ocurred while preparing for upload');
+                  if (!success) {
+                    addMessage(Level.Error, 'An unknown problem ocurred while preparing for recovery of an upload');
                     setUploadState(uploadingState.error);
                     cancelUpload();
                   }
@@ -802,7 +802,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
     // Add the upload to the server letting the UI to update
     window.setTimeout(() => {
-        const err = Server.continueNewUpload(serverURL, 
+        const success = Server.continueNewUpload(serverURL, 
                           uploadToken,
                           collectionSelection.id,
                           locationSelection.idProperty,
@@ -821,7 +821,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                           }
                         );
         // Check for an error
-        if (err) {
+        if (!success) {
           setDisableDetails(false);
           addMessage(Level.Error, 'An unknown problem ocurred while preparing for new sandbox upload');
         }
@@ -844,7 +844,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     setUploadingFiles(true);
 
     // Check that the continuing upload attempt has the same files as the previous attempt
-    let err = Server.checkUploadedFiles(serverURL, uploadToken, continueUploadInfo.id, continueUploadInfo.files,  tokenExpiredFunc,
+    let success = Server.checkUploadedFiles(serverURL, uploadToken, continueUploadInfo.id, continueUploadInfo.files,  tokenExpiredFunc,
         (respData) => {     // Success
             if (!respData || respData.success) {
               uploadFolder(continueUploadInfo.files, continueUploadInfo.id); // Success - continue uploading
@@ -863,7 +863,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     );
 
     // Check for an error
-    if (err) {
+    if (!success) {
       addMessage(Level.Error, 'An unknown problem ocurred while confirming continuation of upload');
       setNotificationMessage({message, action:cancelUpload});
     }
@@ -916,7 +916,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     setUploadingFileCounts({total:continueUploadInfo.files.length, uploaded:0});
 
     // Reset the upload on the server and then restart the upload
-    const err = Server.prevUploadResetContinue(serverURL, uploadToken, continueUploadInfo.id, continueUploadInfo.files, tokenExpiredFunc,
+    const success = Server.prevUploadResetContinue(serverURL, uploadToken, continueUploadInfo.id, continueUploadInfo.files, tokenExpiredFunc,
                               (respData) => {    // Success
                                   disableUploadCheckRef.current = false;
                                   const curFiles = continueUploadInfo.files;
@@ -932,7 +932,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                             );
 
     // Check for an error
-    if (err) {
+    if (!success) {
       addMessage(Level.Error, 'An unknown problem ocurred while preparing for reset sandbox upload');
     }
   }, [addMessage, continueUploadInfo, disableUploadCheckRef, prevUploadCheckState, setContinueUploadInfo, setPrevUploadCheck,
@@ -949,7 +949,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     }
     disableUploadCheckRef.current = true;
 
-    const err = Server.prevUploadAbandonContinue(serverURL, uploadToken, continueUploadInfo.id, tokenExpiredFunc,
+    const success = Server.prevUploadAbandonContinue(serverURL, uploadToken, continueUploadInfo.id, tokenExpiredFunc,
                               (respData) => {   // Success
                                   disableUploadCheckRef.current = false;
                                   setUploadingFileCounts({total:continueUploadInfo.files.length, uploaded:0});
@@ -969,7 +969,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                           );
 
     // Check for an error
-    if (err) {
+    if (!success) {
       addMessage(Level.Error, 'An unknown problem ocurred while preparing for abandoning sandbox upload');
     }
   }, [addMessage, continueUploadInfo, newUploadFiles, onCompleted, prevUploadCheckState, setCollectionSelection,

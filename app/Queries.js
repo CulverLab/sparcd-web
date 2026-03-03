@@ -609,18 +609,14 @@ export default function Queries({loadingCollections}) {
           { tabsOrder.map((item, idx) => {
               return (
                 <Tab label={
-                          <Grid container direction="row" alignItems="center" justifyContent="center">
-                            <Grid>
-                              <Typography gutterBottom variant="body2">
-                                {queryResults.tabs[item]}
-                              </Typography>
-                            </Grid>
+                          <Grid container direction="row" alignItems="center" justifyContent="center" sx={{width:'100%'}} >
+                            <Typography gutterBottom variant="body2" >
+                              {queryResults.tabs[item]}
+                            </Typography>
                             <Tooltip title={'Download CSV of '+queryResults.tabs[item]}>
-                              <div onClick={() => handleDownload(item)} style={{marginLeft:'auto'}}>
-                                <Grid sx={{borderRadius:'5px','&:hover':{backgroundColor:'rgba(0,0,255,0.05)'} }}>
-                                  <DownloadForOfflineOutlinedIcon sx={{padding:'5px'}} />
+                                <Grid onClick={() => handleDownload(item)} style={{marginLeft:'auto', borderRadius:'5px','&:hover':{backgroundColor:'rgba(0,0,255,0.05)'} }}>
+                                  <DownloadForOfflineOutlinedIcon sx={{fontSize:'30px', padding:'5px'}} />
                                 </Grid>
-                              </div>
                             </Tooltip>
                           </Grid>
                          }
