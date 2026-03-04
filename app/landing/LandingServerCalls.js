@@ -556,7 +556,7 @@ export function uploadChunk(serverURL, token, fileChunk, uploadId, numFiles, tzI
   const formData = new FormData();
 
   formData.append('id', uploadId);
-  formData.append('tz_off', tzInfo ? tzInfo.offset : selectedTimezone);
+  formData.append('tz_off', tzInfo);
 
   for (let idx = 0; idx < numFiles && idx < fileChunk.length; idx++) {
     formData.append(fileChunk[idx].name, fileChunk[idx]);

@@ -383,10 +383,11 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const uploadChunk = React.useCallback((fileChunk, uploadId, numFiles = 1, attempts = 3) => {
     const maxAttempts = attempts;
-    const tzinfo = options.find((item) => item.value === selectedTimezone);
     const startTs = Date.now();
+    let tzInfo = options.find((item) => item.value === selectedTimezone);
+    tzInfo = tzInfo ? tzInfo.offset : selectedTimezone
 
-    const success = Server.uploadChunk(serverURL, uploadToken, fileChunk, uploadId, numFiles, tzinfo, tokenExpiredFunc,
+    const success = Server.uploadChunk(serverURL, uploadToken, fileChunk, uploadId, numFiles, tzInfo, tokenExpiredFunc,
       (respData) => { // Success
         // Process the results
         const nextFiles = getNextUploadChunk(fileChunk, numFiles, startTs);
