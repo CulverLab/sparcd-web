@@ -630,10 +630,10 @@ def process_upload_changes(s3_url: str, username: str, fetch_password: Callable,
                 cur_species, cur_location, _ = image_utils.get_embedded_image_info(save_path)
                 if cur_species is None:
                     cur_species = []
-                if cur_location is None:
-                    cur_location = []
+                #if cur_location is None:
+                #    cur_location = []
             else:
-                cur_species, cur_location = ([], [])
+                cur_species, cur_location = ([], None)
 
             # Species: get the current species and add our changes to that before writing them out
             save_species = None

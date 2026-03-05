@@ -154,7 +154,6 @@ _db = None
 print(f'Using database at {DEFAULT_DB_PATH}', flush=True)
 print(f'Temporary folder at {tempfile.gettempdir()}', flush=True)
 
-
 def hash2str(text: str) -> str:
     """ Returns the hash of the passed in string
     Arguments:
@@ -1813,7 +1812,6 @@ def sandbox_file():
                 print('Warning: Unable to update sandbox file with the location: ' \
                         f'{request.files[one_file].filename} with upload_id {upload_id}'
                      , flush=True)
-                return f'Unable to update location in image: {request.files[one_file].filename}',205
 
         # Check if we need to convert the file to another format
         remote_name = request.files[one_file].filename
@@ -2048,6 +2046,9 @@ def sandbox_completed():
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
     s3_bucket, s3_path = db.sandbox_get_s3_info(user_info.name, upload_id)
 
+    if not s3_bucket or not s3_path:
+        return "Not Found", 404
+
     # Update the MEDIA csv file to include media types
     media_info = ctu.load_camtrap_media(s3_url, user_info.name,
                                                 lambda: get_password(token, db), s3_bucket, s3_path)
@@ -2173,7 +2174,8 @@ def image_location():
     deployment_info = ctu.load_camtrap_deployments(s3_url, user_info.name,
                                             lambda: get_password(token, db), bucket, upload_path)
     deployment_id = coll_id + ':' +loc_id
-    deployment_info[0][camtrap.CAMTRAP_DEPLOYMENT_LOCATION_ID_IDX] = deployment_id
+    deployment_info[0][camtrap.CAMTRAP_DEPLOYMENT_ID_IDX] = deployment_id
+    deployment_info[0][camtrap.CAMTRAP_DEPLOYMENT_LOCATION_ID_IDX] = loc_id
     deployment_info[0][camtrap.CAMTRAP_DEPLOYMENT_LOCATION_NAME_IDX] = loc_name
     deployment_info[0][camtrap.CAMTRAP_DEPLOYMENT_LONGITUDE_IDX] = loc_lat
     deployment_info[0][camtrap.CAMTRAP_DEPLOYMENT_LATITUDE_IDX] = loc_lon
@@ -2194,7 +2196,7 @@ def image_location():
     S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                 get_password(token, db),
                                 bucket, make_s3_path((upload_path, MEDIA_CSV_FILE_NAME)),
-                                media_info )
+                                [media_info[one_key] for one_key in media_info.keys()] )
 
     # Get and update the Observation information
     obs_info = ctu.load_camtrap_observations(s3_url, user_info.name,
@@ -2204,10 +2206,11 @@ def image_location():
         for one_obs in obs_info[one_file]:
             one_obs[camtrap.CAMTRAP_OBSERVATION_DEPLOYMENT_ID_IDX] = deployment_id
 
+    row_groups = [obs_info[one_key] for one_key in obs_info.keys()]
     S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                 get_password(token, db),
                                 bucket, make_s3_path((upload_path, OBSERVATIONS_CSV_FILE_NAME)),
-                                obs_info )
+                                [one_row for one_set in row_groups for one_row in one_set] )
 
     # Update the collection to reflect the new upload location
     updated_collection = S3Connection.get_collection_info(s3_url, user_info.name, \

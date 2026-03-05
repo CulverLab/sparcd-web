@@ -605,7 +605,7 @@ export default function Queries({loadingCollections}) {
       <Grid container size="grow" alignItems="start" justifyContent="start">
         <Grid size={2}  sx={{backgroundColor:"#EAEAEA", height:maxHeight+'px'}}>
           <Tabs id='query-results-tabs' value={activeTab} onChange={handleTabChange} aria-label="Query results" orientation="vertical" variant="scrollable"
-                scrollButtons={false} style={{overflow:'scroll', maxHeight:'100%'}}>
+                scrollButtons={false} style={{overflow:'clip', maxHeight:'100%'}}>
           { tabsOrder.map((item, idx) => {
               return (
                 <Tab label={
@@ -613,7 +613,7 @@ export default function Queries({loadingCollections}) {
                             <Typography gutterBottom variant="body2" >
                               {queryResults.tabs[item]}
                             </Typography>
-                            <Tooltip title={'Download CSV of '+queryResults.tabs[item]}>
+                            <Tooltip title={'Download '+queryResults.tabs[item]}>
                                 <Grid onClick={() => handleDownload(item)} style={{marginLeft:'auto', borderRadius:'5px','&:hover':{backgroundColor:'rgba(0,0,255,0.05)'} }}>
                                   <DownloadForOfflineOutlinedIcon sx={{fontSize:'30px', padding:'5px'}} />
                                 </Grid>
@@ -631,7 +631,7 @@ export default function Queries({loadingCollections}) {
           { tabsOrder.map((item, idx) => {
               return (
                 <TabPanel id={'query-result-panel-'+item} value={activeTab} index={idx} key={item+'-'+idx} 
-                          style={{overflow:'scroll', width:'100%', position:'relative',margin:'0 16px auto 8px', height:(maxHeight-20)+'px'}}>
+                          style={{overflow:'clip', width:'100%', position:'relative',margin:'0 16px auto 8px', height:(maxHeight-20)+'px'}}>
                   {generateResultPanel(queryResults, item, idx)}
                 </TabPanel>
               )}

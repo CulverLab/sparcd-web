@@ -912,7 +912,7 @@ export default function Home() {
    */
   const uploadReload = React.useCallback(() => {
     let actionData = curActionData;
-    editCollectionUpload(actionData.collectionId, actionData.upload, 
+    editCollectionUpload(actionData.collectionId, actionData.uploadId, 
                               (curUpload, curImages) => { // Success callback
                                         actionData.images = curImages;
                                         setCurActionData(actionData);
@@ -1440,7 +1440,7 @@ export default function Home() {
                                           editCollectionUpload(collectionId, uploadId, 
                                               (curUpload, curImages) => { // Success callback
                                                   setCurrentAction(UserActions.UploadEdit, 
-                                                                   {collectionId, name:curUpload.name, upload:curUpload.key, location:curUpload.location, images:curImages},
+                                                                   {collectionId, name:curUpload.name, uploadName:curUpload.key, uploadId:uploadId, location:curUpload.location, images:curImages},
                                                                    true,
                                                                    breadcrumbName);
                                                   }
@@ -1482,7 +1482,7 @@ export default function Home() {
                                           editCollectionUpload(collectionId, uploadId, 
                                               (curUpload, curImages) => { // Success callback
                                                   setCurrentAction(UserActions.UploadEdit, 
-                                                                   {collectionId, name:curUpload.name, upload:curUpload.key, location:curUpload.location, images:curImages},
+                                                                   {collectionId, name:curUpload.name, uploadName:curUpload.key, uploadId:uploadId, location:curUpload.location, images:curImages},
                                                                    true,
                                                                    breadcrumbName);
                                                   }
@@ -1575,7 +1575,7 @@ export default function Home() {
           >
             <div style={{...theme.palette.login_checking}}>
               <Grid container direction="column" alignItems="center" justifyContent="center" >
-                  <Typography gutterBottom variant="body2" color="lightgrey">
+                  <Typography gutterBottom variant="body2" color="grey">
                     Restoring previous session, please wait...
                   </Typography>
                   <CircularProgress variant="indeterminate" />

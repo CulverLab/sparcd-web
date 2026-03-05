@@ -709,6 +709,9 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                             () => { // Success
                               setFinishingUpload(false);
                               onCompleted();
+                            },
+                            () => {
+                              setFinishingUpload(false);
                             });
     }, 10);
   }, [onCompleted, serverUploadCompleted, setFinishingUpload, workingUploadId]);
@@ -1084,7 +1087,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       case uploadingState.uploading:
         return "Uploading files";
       case uploadingState.none:
-        return "No upload at this time";
+        return "";
       case uploadingState.haveFailed:
         return "Some files failed to upload, waiting before attempting to retry";
       case uploadingState.retryingFailed:
@@ -1275,7 +1278,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       >
         <div style={{backgroundColor:'rgb(212, 230, 241, 0.95)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
           <Grid container direction="column" alignItems="center" justifyContent="center" >
-              <Typography gutterBottom variant="body2" color="lightgrey">
+              <Typography gutterBottom variant="body2">
                 Please wait while the upload finishes up ...
               </Typography>
               <CircularProgress variant="indeterminate" />

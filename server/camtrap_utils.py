@@ -91,6 +91,8 @@ def load_camtrap_media(url: str, user: str, get_password: Callable, bucket: str,
                                                                 MEDIA_CSV_FILE_NAME, temp_to_disk)
     if loaded_media:
         s3_path_len = len(s3_path)
+        if not s3_path.endswith('/'):
+            s3_path_len += 1
         return {one_row[camtrap.CAMTRAP_MEDIA_ID_IDX][s3_path_len:]: one_row for \
         																	one_row in loaded_media}
 
@@ -120,7 +122,9 @@ def load_camtrap_observations(url: str, user: str, get_password: Callable, bucke
     return_obs = None
     if loaded_obs:
         return_obs = {}
-        s3_path_len = len(s3_path) + 1 # We add one to remove the separator
+        s3_path_len = len(s3_path)
+        if not s3_path.endswith('/'):
+            s3_path_len += 1
         for one_row in loaded_obs:
             filename = one_row[camtrap.CAMTRAP_OBSERVATION_MEDIA_ID_IDX][s3_path_len:]
             if filename not in return_obs:

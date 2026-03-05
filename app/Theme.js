@@ -142,7 +142,7 @@ let theme = createTheme({
     landing_upload: {
       border: '1px solid black',
       maxHeight: '24vh',
-      overflow: 'scroll',
+      overflow: 'auto',
       padding: '0em 1em 0em 1em'
     },
     landing_upload_prompt: {
@@ -159,7 +159,7 @@ let theme = createTheme({
     landing_collections: {
       border: '1px solid black',
       maxHeight: '20vh',
-      overflow: 'scroll',
+      overflow: 'auto',
       padding: '0em 1em 0em 1em'
     },
     landing_collections_refresh: {
