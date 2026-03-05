@@ -912,7 +912,7 @@ export default function Home() {
    */
   const uploadReload = React.useCallback(() => {
     let actionData = curActionData;
-    editCollectionUpload(actionData.collectionId, actionData.upload, 
+    editCollectionUpload(actionData.collectionId, actionData.uploadId, 
                               (curUpload, curImages) => { // Success callback
                                         actionData.images = curImages;
                                         setCurActionData(actionData);
@@ -1436,14 +1436,22 @@ export default function Home() {
               <AddMessageContext.Provider value={addMessage}>
                 <SandboxInfoContext.Provider value={sandboxInfo}>
                   <UploadManage selectedUpload={curActionData} 
-                          onEditUpload={(collectionId, uploadId, breadcrumbName) =>
+                          onEditUpload={(collectionId, uploadId, breadcrumbName, onSuccess, onFailure) =>
                                           editCollectionUpload(collectionId, uploadId, 
                                               (curUpload, curImages) => { // Success callback
                                                   setCurrentAction(UserActions.UploadEdit, 
-                                                                   {collectionId, name:curUpload.name, upload:curUpload.key, location:curUpload.location, images:curImages},
+                                                                   {collectionId, name:curUpload.name, uploadName:curUpload.key, uploadId:uploadId, location:curUpload.location, images:curImages},
                                                                    true,
                                                                    breadcrumbName);
+                                                  if (typeof(onSuccess) === 'function') {
+                                                    onSuccess();
                                                   }
+                                                },
+                                                () => {   // Failure callback
+                                                  if (typeof(onFailure) === 'function') {
+                                                    onFailure();
+                                                  }
+                                                }
                                               )
                                         }
                   />
@@ -1478,14 +1486,22 @@ export default function Home() {
                 <CollectionsInfoContext.Provider value={collectionInfo}>
                   <CollectionsManage loadingCollections={loadingCollections} selectedCollection={curActionData} 
                           searchSetup={setupSearch}
-                          onEditUpload={(collectionId, uploadId, breadcrumbName) =>
+                          onEditUpload={(collectionId, uploadId, breadcrumbName, onSuccess, onFailure) =>
                                           editCollectionUpload(collectionId, uploadId, 
                                               (curUpload, curImages) => { // Success callback
                                                   setCurrentAction(UserActions.UploadEdit, 
-                                                                   {collectionId, name:curUpload.name, upload:curUpload.key, location:curUpload.location, images:curImages},
+                                                                   {collectionId, name:curUpload.name, uploadName:curUpload.key, uploadId:uploadId, location:curUpload.location, images:curImages},
                                                                    true,
                                                                    breadcrumbName);
+                                                  if (typeof(onSuccess) === 'function') {
+                                                    onSuccess();
                                                   }
+                                                },
+                                                () => {   // Failure useCallback
+                                                  if (typeof(onFailure) === 'function') {
+                                                    onFailure();
+                                                  }
+                                                }
                                               )
                                         }
                   />
@@ -1575,7 +1591,7 @@ export default function Home() {
           >
             <div style={{...theme.palette.login_checking}}>
               <Grid container direction="column" alignItems="center" justifyContent="center" >
-                  <Typography gutterBottom variant="body2" color="lightgrey">
+                  <Typography gutterBottom variant="body2" color="grey">
                     Restoring previous session, please wait...
                   </Typography>
                   <CircularProgress variant="indeterminate" />
@@ -1616,7 +1632,7 @@ export default function Home() {
                               onDelete={(msgIds) => {handleDeleteMessages(msgIds)}}
                               onRefresh={() => handleFetchMessages(lastToken)}
                               onRead={(msgIds) => {handleReadMessages(msgIds)}}
-                              onClose={() => setDisplayMessages(false)}
+                              onClose={() => {handleFetchMessages(lastToken);setDisplayMessages(false)}}
                 />
               </UserMessageContext.Provider>
           }

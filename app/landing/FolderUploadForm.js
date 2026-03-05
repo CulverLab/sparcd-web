@@ -38,7 +38,7 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
   const serverURL = React.useContext(BaseURLContext);
   const uploadToken = React.useContext(TokenContext);
   const { options, parseTimezone } = useTimezoneSelect({ labelStyle:'altName', allTimezones });
-  const [selectedTimezone, setSelectedTimezone] = React.useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const [selectedTimezone, setSelectedTimezone] = React.useState(options.filter((item) => item.offset === -(new Date().getTimezoneOffset() / 60))[0].value);
   const [tooltipData, setTooltipData] = React.useState(null);       // Data for tooltip
 
   let curLocationFetchIdx = -1; // Working index of location data to fetch
@@ -113,8 +113,8 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
    */
   const handleTimezoneChange = React.useCallback((event) => {
     const parsedTz = parseTimezone(event.target.value);
-    setSelectedTimezone(parsedTz);
-    onTimezoneChange(parsedTz);
+    setSelectedTimezone(parsedTz.value);
+    onTimezoneChange(parsedTz.value);
   }, [setSelectedTimezone, onTimezoneChange]);
 
   return (
@@ -214,7 +214,10 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
           </Typography>
           <Select id="landing-page-upload-timezone" value={selectedTimezone} onChange={handleTimezoneChange}>
             {options.map((option) => 
-              <MenuItem key={option.value} value={option.value} selected={selectedTimezone === option.value} >
+              <MenuItem key={option.value}
+                        value={option.value}
+                        selected={selectedTimezone === option.value}
+              >
                 <Typography gutterBottom variant="body2">
                   {option.label}
                 </Typography>

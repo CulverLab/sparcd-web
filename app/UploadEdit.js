@@ -57,7 +57,8 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
   const [curEditState, setCurEditState] = React.useState(editingStates.none); // Working page state
   const [curImageEdit, setCurImageEdit] = React.useState(null);         // The image to edit
   const [curImageModified, setCurImageModified] = React.useState(false);// The image being edited was changed
-  const [curLocationInfo, setCurLocationInfo] = React.useState(null);   // Working location when fetching tooltip
+  const [curLocationInfo, setCurLocationInfo] = React.useState(curUpload.location);   // Working location when fetching tooltip
+  const [displayLocation, setDisplayLocation] = React.useState(null);   // The location associated with upload to display
   const [editingLocation, setEditingLocation] = React.useState(true);   // Changing collection locations flag
   const [havePreviousChanges, setHavePreviousChanges] = React.useState(false);// Used to signal that previous changes we found
   const [lastSpeciesRequestId, setLastSpeciesRequestId] = React.useState(null);  // Use to keep track of what was sent to the server
@@ -80,10 +81,16 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
   const [windowSize, setWindowSize] = React.useState({'width':640,'height':480}); // The current window size
 
   // Some local variables
-  const curUploadLocation = React.useMemo(() => locationItems.find((item) => item.idProperty === curUpload.location), [curUpload, locationItems]);
-
   let curLocationFetchIdx = -1; // Working index of location data to fetch
   let workingTileCount = 40;
+
+  // Update the display location as needed
+  React.useLayoutEffect(() => {
+    if (displayLocation !== curUpload.location) {
+      const newLoc = locationItems.find((item) => item.idProperty === curUpload.location);
+      setDisplayLocation(newLoc);
+    }
+  }, [curUpload.location]);
 
   /**
    * Calculates the total available height for the workspace
@@ -149,7 +156,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
 
     formData.append('timestamp', new Date().toISOString());
     formData.append('collection', curUpload.collectionId);
-    formData.append('upload', curUpload.upload);
+    formData.append('upload', curUpload.uploadId);
     formData.append('path', curUpload.images[curImageIdx].s3_path);
     formData.append('common', speciesItems[curKeySpeciesIdx].name);
     formData.append('species', speciesItems[curKeySpeciesIdx].scientificName);
@@ -541,7 +548,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
 
       formData.append('timestamp', new Date().toISOString());
       formData.append('collection', curUpload.collectionId);
-      formData.append('upload', curUpload.upload);
+      formData.append('upload', curUpload.uploadId);
       formData.append('locId', newLoc.idProperty);
       formData.append('locName', newLoc.nameProperty);
       formData.append('locElevation', newLoc.elevationProperty);
@@ -568,6 +575,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
               // Clean up the UI
               setPendingMessage(null);
               setChangesMade(true);
+              uploadReload();
           })
           .catch(function(err) {
             console.log('Update Location Error: ',err);
@@ -1072,7 +1080,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
               {(curUpload.images && curUpload.images.length ? curUpload.images.length : 0) + " Images available"}
             </Typography>
             <Typography variant="body" sx={{ paddingLeft: '10px', fontSize:'larger', marginRight:'20px'}}>
-              {curUploadLocation && curUploadLocation.nameProperty ? curUploadLocation.nameProperty : '<location>'}
+              {displayLocation && displayLocation.nameProperty ? displayLocation.nameProperty : '<location>'}
               <IconButton aria-label="edit" size="small" color={'lightgrey'} onClick={handleEditLocation}>
                 <BorderColorOutlinedIcon sx={{fontSize:'smaller'}}/>
               </IconButton>
@@ -1148,7 +1156,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                          'maxWidth':(workspaceWidth-sidebarWidthLeft)+'px',
                          'width':(workspaceWidth-sidebarWidthLeft)+'px',
                          'position':'absolute'}}>
-            <LocationSelection title={curUpload.name} locations={locationItems} defaultLocation={curUploadLocation} 
+            <LocationSelection title={curUpload.name} locations={locationItems} defaultLocation={displayLocation} 
                                onTTOpen={getTooltipInfoOpen} onTTClose={clearTooltipInfo}
                                dataTT={tooltipData} onContinue={onLocationContinue}
                                onCancel={curEditState == editingStates.none ? handleCancel : () => setEditingLocation(false)}

@@ -186,11 +186,11 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
 
   return (
     <React.Fragment>
-      <div id="query-filter-wrapper" style={{overflow:'scroll'}}>
+      <div id="query-filter-wrapper" style={{overflow:'clip'}}>
         <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap"
               spacing={2}
               sx={{minHeight:workingHeight+"px", maxHeight:workingHeight+"px", backgroundColor:'white',
-                   margin:0, overflowY:'scroll', padding:'5px'}}
+                   margin:0, overflowY:'auto', padding:'5px'}}
         >
           { filters.map((item, idx) => 
               <Grid id={'filter-' + item.type + '-' + idx} key={"filter-" + item.type + "-" + idx} container direction="column" alignItems="center" justifyContent="start"

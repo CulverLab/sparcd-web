@@ -385,7 +385,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     const maxAttempts = attempts;
     const startTs = Date.now();
     let tzInfo = options.find((item) => item.value === selectedTimezone);
-    tzInfo = tzInfo ? tzInfo.offset : selectedTimezone
+    tzInfo = tzInfo ? tzInfo.value : selectedTimezone
 
     const success = Server.uploadChunk(serverURL, uploadToken, fileChunk, uploadId, numFiles, tzInfo, tokenExpiredFunc,
       (respData) => { // Success
@@ -709,6 +709,9 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                             () => { // Success
                               setFinishingUpload(false);
                               onCompleted();
+                            },
+                            () => {
+                              setFinishingUpload(false);
                             });
     }, 10);
   }, [onCompleted, serverUploadCompleted, setFinishingUpload, workingUploadId]);
@@ -1084,7 +1087,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       case uploadingState.uploading:
         return "Uploading files";
       case uploadingState.none:
-        return "No upload at this time";
+        return "";
       case uploadingState.haveFailed:
         return "Some files failed to upload, waiting before attempting to retry";
       case uploadingState.retryingFailed:
@@ -1092,6 +1095,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       case uploadingState.uploadFailure:
         return "Failed to upload all files";
       default:
+        console.log('WARNING: invalid upload state', state);
         return "<INVALID UPLOAD STATE STRING REQUEST>";
     }
   }
@@ -1218,7 +1222,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                                         renderInputControls()
                                       : <Stack display='flex' flexDirection='column' alignItems='center' justifyContent='center'>
                                           <Button variant="contained" component="label">
-                                          Upload Folder
+                                          Select Folder
                                           <input id="folder_select" hidden ref={folderSelectRef} type="file" name="file" webkitdirectory="" 
                                                   directory="" onChange={selectionChanged}
                                           />
@@ -1275,7 +1279,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       >
         <div style={{backgroundColor:'rgb(212, 230, 241, 0.95)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
           <Grid container direction="column" alignItems="center" justifyContent="center" >
-              <Typography gutterBottom variant="body2" color="lightgrey">
+              <Typography gutterBottom variant="body2">
                 Please wait while the upload finishes up ...
               </Typography>
               <CircularProgress variant="indeterminate" />

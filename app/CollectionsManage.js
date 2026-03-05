@@ -114,7 +114,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
   const handleUploadEdit = React.useCallback((curCollectionId, itemKey) => {
     setEditingUploadMask(true);
     window.setTimeout(() => {
-        onEditUpload(curCollectionId, itemKey, "Collections");
+        onEditUpload(curCollectionId, itemKey, "Collections", () => {}, () => setEditingUploadMask(false));
     }, 200);
   }, [onEditUpload, setEditingUploadMask]);
 
@@ -371,11 +371,14 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                 sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
           >
             <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
-              <Grid container direction="column" alignItems="center" justifyContent="center" >
+              <Grid container direction="column" alignItems="center" justifyContent="center" spacing={1}>
                   <Typography gutterBottom variant="body2" color="lightgrey">
                     Preparing to edit uploaded images
                   </Typography>
                   <CircularProgress variant="indeterminate" />
+                  <Button size="small" variant="contained" onClick={() => setEditingUploadMask(false)} sx={{marginTop:'10px'}}>
+                    Cancel
+                  </Button>
               </Grid>
             </div>
           </Grid>
