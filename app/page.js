@@ -1436,14 +1436,22 @@ export default function Home() {
               <AddMessageContext.Provider value={addMessage}>
                 <SandboxInfoContext.Provider value={sandboxInfo}>
                   <UploadManage selectedUpload={curActionData} 
-                          onEditUpload={(collectionId, uploadId, breadcrumbName) =>
+                          onEditUpload={(collectionId, uploadId, breadcrumbName, onSuccess, onFailure) =>
                                           editCollectionUpload(collectionId, uploadId, 
                                               (curUpload, curImages) => { // Success callback
                                                   setCurrentAction(UserActions.UploadEdit, 
                                                                    {collectionId, name:curUpload.name, uploadName:curUpload.key, uploadId:uploadId, location:curUpload.location, images:curImages},
                                                                    true,
                                                                    breadcrumbName);
+                                                  if (typeof(onSuccess) === 'function') {
+                                                    onSuccess();
                                                   }
+                                                },
+                                                () => {   // Failure callback
+                                                  if (typeof(onFailure) === 'function') {
+                                                    onFailure();
+                                                  }
+                                                }
                                               )
                                         }
                   />
@@ -1478,14 +1486,22 @@ export default function Home() {
                 <CollectionsInfoContext.Provider value={collectionInfo}>
                   <CollectionsManage loadingCollections={loadingCollections} selectedCollection={curActionData} 
                           searchSetup={setupSearch}
-                          onEditUpload={(collectionId, uploadId, breadcrumbName) =>
+                          onEditUpload={(collectionId, uploadId, breadcrumbName, onSuccess, onFailure) =>
                                           editCollectionUpload(collectionId, uploadId, 
                                               (curUpload, curImages) => { // Success callback
                                                   setCurrentAction(UserActions.UploadEdit, 
                                                                    {collectionId, name:curUpload.name, uploadName:curUpload.key, uploadId:uploadId, location:curUpload.location, images:curImages},
                                                                    true,
                                                                    breadcrumbName);
+                                                  if (typeof(onSuccess) === 'function') {
+                                                    onSuccess();
                                                   }
+                                                },
+                                                () => {   // Failure useCallback
+                                                  if (typeof(onFailure) === 'function') {
+                                                    onFailure();
+                                                  }
+                                                }
                                               )
                                         }
                   />
