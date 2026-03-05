@@ -385,7 +385,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     const maxAttempts = attempts;
     const startTs = Date.now();
     let tzInfo = options.find((item) => item.value === selectedTimezone);
-    tzInfo = tzInfo ? tzInfo.offset : selectedTimezone
+    tzInfo = tzInfo ? tzInfo.value : selectedTimezone
 
     const success = Server.uploadChunk(serverURL, uploadToken, fileChunk, uploadId, numFiles, tzInfo, tokenExpiredFunc,
       (respData) => { // Success
@@ -1095,6 +1095,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       case uploadingState.uploadFailure:
         return "Failed to upload all files";
       default:
+        console.log('WARNING: invalid upload state', state);
         return "<INVALID UPLOAD STATE STRING REQUEST>";
     }
   }
@@ -1221,7 +1222,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                                         renderInputControls()
                                       : <Stack display='flex' flexDirection='column' alignItems='center' justifyContent='center'>
                                           <Button variant="contained" component="label">
-                                          Upload Folder
+                                          Select Folder
                                           <input id="folder_select" hidden ref={folderSelectRef} type="file" name="file" webkitdirectory="" 
                                                   directory="" onChange={selectionChanged}
                                           />

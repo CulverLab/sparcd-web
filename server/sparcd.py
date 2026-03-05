@@ -1767,7 +1767,7 @@ def sandbox_file():
         return "Not Found", 406
 
     # Normalize the timestamp into offset hours. If invalid, uses local timezone
-    tz_offset = sdu.get_ts_offset(tz_offset)
+    tz_offset = sdu.get_tz_offset(tz_offset)
 
     # Get the location to upload to
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))

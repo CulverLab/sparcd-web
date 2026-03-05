@@ -739,7 +739,7 @@ def token_user_valid(db: SPARCdDatabase, request, token, session_expire_sec: int
     return token_is_valid(token, client_ip, user_agent_hash, db, session_expire_sec)
 
 
-def get_ts_offset(tz_offset: str) -> int:
+def get_tz_offset(tz_offset: str) -> int:
     """ Converts a timezone offset or name to a numeric value. If the passed in parameter can't
         be converted, the local offset is used
     Arguments:
@@ -757,7 +757,8 @@ def get_ts_offset(tz_offset: str) -> int:
             try:
                 # We use an arbitrary date and time since we just want the offset
                 tz_offset = datetime(2025, 10, 9, 0, 0, 0, 0, ZoneInfo(tz_offset)).strftime('%z')
-                tz_offset = int(tz_offset) / 100.0
+                off_hours, off_min = divmod(int(tz_offset), 100.0)
+                tz_offset = off_hours + (off_min / 60)
             except (ZoneInfoNotFoundError, ValueError):
                 # Unknown timezone name specified or bad return
                 tz_offset = None
