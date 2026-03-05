@@ -50,6 +50,10 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
   const [showSettings, setShowSettings] = React.useState(false);
   const [welcomeShown, setWelcomeShown] = React.useState(false); // Flag used to show users a welcome message
 
+  const haveUnreadMessages = React.useMemo(() => {
+    return userMessages?.count > 0 && userMessages?.messages?.filter((item) => item.read_sec === null).length > 0;
+  }, [userMessages]);
+
   // Used to setup the welcome message
   React.useEffect(() => {
     if (!loginToken || welcomeTimedOut) {
@@ -197,7 +201,7 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
                 { loginToken !== null && 
                   <Tooltip title='Messages'>
                     <IconButton fontSize="small" onClick={() => onMessages(loginToken)}
-                                sx={{ ...(userMessages?.count > 0 ? theme.palette.have_messages : {}) }}
+                                sx={{ ...(haveUnreadMessages ? theme.palette.have_messages : {}) }}
                       >
                       <MailOutlinedIcon fontSize="small"/>
                     </IconButton>

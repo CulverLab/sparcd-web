@@ -46,7 +46,7 @@ export default function ViewMessage({curMessage, messageType, onRead, onAdd, onR
   const recipientRef = React.useRef(null);
   const subjectRef = React.useRef(null);
   const editorRef = React.useRef(null);
-  const [curReadMessage, setCurReadMessage] = React.useState(messageType !== MESSAGE_TYPE.New ? curMessage[0] : null); // Current message being read
+  const [curReadMessage, setCurReadMessage] = React.useState(messageType !== MESSAGE_TYPE.New && curMessage ? curMessage[0] : null); // Current message being read
   const [curMessageIndex, setCurMessageIndex] = React.useState(messageType !== MESSAGE_TYPE.New ? 0 : -1);
   const [curRecipient, setCurRecipient] = React.useState(''); // Controlled textfield
   const [curSubject, setCurSubject] = React.useState(curMessage ? curMessage[0].subject : '');    // Controlled textfield

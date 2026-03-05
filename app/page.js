@@ -1632,7 +1632,7 @@ export default function Home() {
                               onDelete={(msgIds) => {handleDeleteMessages(msgIds)}}
                               onRefresh={() => handleFetchMessages(lastToken)}
                               onRead={(msgIds) => {handleReadMessages(msgIds)}}
-                              onClose={() => setDisplayMessages(false)}
+                              onClose={() => {handleFetchMessages(lastToken);setDisplayMessages(false)}}
                 />
               </UserMessageContext.Provider>
           }
