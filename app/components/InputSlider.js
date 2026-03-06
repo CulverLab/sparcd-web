@@ -3,10 +3,11 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
-import Typography from '@mui/material/Typography';
+import MuiInput from '@mui/material/Input';
+import PropTypes from 'prop-types';
 import Slider from '@mui/material/Slider';
 import { styled } from '@mui/material/styles';
-import MuiInput from '@mui/material/Input';
+import Typography from '@mui/material/Typography';
 
 // Width of the input field
 const Input = styled(MuiInput)`
@@ -18,11 +19,13 @@ const Input = styled(MuiInput)`
  * @function
  * @param {string} label The label for the slider
  * @param {function} onChange Function to call when the value changes
- * @param {int} value The value of the control
+ * @param {int} curValue The value of the control
+ * @param {string} [width='350px'] Optional width of the container
+ * @param {string} [paddingRight='5'] Optional right padding of the container
  * @returns {object} The rendered UI
  */
-export default function InputSlider({label, onChange, curValue}) {
-  const value = {current:curValue};
+export default function InputSlider({label, onChange, curValue, width = '350px', paddingRight = '5px'}) {
+  const value = React.useRef(curValue);
 
   /**
    * Stores the new value when the slider was changed
@@ -62,8 +65,8 @@ export default function InputSlider({label, onChange, curValue}) {
 
   // Return the rendered UI
   return (
-    <Box sx={{ width:'350px', paddingRight:'5px' }}>
-      <Grid container container alignItems="start" justifyContent="space-between">
+    <Box sx={{ width, paddingRight }}>
+      <Grid container alignItems="start" justifyContent="space-between">
         <Grid size={3}>
           <Typography id="input-slider" gutterBottom>
             {label}
@@ -71,7 +74,7 @@ export default function InputSlider({label, onChange, curValue}) {
         </Grid>
         <Grid size={6}>
           <Slider
-            value={typeof(value.current) === 'number' ? value.current : 0}
+            value={typeof value.current === 'number' ? value.current : 0}
             onChange={handleSliderChange}
             aria-labelledby="input-slider"
           />
