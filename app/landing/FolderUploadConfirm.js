@@ -13,7 +13,7 @@ import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
  
- import { SizeContext } from '../serverInfo';
+import { SizeContext } from '../serverInfo';
 
 /**
  * Renders the UI for uploading a folder of images

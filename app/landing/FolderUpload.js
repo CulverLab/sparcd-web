@@ -1254,8 +1254,8 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                             onAbandon={prevUploadAbandon}
                             onCancel={prevUploadCancel}
       />
-   }
-   { canShowUploadConfirm() &&
+    }
+    { canShowUploadConfirm() &&
       <FolderUploadConfirm title={prevUploadCheck === prevUploadCheckState.checkReset ? "Restart Upload" :
                                     prevUploadCheck === prevUploadCheckState.checkNew ? "Create New Upload" :
                                     prevUploadCheck === prevUploadCheckState.abandon ? "Abandon Upload" : ""
@@ -1272,12 +1272,10 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
           {prevUploadCheck === prevUploadCheckState.abandon && "Are you sure you want to abandon the previous uploaded?"}
         </Typography>
       </FolderUploadConfirm>
-   }
+    }
     { finishingUpload && 
-      <Grid id="query-running-query-wrapper" container direction="row" alignItems="center" justifyContent="center" 
-            sx={{...theme.palette.screen_overlay, backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
-      >
-        <div style={{backgroundColor:'rgb(212, 230, 241, 0.95)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
+      <Box id="query-running-query-wrapper"  sx={{...theme.palette.screen_overlay}} >
+        <div style={{backgroundColor:'rgb(212, 230, 241, 0.95)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}} >
           <Grid container direction="column" alignItems="center" justifyContent="center" >
               <Typography gutterBottom variant="body2">
                 Please wait while the upload finishes up ...
@@ -1285,12 +1283,10 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
               <CircularProgress variant="indeterminate" />
           </Grid>
         </div>
-      </Grid>
+      </Box>
     }
     { notificationMessage && 
-      <Grid id="query-running-query-wrapper" container direction="row" alignItems="center" justifyContent="center" 
-            sx={{...theme.palette.screen_overlay, backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
-      >
+      <Box id="query-running-query-wrapper" sx={{...theme.palette.screen_overlay, zIndex:11111}}>
         <div style={{backgroundColor:'rgb(212, 230, 241, 0.95)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
           <Grid container direction="column" alignItems="center" justifyContent="center" >
               <Typography gutterBottom variant="body2" color="black">
@@ -1303,7 +1299,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
               </Button>
           </Grid>
         </div>
-      </Grid>
+      </Box>
     }
     </React.Fragment>
   );

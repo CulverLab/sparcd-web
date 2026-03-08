@@ -282,6 +282,14 @@ let theme = createTheme({
       width: '100vw',
       height: '100vh',
     },
+    screen_overlay_grey: {
+      position: 'absolute',
+      left: '0px',
+      top: '0px',
+      width: '100vw',
+      height: '100vh',
+      backgroundColor:'rgb(0,0,0,0.5)',
+    },
     have_messages: {
       '&:after': {
         position:'absolute',

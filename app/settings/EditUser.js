@@ -1,3 +1,5 @@
+'use client'
+
 /** @module components/EditUser */
 
 import * as React from 'react';
@@ -338,7 +340,7 @@ export default function EditUser({data, onUpdate, onConfirmPassword, onClose}) {
     </Card>
     { userPasswordNeeded && 
         <Grid container id="admin-settings-get-password-wrapper" justifyContent="center" alignItems="center" 
-              sx={{position:'absolute', top:0, right:0, bottom:'0px', left:0, background:"rgb(0, 0, 0, 0.7)", zIndex:500}} >
+              sx={{...theme.palette.screen_overlay_grey, zIndex:500}} >
           <Grid container direction="column" justifyContent="space-around" alignItems="center"
                 sx={{minWidth:'30%', maxWidth:'50%', backgroundColor:'rgb(230,230,230)', padding:'15px 0'}} spacing={2}>
             <div id="admin-settings-login-close" sx={{height:'20px', flex:'1'}} onClick={() => setUserPasswordNeeded(false)}
@@ -400,7 +402,7 @@ export default function EditUser({data, onUpdate, onConfirmPassword, onClose}) {
     }
       { changeEmail &&
          <Grid container id="admin-settings-change-email-wrapper" justifyContent="center" alignItems="center" 
-              sx={{position:'absolute', top:0, right:0, bottom:'50px', left:0, background:"rgb(0, 0, 0, 0.7)", zIndex:500}} >
+              sx={{...theme.palette.screen_overlay_grey, zIndex:500}} >
           <Grid container direction="column" justifyContent="center" alignItems="center"
                 sx={{minWidth:'400px', backgroundColor:'rgb(230,230,230)', padding:'15px 0'}} spacing={2}>
             <div id="admin-settings-change-password-close" sx={{height:'20px', flex:'1'}} onClick={() => setChangeEmail(false)}

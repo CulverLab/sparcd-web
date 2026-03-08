@@ -1,3 +1,5 @@
+'use client'
+
 /** @module components/SettingsAdmin */
 
 import * as React from 'react';
@@ -1058,7 +1060,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     }
     if (userInfo === null && curUserInfo.length <= 0) {
       return (
-        <Grid container justifyContent="center" alignItems="center" sx={{position:'absolute',top:'0px', right:'0px', bottom:'0px', left:'0px'}} >
+        <Grid container justifyContent="center" alignItems="center" sx={{...theme.palette.screen_overlay}} >
           <CircularProgress />
         </Grid>
       );
@@ -1066,8 +1068,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     dblClickFunc = dblClickFunc ? dblClickFunc : () => {};
     return (
-      <Grid id='admin-settings-users-details-wrapper' container direction="column" justifyContent="center" alignItems="center"
-            sx={{width:'100%', padding:'0px 5px 0 5px'}} >
+      <Box id='admin-settings-users-details-wrapper' sx={{width:'100%', padding:'0px 5px 0 5px'}} >
         <Grid id="admin-settings-collection-header" container direction="row" justifyContent="space-between" alignItems="start"
               sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
           { generateSettingHeader(1, sortColumn === 1, sortDirection, 2, 'Name', {marginRight:"auto"}, (dir)=>sortUsers('name', dir) )}
@@ -1120,7 +1121,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             </Grid>
         )}
           </Grid>
-      </Grid>
+      </Box>
     );
   }
 
@@ -1133,7 +1134,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   function generateCollections(dblClickFunc) {
     if (loadingCollections) {
       return (
-        <Grid container justifyContent="center" alignItems="center" sx={{position:'absolute',top:'0px', right:'0px', bottom:'0px', left:'0px'}} >
+        <Grid container justifyContent="center" alignItems="center" sx={{...theme.palette.screen_overlay}} >
           <CircularProgress />
         </Grid>
       );
@@ -1141,8 +1142,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     dblClickFunc = dblClickFunc ? dblClickFunc : () => {};
     return (
-      <Grid id='admin-settings-collections-details-wrapper' container direction="column" justifyContent="center" alignItems="center"
-            sx={{width:'100%', padding:'0px 5px 0 5px'}} >
+      <Box id='admin-settings-collections-details-wrapper' sx={{width:'100%', padding:'0px 5px 0 5px'}} >
         <Grid id="admin-settings-collection-details-header" container direction="row" justifyContent="space-between" alignItems="start"
               sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
           { generateSettingHeader(1, sortColumn === 1, sortDirection, 5, 'Name', {marginRight:"auto"}, (dir)=>sortCollections('name', dir) )}
@@ -1171,7 +1171,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
           </Grid>
         )}
         </Grid>
-      </Grid>
+      </Box>
     );
   }
 
@@ -1190,7 +1190,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     }
     if (curSpecies.length <= 0) {
       return (
-        <Grid container justifyContent="center" alignItems="center" sx={{position:'absolute',top:'0px', right:'0px', bottom:'0px', left:'0px'}} >
+        <Grid container justifyContent="center" alignItems="center" sx={{...theme.palette.screen_overlay}} >
           <CircularProgress />
         </Grid>
       );
@@ -1198,8 +1198,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     dblClickFunc = dblClickFunc ? dblClickFunc : () => {};
     return (
-      <Grid id='admin-settings-species-details-wrapper' container direction="column" justifyContent="center" alignItems="center"
-            sx={{width:'100%', padding:'0px 5px 0 5px'}} >
+      <Box id='admin-settings-species-details-wrapper' sx={{width:'100%', padding:'0px 5px 0 5px'}} >
         <Grid id="admin-settings-species-header" container direction="row" justifyContent="space-between" alignItems="start"
               sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
           { generateSettingHeader(1, sortColumn === 1, sortDirection, 5, 'Name', {marginRight:"auto"}, (dir)=>sortSpecies('name', dir) )}
@@ -1228,7 +1227,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
               </Grid>
         )}
         </Grid>
-      </Grid>
+      </Box>
     );
   }
 
@@ -1241,7 +1240,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   function generateLocations(dblClickFunc) {
     if (loadingLocations) {
       return (
-        <Grid container justifyContent="center" alignItems="center" sx={{position:'absolute',top:'0px', right:'0px', bottom:'0px', left:'0px'}} >
+        <Grid container justifyContent="center" alignItems="center" sx={{...theme.palette.screen_overlay}} >
           <CircularProgress />
         </Grid>
       );
@@ -1249,8 +1248,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     dblClickFunc = dblClickFunc ? dblClickFunc : () => {};
     return (
-      <Grid id='admin-settings-locations-details-wrapper' container direction="column" justifyContent="center" alignItems="center"
-            sx={{width:'100%', padding:'0px 5px 0 5px'}} >
+      <Box id='admin-settings-locations-details-wrapper' sx={{width:'100%', padding:'0px 5px 0 5px'}} >
         <Grid id="admin-settings-species-header" container direction="row" justifyContent="space-between" alignItems="start"
               sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
           { generateSettingHeader(1, sortColumn === 1, sortDirection, 5, 'Name', {marginRight:"auto"}, (dir)=>sortLocations('name', dir) )}
@@ -1287,7 +1285,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             );}
         )}
         </Grid>
-      </Grid>
+      </Box>
     );
   }
 
@@ -1298,8 +1296,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    */
   function generateEditingUI() {
     return (
-      <Grid container id="settings-admin-edit-wrapper" alignItems="center" justifyContent="center"
-            sx={{position:'absolute', top:0, right:0, bottom:0, left:0, backgroundColor:'rgb(0,0,0,0.5)'}}
+      <Grid container id="settings-admin-edit-wrapper" alignItems="center" justifyContent="center" sx={{position:'absolute', top:0, right:0, bottom:0, left:0, backgroundColor:'rgb(0,0,0,0.5)'}}
       >
       {editingState.type === EditingStates.User && <EditUser data={editingState.data} onUpdate={updateUser} onConfirmPassword={onConfirmPassword}
                                                              onClose={() => setEditingState({type:EditingStates.None, data:null})} /> }
@@ -1348,7 +1345,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     return (
       <Grid id="admin-settings-panel-done-close" container direction="column" justifyContent="center" alignItems="center"
-             sx={{width:'100%', position:'absolute', top:'0px', bottom:'0px'}} >
+             sx={{width:'100%', position:'absolute', top:'0px', bottom:'0px'}}>
         <Typography>
           All changes have been saved
         </Typography>
@@ -1392,109 +1389,107 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
   const activeTabInfo = adminTabs[activeTab];
   return (
-      <Grid id="settings-admin-wrapper" container direction="row" alignItems="center" justifyContent="center"
-            sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:10000}}
-      >
-        <Grid container size="grow" alignItems="start" justifyContent="start" sx={{padding:'15px 15px', borderRadius:'20px', overflow:'scroll'}}>
-          <Grid size={1}  sx={{backgroundColor:"#EAEAEA", borderRadius:'10px 0px 0px 10px'}}>
-            <Tabs id='settings-admin-tabs' value={activeTab} onChange={handleTabChange} aria-label="Administrator Settings Edit" orientation="vertical" variant="scrollable"
-                  scrollButtons={false} style={{overflow:'scroll', maxHeight:'100%'}}>
-              { adminTabs.map((item, idx) =>
-                  <Tab id={'admin-settings-tab-'+idx} key={item.name+'-'+idx} label={
-                              <Typography gutterBottom variant="body2" sx={{'&:hover':{fontWeight:'bold'} }}>
-                                {item.name}
-                              </Typography>
-                           }
-                     key={idx} {...a11yPropsTabPanel(idx)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }}
-                  />
-                )
-              }
-              <Tab sx={{paddingTop:'20px'}} label={
-                        <Grid container direction="row" justifyContent="start" alignItems="center" sx={{width:'100%', '&:hover':{borderBottom:'1px solid black'} }}>
-                          <Grid size={'grow'} justifyContent="start">
-                          <Typography gutterBottom variant="body2" sx={{'&:hover':{fontWeight:'bold'} }}>
-                            Done
-                          </Typography>
-                          </Grid>
-                          <div style={{marginLeft:'auto'}} >
-                            <ExitToAppOutlinedIcon />
-                          </div>
-                        </Grid>
-                       }
-                 key={adminTabs.length} {...a11yPropsTabPanel(99)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }}
-              />
-            </Tabs>
-          </Grid>
-          <Grid id='admin-settings-panel-wrapepr' ref={panelsWrapperRef} size={11} sx={{backgroundColor:'#EAEAEA', borderRadius:'0px 25px 25px 25px'}}>
-            { adminTabs.map((item,idx) => 
-                <TabPanel id={'admin-settings-panel-'+item.name} key={item.name+'-'+idx}  value={activeTab} index={idx}
-                          style={{width:'100%', position:'relative', height:uiSizes.workspace.height+'px'}}>
-                  <Grid id="admin-settings-panel-wrapper" container direction="column" justifyContent="center" alignItems="center" sx={{width:'100%'}} >
-                    <Typography gutterBottom variant="h4" component="h4">
-                      Administration - {item.name}
-                    </Typography>
-                    {item.uiFunc()}
-                  </Grid>
-                </TabPanel>
+    <Grid id="settings-admin-wrapper" container direction="row" alignItems="center" justifyContent="center"
+          sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:10000}}
+    >
+      <Grid container size="grow" alignItems="start" justifyContent="start" sx={{padding:'15px 15px', borderRadius:'20px', overflow:'scroll'}}>
+        <Grid size={1}  sx={{backgroundColor:"#EAEAEA", borderRadius:'10px 0px 0px 10px'}}>
+          <Tabs id='settings-admin-tabs' value={activeTab} onChange={handleTabChange} aria-label="Administrator Settings Edit" orientation="vertical" variant="scrollable"
+                scrollButtons={false} style={{overflow:'scroll', maxHeight:'100%'}}>
+            { adminTabs.map((item, idx) =>
+                <Tab id={'admin-settings-tab-'+idx} key={item.name+'-'+idx} label={
+                            <Typography gutterBottom variant="body2" sx={{'&:hover':{fontWeight:'bold'} }}>
+                              {item.name}
+                            </Typography>
+                         }
+                   key={idx} {...a11yPropsTabPanel(idx)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }}
+                />
               )
             }
-            <TabPanel id={'admin-settings-panel-done-wrapper'} value={activeTab} index={adminTabs.length} key={'done-'+adminTabs.length} 
-                      style={{width:'100%', position:'relative',margin:'0 16px auto 8px', height:uiSizes.workspace.height+'px'}}>
-              {generateDonePanel()}
-            </TabPanel>
-            { activeTabInfo && 
-              <Grid id='admin-settings-footer' container direction="row" justifyContent="space-between" alignItems="center" 
-                    sx={{position:'sticky',bottom:'0px',backgroundColor:'#F0F0F0', borderTop:'1px solid black', boxShadow:'lightgrey 0px -3px 3px',
-                         padding:'5px 20px 5px 20px', width:'100%'}}>
-                  {activeTabInfo.newName && activeTabInfo.newFunc && 
-                    <Grid>
-                      <Button id="admin-settings-add-new" size="small" onClick={activeTabInfo.newFunc}>{activeTabInfo.newName}</Button>
-                    </Grid>
-                  }
-                  {activeTabInfo.buttons &&
-                    <React.Fragment>
-                      {activeTabInfo.buttons.map((one_btn) => 
-                        <Grid key={"admin-settings-button-"+one_btn.name} >
-                          <Button id={"admin-settings-button-"+one_btn.name} size="small" onClick={one_btn.func}>{one_btn.name}</Button>
+            <Tab sx={{paddingTop:'20px'}} label={
+                      <Grid container direction="row" justifyContent="start" alignItems="center" sx={{width:'100%', '&:hover':{borderBottom:'1px solid black'} }}>
+                        <Grid size={'grow'} justifyContent="start">
+                        <Typography gutterBottom variant="body2" sx={{'&:hover':{fontWeight:'bold'} }}>
+                          Done
+                        </Typography>
                         </Grid>
-                      )}
-                    </React.Fragment>
-                  }
-                
-                <Grid>
-                  <TextField id="search-admin" label={'Search'} placehoder={'Search'} size="small" variant="outlined"
-                            onChange={activeTabInfo.searchFunc}
-                            slotProps={{
-                              input: {
-                                endAdornment:
-                                  <InputAdornment position="end">
-                                    <IconButton
-                                      aria-label="Searching"
-                                      onClick={activeTabInfo.searchFunc}
-                                    >
-                                      <SearchOutlinedIcon />
-                                    </IconButton>
-                                  </InputAdornment>
-                              },
-                            }}
-                 />
-                </Grid>
-              </Grid>
-            }
-          </Grid>
+                        <div style={{marginLeft:'auto'}} >
+                          <ExitToAppOutlinedIcon />
+                        </div>
+                      </Grid>
+                     }
+               key={adminTabs.length} {...a11yPropsTabPanel(99)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }}
+            />
+          </Tabs>
         </Grid>
-        { editingState.type !== EditingStates.None && generateEditingUI() }
-        { checkIncompleteUploads === true && 
-            <Grid id="admin-settings-check-uploads" container direction="row" alignItems="center" justifyContent="center" 
-                  sx={{...theme.palette.screen_overlay, backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
-            >
-              <div style={{padding:'25px 10px'}}>
-                <Grid container direction="column" alignItems="center" justifyContent="center">
-                  <CheckIncompleteUploads onSandboxRefresh={onSandboxRefresh} onCancel={() => setCheckIncompleteUploads(false)} />
+        <Grid id='admin-settings-panel-wrapepr' ref={panelsWrapperRef} size={11} sx={{backgroundColor:'#EAEAEA', borderRadius:'0px 25px 25px 25px'}}>
+          { adminTabs.map((item,idx) => 
+              <TabPanel id={'admin-settings-panel-'+item.name} key={item.name+'-'+idx}  value={activeTab} index={idx}
+                        style={{width:'100%', position:'relative', height:uiSizes.workspace.height+'px'}}>
+                <Grid id="admin-settings-panel-wrapper" container direction="column" justifyContent="center" alignItems="center" sx={{width:'100%'}} >
+                  <Typography gutterBottom variant="h4" component="h4">
+                    Administration - {item.name}
+                  </Typography>
+                  {item.uiFunc()}
+                </Grid>
+              </TabPanel>
+            )
+          }
+          <TabPanel id={'admin-settings-panel-done-wrapper'} value={activeTab} index={adminTabs.length} key={'done-'+adminTabs.length} 
+                    style={{width:'100%', position:'relative',margin:'0 16px auto 8px', height:uiSizes.workspace.height+'px'}}>
+            {generateDonePanel()}
+          </TabPanel>
+          { activeTabInfo && 
+            <Grid id='admin-settings-footer' container direction="row" justifyContent="space-between" alignItems="center" 
+                  sx={{position:'sticky',bottom:'0px',backgroundColor:'#F0F0F0', borderTop:'1px solid black', boxShadow:'lightgrey 0px -3px 3px',
+                       padding:'5px 20px 5px 20px', width:'100%'}}>
+                {activeTabInfo.newName && activeTabInfo.newFunc && 
+                  <Grid>
+                    <Button id="admin-settings-add-new" size="small" onClick={activeTabInfo.newFunc}>{activeTabInfo.newName}</Button>
                   </Grid>
-              </div>
+                }
+                {activeTabInfo.buttons &&
+                  <React.Fragment>
+                    {activeTabInfo.buttons.map((one_btn) => 
+                      <Grid key={"admin-settings-button-"+one_btn.name} >
+                        <Button id={"admin-settings-button-"+one_btn.name} size="small" onClick={one_btn.func}>{one_btn.name}</Button>
+                      </Grid>
+                    )}
+                  </React.Fragment>
+                }
+              
+              <Grid>
+                <TextField id="search-admin" label={'Search'} placehoder={'Search'} size="small" variant="outlined"
+                          onChange={activeTabInfo.searchFunc}
+                          slotProps={{
+                            input: {
+                              endAdornment:
+                                <InputAdornment position="end">
+                                  <IconButton
+                                    aria-label="Searching"
+                                    onClick={activeTabInfo.searchFunc}
+                                  >
+                                    <SearchOutlinedIcon />
+                                  </IconButton>
+                                </InputAdornment>
+                            },
+                          }}
+               />
+              </Grid>
             </Grid>
-      }
+          }
+        </Grid>
       </Grid>
+      { editingState.type !== EditingStates.None && generateEditingUI() }
+      { checkIncompleteUploads === true && 
+          <Box id="admin-settings-check-uploads" sx={{...theme.palette.screen_overlay_grey, zIndex:11111}} >
+            <div style={{padding:'25px 10px'}}>
+              <Grid container direction="column" alignItems="center" justifyContent="center">
+                <CheckIncompleteUploads onSandboxRefresh={onSandboxRefresh} onCancel={() => setCheckIncompleteUploads(false)} />
+                </Grid>
+            </div>
+          </Box>
+    }
+    </Grid>
   );
 }

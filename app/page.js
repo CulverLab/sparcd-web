@@ -170,7 +170,7 @@ export default function Home() {
   const [locationInfo, setLocationInfo] = React.useState(null);
   const [loginValid, setLoginValid] = React.useState(DefaultLoginValid);
   const [loggedIn, setLoggedIn] = React.useState(null);
-  const [messages, setMessages] = React.useState([]);
+  const [messages, setMessages] = React.useState([]);     // Information, Warning, Error messages
   const [mobileDeviceChecked, setMobileDeviceChecked] = React.useState(false);
   const [mobileDevice, setMobileDevice] = React.useState(null);
   const [repairInstance, setRepairInstance] = React.useState(false);    // The S3 side needs repairs

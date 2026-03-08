@@ -1,4 +1,6 @@
-/** @module components/SettingsAdmin */
+'use client'
+
+/** @module components/SettingsOwner */
 
 import * as React from 'react';
 import Box from '@mui/material/Box';
@@ -329,7 +331,7 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
   function generateCollections(dblClickFunc) {
     if (loadingCollections) {
       return (
-        <Grid container justifyContent="center" alignItems="center" sx={{position:'absolute',top:'0px', right:'0px', bottom:'0px', left:'0px'}} >
+        <Grid container justifyContent="center" alignItems="center" sx={{...theme.palette.screen_overlay}} >
           <CircularProgress />
         </Grid>
       );
@@ -391,7 +393,7 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
   function generateEditingUI() {
     return (
       <Grid container id="settings-admin-edit-wrapper" alignItems="center" justifyContent="center"
-            sx={{position:'absolute', top:0, right:0, bottom:0, left:0, backgroundColor:'rgb(0,0,0,0.5)'}}
+            sx={{...theme.palette.screen_overlay_grey}}
       >
       {editingState.type === EditingStates.Collection && <EditCollection data={editingState.data} onUpdate={updateCollection}
                                                                           onClose={() => setEditingState({type:EditingStates.None, data:null})}/> }
@@ -439,15 +441,15 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
 
   const activeTabInfo = adminTabs[activeTab];
   return (
-      <Grid id="settings-admin-wrapper" container direction="row" alignItems="center" justifyContent="center"
+      <Grid id="settings-owner-wrapper" container direction="row" alignItems="center" justifyContent="center"
             sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:10000}}
       >
         <Grid container size="grow" alignItems="start" justifyContent="start" sx={{padding:'15px 15px', borderRadius:'20px', overflow:'scroll'}}>
           <Grid size={1}  sx={{backgroundColor:"#EAEAEA", borderRadius:'10px 0px 0px 10px'}}>
-            <Tabs id='settings-admin-tabs' value={activeTab} onChange={handleTabChange} aria-label="Administrator Settings Edit" orientation="vertical" variant="scrollable"
+            <Tabs id='settings-owner-tabs' value={activeTab} onChange={handleTabChange} aria-label="Owner Settings Edit" orientation="vertical" variant="scrollable"
                   scrollButtons={false} style={{overflow:'scroll', maxHeight:'100%'}}>
               { adminTabs.map((item, idx) =>
-                  <Tab id={'admin-settings-tab-'+idx} key={item.name+'-'+idx} label={
+                  <Tab id={'owner-settings-tab-'+idx} key={item.name+'-'+idx} label={
                               <Typography gutterBottom variant="body2" sx={{'&:hover':{fontWeight:'bold'} }}>
                                 {item.name}
                               </Typography>
@@ -472,11 +474,11 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
               />
             </Tabs>
           </Grid>
-          <Grid id='admin-settings-panel-wrapepr' ref={panelsWrapperRef} size={11} sx={{backgroundColor:'#EAEAEA', borderRadius:'0px 25px 25px 25px'}}>
+          <Grid id='owner-settings-panel-wrapepr' ref={panelsWrapperRef} size={11} sx={{backgroundColor:'#EAEAEA', borderRadius:'0px 25px 25px 25px'}}>
             { adminTabs.map((item,idx) => 
-                <TabPanel id={'admin-settings-panel-'+item.name} key={item.name+'-'+idx}  value={activeTab} index={idx}
+                <TabPanel id={'owner-settings-panel-'+item.name} key={item.name+'-'+idx}  value={activeTab} index={idx}
                           style={{width:'100%', position:'relative', height:uiSizes.workspace.height+'px'}}>
-                  <Grid id="admin-settings-panel-wrapper" container direction="column" justifyContent="center" alignItems="center" sx={{width:'100%'}} >
+                  <Grid id="owner-settings-panel-wrapper" container direction="column" justifyContent="center" alignItems="center" sx={{width:'100%'}} >
                     <Typography gutterBottom variant="h4" component="h4">
                       Administration - {item.name}
                     </Typography>
@@ -485,19 +487,19 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
                 </TabPanel>
               )
             }
-            <TabPanel id={'admin-settings-panel-done-wrapper'} value={activeTab} index={adminTabs.length} key={'done-'+adminTabs.length} 
+            <TabPanel id={'owner-settings-panel-done-wrapper'} value={activeTab} index={adminTabs.length} key={'done-'+adminTabs.length} 
                       style={{width:'100%', position:'relative',margin:'0 16px auto 8px', height:uiSizes.workspace.height+'px'}}>
               {generateDonePanel()}
             </TabPanel>
             { activeTabInfo && 
-              <Grid id='admin-settings-footer' container direction="row" justifyContent="space-between" alignItems="center" 
+              <Grid id='owner-settings-footer' container direction="row" justifyContent="space-between" alignItems="center" 
                     sx={{position:'sticky',bottom:'0px',backgroundColor:'#F0F0F0', borderTop:'1px solid black', boxShadow:'lightgrey 0px -3px 3px',
                          padding:'5px 20px 5px 20px', width:'100%'}}>
                 <Grid>
-                  {activeTabInfo.newName && activeTabInfo.newFunc && <Button id="admin-settings-add-new" size="small" onClick={activeTabInfo.newFunc}>{activeTabInfo.newName}</Button>}
+                  {activeTabInfo.newName && activeTabInfo.newFunc && <Button id="owner-settings-add-new" size="small" onClick={activeTabInfo.newFunc}>{activeTabInfo.newName}</Button>}
                 </Grid>
                 <Grid>
-                  <TextField id="search-admin" label={'Search'} placehoder={'Search'} size="small" variant="outlined"
+                  <TextField id="search-owner" label={'Search'} placehoder={'Search'} size="small" variant="outlined"
                             onChange={activeTabInfo.searchFunc}
                             slotProps={{
                               input: {

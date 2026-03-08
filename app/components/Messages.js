@@ -3,32 +3,39 @@
 /** @module Messages */
 
 import * as React from 'react';
+import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import Grid from '@mui/material/Grid';
+import IconButton from '@mui/material/IconButton';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import PropTypes from 'prop-types';
 import Typography from '@mui/material/Typography';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { useTheme } from '@mui/material/styles';
 
-import { SizeContext } from '../serverInfo';
+// Max possible messages to display at one time
+const MAX_DISPLAY_MESSAGES = 3;
 
-let messageId = 0;		// Sequential message ID for messages
+// Sequential message ID for messages
+let messageId = 0;
 
-const LevelColors = {error: {background:'rgba(255, 230, 230, 0.83)', color:'black'},
-                     warning: {background:'rgba(255, 250, 190, 0.83)', color:'black'},
-                     information: {background:'rgba(235, 255, 255, 0.83)', color:'black'},
-                    }
+// Window colors based upon message level
+const LevelColors = {
+  error: {background:'rgba(255, 230, 230, 0.83)', color:'black'},
+  warning: {background:'rgba(255, 250, 190, 0.83)', color:'black'},
+  information: {background:'rgba(235, 255, 255, 0.83)', color:'black'},
+};
 
 const LevelValues = ['error','warning','information'];    // Keep lowercase
 const LevelDisplay = ['Error','Warning','Information'];   // Levels for display
 
 // The message level values
 export const Level = {
-	Error: LevelValues[0],
-	Warning: LevelValues[1],
-	Warn: LevelValues[1],
-	Info: LevelValues[2],
-	Information: LevelValues[2]
+  Error: LevelValues[0],
+  Warning: LevelValues[1],
+  Warn: LevelValues[1],
+  Info: LevelValues[2],
+  Information: LevelValues[2]
 }
 
 /**
@@ -36,7 +43,8 @@ export const Level = {
  * @function
  * @param {string} level The level as defined in Level (e.g.: Level.Error)
  * @param {string} message The actual message to display
- * @return {object} A message object
+ * @param {string} [title] The title to window to show with the messages
+ * @returns {object} A message object
  */
 export function makeMessage(level, message, title) {
 	// Check the level to see if it's a valid value
@@ -59,7 +67,7 @@ export function makeMessage(level, message, title) {
 			message: message + '',
       title: title,
 			messageId: ++messageId,
-      close: false
+      closed: false
 			}
 }
 
@@ -67,48 +75,43 @@ export function makeMessage(level, message, title) {
  * Provides the UI for messages
  * @function
  * @param {object} messages The array of message objects to display
- * @param {number} {maessagesMax} The maximum number of messages to display at one time (default is 3)
- * @param {number} {maessagesTimeout} The number of seconds before a message times out
- * @param {function} {close_cd} Function to call upon the message closing
+ * @param {number} [messagesMax] The maximum number of messages to display at one time (default is 3)
+ * @param {number} [messagesTimeout] The number of seconds before a message times out
+ * @param {function} [close_cb] Function to call upon the message closing
  * @returns {object} The UI for messages
  */
 export function Messages({messages, messagesMax, messagesTimeout, close_cb}) {
  	const theme = useTheme();
-	const uiSizes = React.useContext(SizeContext);
 
 	if (!messages) {
 		return null;
 	}
 
+  close_cb ||= (msgId) => { const el = document.getElementById(`sparcd-message-${msgId}`); if (el) el.style.display = 'none'; };
+
 	// Figure out the maximum number of messages
-	if (!messagesMax || typeof(messagesMax) !== 'number' || messagesMax < 1) {
-		messagesMax = 3;
-	}
-	messagesMax = Math.min(messages.length, messagesMax);
+  const curMax = (!messagesMax || typeof messagesMax !== 'number' || messagesMax < 1) ? MAX_DISPLAY_MESSAGES : Math.min(messages.length, messagesMax);
 
 	// Figure out the timeout
-	if (!messagesTimeout || typeof(messagesTimeout) !== 'number') {
-		messagesTimeout = 3;
-	}
+  const curTimeout = (!messagesTimeout || typeof messagesTimeout !== 'number') ? 6 : messagesTimeout;
 
-	// If we have a callback, make sure it's a function
-	if (!close_cb || typeof(close_cb) !== 'function') {
+	// If we have a callback, make sure it's a function otherwise we force the message to disppear
+	if (!close_cb || typeof close_cb !== 'function') {
 		close_cb = (msgId) => {const el=document.getElementById("sparcd-message-"+msgId); if (el) el.style.display='none';};
 	}
 
-  console.log('HACK:MESSAGE:',theme);
 	return ( 
 		<React.Fragment>
 		{
-			messages.slice(0, messagesMax).reverse().map((item, idx) => {
+			messages.slice(0, curMax).reverse().map((item, idx) => {
         // Check for messages that are closed
         if (item.closed) {
           return null;
         }
 
         // Setup the auto-removal of the message
-        if (typeof(window) !== "undefined") {
-          window.setTimeout(() => close_cb(item.messageId), 6000);
+        if (typeof window !== "undefined") {
+          window.setTimeout(() => close_cb(item.messageId), curTimeout * 1000);
         }
 
 				return (
@@ -118,19 +121,19 @@ export function Messages({messages, messagesMax, messagesTimeout, close_cb}) {
                      padding:'10px', minWidth:'50vw', maxWidth:'90vw',
                      border:'1px solid black', borderRadius:'10px', zIndex:999999
                     }}>
-            <Grid id={"sparcd-message-titlebar-" + item.messageId} container direction="row" alignitem="start" justifyContent="space-between">
-              {item.level === Level.Error && <ErrorOutlineOutlinedIcon size={2} />}
-              {item.level === Level.Warning && <WarningAmberOutlinedIcon size={2} />}
-              {item.level === Level.Information && <InfoOutlinedIcon size={2} />}
-              <Typography gutterBottom variant="H4" size={8} sx={{fontWeight:'bold'}} >
+            <Grid id={"sparcd-message-titlebar-" + item.messageId} container direction="row" alignItems="flex-start" justifyContent="space-between">
+              {item.level === Level.Error && <ErrorOutlineOutlinedIcon />}
+              {item.level === Level.Warning && <WarningAmberOutlinedIcon />}
+              {item.level === Level.Information && <InfoOutlinedIcon />}
+              <Typography gutterBottom variant="h4" sx={{fontWeight:'bold'}} >
                 {item.title}
               </Typography>
-              <Typography gutterBottom variant="body" size={2} onClick={()=>close_cb(item.messageId)} sx={{cursor:'pointer'}} >
-                  X
-              </Typography>
+              <IconButton onClick={()=>close_cb(item.messageId)} aria-label="close message" sx={{marginBotton:'25px', cursor:'pointer'}}>
+                  <CloseIcon />
+              </IconButton>
             </Grid>
             <Grid container direction="row" alignItems="center" justifyContent="space-between">
-              <Typography gutterBottom variant="body" sx={{paddingTop:'20px'}} >
+              <Typography gutterBottom variant="body1" sx={{paddingTop:'20px'}} >
                 {item.message}
               </Typography>
             </Grid>
@@ -141,3 +144,25 @@ export function Messages({messages, messagesMax, messagesTimeout, close_cb}) {
 		</React.Fragment>
 	);
 }
+
+Messages.propTypes = {
+  // Array of message objects created by makeMessage()
+  messages: PropTypes.arrayOf(
+    PropTypes.shape({
+      messageId: PropTypes.number.isRequired,
+      level: PropTypes.oneOf([Level.Error, Level.Warning, Level.Information]).isRequired,
+      message: PropTypes.string.isRequired,
+      title: PropTypes.string.isRequired,
+      closed: PropTypes.bool,
+    })
+  ),
+
+  // Maximum number of messages to show at once (default: MAX_DISPLAY_MESSAGES)
+  messagesMax: PropTypes.number,
+
+  // Seconds before a message auto-dismisses (default: 6)
+  messagesTimeout: PropTypes.number,
+
+  // Called with messageId when a message is closed
+  close_cb: PropTypes.func,
+};

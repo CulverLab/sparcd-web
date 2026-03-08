@@ -102,9 +102,7 @@ export default function UploadRepair({collectionInfo, uploadInfo, onUploadImages
 
   // Return the UI
   return (
-    <Grid id="landing-page-fix-upload-wrapper" container direction="row" alignItems="center" justifyContent="center" 
-          sx={{...theme.palette.screen_overlay, backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
-    >
+    <Box id="landing-page-fix-upload-wrapper" sx={{...theme.palette.screen_overlay_grey, zIndex:11111}}>
       <Card id='anding-page-fix-upload' variant="outlined" sx={{ ...theme.palette.folder_upload }} >
         <CardHeader sx={{ textAlign: 'center' }} title="Repair an incomplete upload" />
         <CardContent>
@@ -133,6 +131,6 @@ export default function UploadRepair({collectionInfo, uploadInfo, onUploadImages
           </Button>
         </CardActions>
       </Card>
-    </Grid>
+    </Box>
   );
 }

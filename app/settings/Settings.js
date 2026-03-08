@@ -1,3 +1,5 @@
+'use client'
+
 /** @module components/Settings */
 
 import * as React from 'react';
@@ -564,7 +566,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
       }
       { changeEmail &&
          <Grid id="settings-change-email-wrapper" justifyContent="center" alignItems="center" 
-              sx={{position:'absolute', top:0, right:0, bottom:'50px', left:0, background:"rgb(0, 0, 0, 0.7)", zIndex:500}} >
+              sx={{...theme.palette.screen_overlay_grey, zIndex:500}} >
           <Grid container direction="column" justifyContent="center" alignItems="center"
                 sx={{backgroundColor:'silver', padding:'15px 0', marginTop:'30%'}} spacing={2}>
             <div id="admin-settings-change-password-close" sx={{height:'20px', flex:'1'}} onClick={() => setChangeEmail(false)}

@@ -455,7 +455,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
       const formData = new FormData();
 
       formData.append('id', curUpload.collectionId);
-      formData.append('up', curUpload.upload);
+      formData.append('up', curUpload.uploadName);
 
       try {
         const resp = fetch(checkChangesUrl, {
@@ -731,7 +731,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
     }
 
     if (imageModified && curUpload) {
-      submitImageEditComplete(curUpload.collectionId, curUpload.upload, curUpload.images[curImageIdx].s3_path, requestId, cbSuccess, cbFailure);
+      submitImageEditComplete(curUpload.collectionId, curUpload.uploadName, curUpload.images[curImageIdx].s3_path, requestId, cbSuccess, cbFailure);
     } else {
       if (typeof(cbSuccess) === 'function') {
         cbSuccess();
@@ -834,7 +834,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
 
     finishImageEdits(curImageModified, lastSpeciesRequestId,
         () => { if (changesMade) {
-                  submitAllImageEdited(curUpload.collectionId, curUpload.upload, lastSpeciesRequestId, new Date().toISOString());
+                  submitAllImageEdited(curUpload.collectionId, curUpload.uploadName, lastSpeciesRequestId, new Date().toISOString());
                 } else {
                   setPendingMessage(null);
                 }
