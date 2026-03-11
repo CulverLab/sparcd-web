@@ -1649,7 +1649,7 @@ export default function Home() {
           { (createNewInstance === true || repairInstance === true) &&
               <BaseURLContext.Provider value={serverURL}>
               <AddMessageContext.Provider value={addMessage}>
-                <NewInstallation token={lastToken} repair={repairInstance} onCancel={handleCancelNewInstallation} />
+                <NewInstallation newInstallToken={lastToken} isRepair={repairInstance} onCancel={handleCancelNewInstallation} />
               </AddMessageContext.Provider>
               </BaseURLContext.Provider>
         }

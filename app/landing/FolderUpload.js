@@ -1123,7 +1123,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
           <Typography gutterBottom variant="body3" noWrap>
             {uploadingFileCounts.uploaded} of {uploadingFileCounts.total} uploaded
           </Typography>
-          <ProgressWithLabel value={uploadPercentComplete}/>
+          <ProgressWithLabel percentValue={uploadPercentComplete}/>
           <Typography gutterBottom variant="body">
             { getUploadStateString(uploadState) }
           </Typography>

@@ -26,7 +26,7 @@ export function checkPreviousUpload(serverURL, token, path, onExpiredToken, onSu
   formData.append('path', path);
 
   try {
-    const resp = fetch(sandboxPrevUrl, {
+    fetch(sandboxPrevUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -102,7 +102,7 @@ export function updateUploadRecovery(serverURL, token, collId, locId, uploadKey,
   }
 
   try {
-    const resp = fetch(sandboxRecoveryUrl, {
+    fetch(sandboxRecoveryUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -180,7 +180,7 @@ export function continueNewUpload(serverURL, token, collectionId, locationId, pa
   }
 
   try {
-    const resp = fetch(sandboxNewUrl, {
+    fetch(sandboxNewUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -235,7 +235,7 @@ export function prevUploadResetContinue(serverURL, token, uploadId, files, onExp
   formData.append('files', JSON.stringify(files.map((item) => item.webkitRelativePath)));
 
   try {
-    const resp = fetch(sandboxResetUrl, {
+    fetch(sandboxResetUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -288,7 +288,7 @@ export function prevUploadAbandonContinue(serverURL, token, uploadId, onExpiredT
   formData.append('id', uploadId);
 
   try {
-    const resp = fetch(sandboxAbandonUrl, {
+    fetch(sandboxAbandonUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -348,7 +348,7 @@ export function checkUploadedFiles(serverURL, token, uploadId, files, onExpiredT
   formData.append(files[0].name, files[0]);
 
   try {
-    const resp = fetch(sandboxCheckUrl, {
+    fetch(sandboxCheckUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -399,7 +399,7 @@ export function handleFailedUploads (serverURL, token, uploadId, uploadedFiles, 
                                                             '&i=' + encodeURIComponent(uploadId);
 
   try {
-    const resp = fetch(failedUploadsUrl, {
+    fetch(failedUploadsUrl, {
       credentials: 'include',
       method: 'GET'
     }).then(async (resp) => {
@@ -449,7 +449,7 @@ export function getUploadCounts(serverURL, token, uploadId, uploadFiles, onExpir
                                                             '&i=' + encodeURIComponent(uploadId);
 
   try {
-    const resp = fetch(sandboxCountsUrl, {
+    fetch(sandboxCountsUrl, {
       credentials: 'include',
       method: 'GET'
     }).then(async (resp) => {
@@ -501,7 +501,7 @@ export function uploadCompleted(serverURL, token, uploadId, onExpiredToken, onSu
   formData.append('id', uploadId);
 
   try {
-    const resp = fetch(sandboxCompleteUrl, {
+    fetch(sandboxCompleteUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -563,7 +563,7 @@ export function uploadChunk(serverURL, token, fileChunk, uploadId, numFiles, tzI
   }
 
   try {
-    const resp = fetch(sandboxFileUrl, {
+    fetch(sandboxFileUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
