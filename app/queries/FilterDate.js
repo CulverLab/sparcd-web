@@ -8,6 +8,8 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 import FilterCard from './FilterCard';
 
 /**
@@ -18,44 +20,46 @@ import FilterCard from './FilterCard';
  * @param {object} formData The FormData to add the fields to
  */
 export function FilterDateFormData(fieldName, data, formData) {
-  formData.append(fieldName, (new Date(data.$d)).toISOString());
+  formData.append(fieldName, dayjs(data).toDate().toISOString());
 }
 
 /**
  * Returns the UI for filtering by date
  * @function
  * @param {string} title The title of this filter
- * @param {object} {data} Any stored data
+ * @param {object} [data] Any stored data
  * @param {function} onClose The handler for closing this filter
  * @param {function} onChange The handler for when the filter data changes
  * @returns {object} The UI specific for filtering by date
  */
 export default function FilterDate({title, data, onClose, onChange}) {
   const theme = useTheme();
-  const [selectedDateTime, setSelectedDateTime] = React.useState(data ? data.end : dayjs()); // The user's start year
+  const cardRef = React.useRef(null);   // Used for sizing
+  const initialDateRef = React.useRef(data ? data.end : dayjs());
+  const [selectedDateTime, setSelectedDateTime] = React.useState(initialDateRef.current); // The user's starting timestamp
 
   // Handle setting an initial value
   React.useEffect(() => {
     if (!data) {
-      onChange(selectedDateTime);
+      onChange(initialDateRef.current);
     }
-  }, [data, onChange, selectedDateTime]);
+  }, [data, onChange]);
 
   /**
    * Handles when the date or time is changed
    * @function
    * @param {object} event The triggering event object
    */
-  function handleDateTimeChange(event) {
+  const handleDateTimeChange = React.useCallback((event) => {
     setSelectedDateTime(event);
     onChange(event);
-  }
+  }, [onChange]);
 
   // Return the rendered UI
   return (
-    <FilterCard title={title} onClose={onClose} >
+    <FilterCard cardRef={cardRef} title={title} onClose={onClose} >
       <Grid sx={{minHeight:'230px', maxHeight:'230px', height:'230px', minWidth:'250px', maxWidth:'250px',
-                      overflowX:'clip', overflowY:'scroll', paddingLeft:'5px', backgroundColor:'rgb(255,255,255,0.3)'
+                      overflowX:'clip', overflowY:'auto', paddingLeft:'5px', backgroundColor:'rgb(255,255,255,0.3)'
                     }}>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <DateTimePicker ampm={false} value={selectedDateTime} timeSteps={{minutes: 1}} onChange={handleDateTimeChange} />
@@ -64,3 +68,14 @@ export default function FilterDate({title, data, onClose, onChange}) {
     </FilterCard>
   );
 }
+
+FilterDate.propTypes = {
+  title:    PropTypes.string.isRequired,
+  data:     PropTypes.object,
+  onClose:  PropTypes.func.isRequired,
+  onChange: PropTypes.func.isRequired,
+};
+
+FilterDate.defaultProps = {
+  data: null,
+};

@@ -18,6 +18,8 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
+import PropTypes from 'prop-types';
+
 import FilterCollections from './FilterCollections';
 import FilterDate from './FilterDate';
 import FilterDayOfWeek from './FilterDayOfWeek';
@@ -28,79 +30,78 @@ import FilterMonth from './FilterMonth';
 import FilterSpecies from './FilterSpecies';
 import FilterYear from './FilterYear';
 
+// The names of the available filters
+const filterNames = [
+  'Species Filter',
+  'Location Filter',
+  'Elevation Filter',
+  'Year Filter',
+  'Month Filter',
+  'Hour Filter',
+  'Day of Week Filter',
+  'Start Date Filter',
+  'End Date Filter',
+  'Collection Filter'
+];
+
 /**
  * Provides the UI for managing filters for queries
  * @function
- * @param {int} workingWidth The working height of the component
- * @param {int} workingHeight The working height of the component
+ * @param {number} workingWidth The working height of the component
+ * @param {number} workingHeight The working height of the component
  * @param {object} filters The current list of filters
- * @param {function} filterChange Handler for an updated filter
+ * @param {function} filterChanged Handler for an updated filter
  * @param {function} filterRemove Handler for removing a filter
  * @param {function} filterAdd Handler for adding a new filter
  * @param {function} onQuery Handler for running the query
  * @returns {object} The UI for generating query filters
  */
-export default function QueryFilters({workingWidth, workingHeight, filters, filterChanged, filterRemove, filterAdd, queryInterval, intervalChanged, onQuery}) {
-  const [filterSelected, setFilterSelected] = React.useState(false); // Indicates a new filter is selected
-
-  // The names of the available filters
-  const filterNames = [
-    'Species Filter',
-    'Location Filter',
-    'Elevation Filter',
-    'Year Filter',
-    'Month Filter',
-    'Hour Filter',
-    'Day of Week Filter',
-    'Start Date Filter',
-    'End Date Filter',
-    'Collection Filter'
-  ];
+export default function QueryFilters({workingWidth, workingHeight, filters, filterChanged, filterRemove, filterAdd,
+                                      queryInterval, intervalChanged, onQuery}) {
+  const filterWaitingRef = React.useRef(null);
+  const filterWrapperRef = React.useRef(null);
+  const [filterSelected, setFilterSelected] = React.useState(null); // Indicates a new filter is selected
 
   /**
    * Adds a new filter to the list of filters
    * @function
    */
-  function filterAddSelected() {
+  const filterAddSelected = React.useCallback(() => {
     // Get the filter elements we need to access
-    let elFilter = document.getElementById('query-filter-selection-wrapper');
-    if (!elFilter) {
+    if (!filterWrapperRef.current) {
       return;
     }
     // Show the spinner until the new filter is added
-    let elFilterWait = document.getElementById("query-filter-selection-waiting");
-    if (elFilterWait) {
-      if (elFilter.style.visibility === 'visible') {
-        elFilterWait.style.visibility = 'visible';
+    if (filterWaitingRef.current) {
+      if (filterWrapperRef.current.style.visibility === 'visible') {
+        filterWaitingRef.current.style.visibility = 'visible';
       }
     }
 
     filterAdd(filterSelected);
-  }
+  }, [filterAdd, filterSelected]);
 
   /**
    * Handles displaying a filter type selection when the user wants to add a new filter
    * @function
    */
-  function handleNewFilter() {
-    let elFilter = document.getElementById('query-filter-selection-wrapper');
-    if (!elFilter) {
+  const handleNewFilter = React.useCallback(() => {
+    if (!filterWrapperRef.current) {
       return;
     }
-    elFilter.style.visibility = 'visible';
-  }
+    filterWrapperRef.current.style.visibility = 'visible';
+  }, []);
 
   /**
    * Called when the user decides they don't want a new filter
    * @function
    */
-  function cancelNewFilter() {
-    let elFilter = document.getElementById('query-filter-selection-wrapper');
-    if (!elFilter) {
+  const cancelNewFilter = React.useCallback(() => {
+    if (!filterWrapperRef.current) {
       return;
     }
-    elFilter.style.visibility = 'hidden';
-  }
+    filterWrapperRef.current.style.visibility = 'hidden';
+  }, []);
 
   /**
    * Returns the UI fields for each filter type
@@ -108,7 +109,7 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
    * @param {object} filterInfo The information on the filter to return the UI for
    * @returns {object} The filter-specific UI to render
    */
-  function generateFilterTile(filterInfo, parentId) {
+  const generateFilterTile = React.useCallback((filterInfo, parentId) => {
     switch(filterInfo.type) {
       case 'Collection Filter':
         return (
@@ -181,20 +182,25 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
                         onClose={() => filterRemove(filterInfo.id)} 
                         onChange={(data) => filterChanged(filterInfo.id, data)}/>
         );
+      default:
+        console.log('ERROR: attempting to use an unknown filter:', filterInfo.type);
+        break;
     }
-  }
+
+    return null;
+  }, [filterRemove, filterChanged]);
 
   return (
     <React.Fragment>
       <div id="query-filter-wrapper" style={{overflow:'clip'}}>
-        <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap"
+        <Grid container direction="row" alignItems="start" justifyContent="start"
               spacing={2}
-              sx={{minHeight:workingHeight+"px", maxHeight:workingHeight+"px", backgroundColor:'white',
-                   margin:0, overflowY:'auto', padding:'5px'}}
+              sx={{minHeight:workingHeight, maxHeight:workingHeight, backgroundColor:'white',
+                   margin:0, overflowY:'auto', padding:'5px', flexWrap:'nowrap'}}
         >
           { filters.map((item, idx) => 
               <Grid id={'filter-' + item.type + '-' + idx} key={"filter-" + item.type + "-" + idx} container direction="column" alignItems="center" justifyContent="start"
-                    sx={{ minHeight:(workingHeight-40)+'px', maxHeight:(workingHeight-40)+'px', minWidth:'310px', maxWidth:'310px', padding:'5px',
+                    sx={{ minHeight:(workingHeight-40), maxHeight:(workingHeight-40), minWidth:'310px', maxWidth:'310px', padding:'5px',
                           border:'solid 1px grey', borderRadius:'10px', backgroundColor:'seashell' }}>
                   {generateFilterTile(item, 'filter-' + item.type + '-' + idx)}
               </Grid>
@@ -216,19 +222,17 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
                     size='small'
                     sx={{padding:'10px', width:'100%'}}
                     onChange={(ev) => intervalChanged(ev.target.value)}
-                    inputProps={{style: {fontSize: 12}}}
                     slotProps={{
-                      inputLabel: {
-                        shrink: true,
-                      },
+                      inputLabel: {shrink:true},
+                      htmlInput: {style: {fontSize:12}},
                     }}
                     />
-              <Button disabled={filters.length > 0 ? false:true} onClick={onQuery}>Perform Query</Button>
+              <Button disabled={filters.length === 0} onClick={onQuery}>Perform Query</Button>
             </Grid>
           </Grid>
         </Grid>
       </div>
-      <Grid id="query-filter-selection-wrapper" container direction="column"  alignItems="center" justifyContent="center"
+      <Grid id="query-filter-selection-wrapper" ref={filterWrapperRef} container direction="column"  alignItems="center" justifyContent="center"
             sx={{position:'absolute', top:'0px', width:workingWidth, minHeight:workingHeight, maxHeight:workingHeight,
                  background:'rgb(0,0,0,0.75)', overflow:'clip', visibility:'hidden'}}
       >
@@ -241,27 +245,29 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
                }
              />
             <CardContent sx={{position:'relative'}}>
-              <List sx={{backgroundColor:'silver', border:'1px solid grey', borderRadius:'7px', maxHeight:'200px', overflow:'scroll'}} >
+              <List sx={{backgroundColor:'silver', border:'1px solid grey', borderRadius:'7px', maxHeight:'200px', overflow:'auto'}} >
                 { filterNames.map((item) => 
                     <ListItem disablePadding key={"query-filter-sel-" + item}>
-                        <ListItemText primary={item} 
-                                      sx={{padding:'0 8px', cursor:'pointer', ...(item === filterSelected && {backgroundColor:'#B0B0B0'}),
-                                           '&:hover':{backgroundColor:'lightgrey'} }}
-                                      onClick={() => setFilterSelected(item)}
-                                      onDoubleClick={() => filterAdd(item)}/>
+                        <ListItemButton selected={item === filterSelected}
+                                        sx={{padding:'0 8px'}}
+                                        onClick={() => setFilterSelected(item)}
+                                        onDoubleClick={() => filterAdd(item)}
+                        >
+                          <ListItemText primary={item} />
+                        </ListItemButton>
                     </ListItem>
                 )}
               </List>
-              <Grid id="query-filter-selection-waiting" container direction="column"  alignItems="center" justifyContent="center"
+              <Grid id="query-filter-selection-waiting-wrapper" ref={filterWaitingRef} container direction="column"  alignItems="center" justifyContent="center"
                     sx={{position:'absolute', top:'0px', width:'100%', height:'100%', visibility:'hidden'}}
               >
                 <CircularProgress id="query-filter-selection-waiting" />
               </Grid>
             </CardContent>
             <CardActions>
-              <Button id="add-filter" sx={{'flex':'1'}} size="small" onClick={filterAddSelected}
-                      disabled={filterSelected ? false : true}>Add</Button>
-              <Button id="add-filter-cancel" sx={{'flex':'1'}} size="small" onClick={cancelNewFilter}>Cancel</Button>
+              <Button id="add-filter" sx={{flex:1}} size="small" onClick={filterAddSelected}
+                      disabled={!filterSelected}>Add</Button>
+              <Button id="add-filter-cancel" sx={{flex:1}} size="small" onClick={cancelNewFilter}>Cancel</Button>
             </CardActions>
           </React.Fragment>
         </Card>
@@ -269,3 +275,19 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
     </React.Fragment>
   );
 }
+
+QueryFilters.propTypes = {
+  workingWidth:    PropTypes.number.isRequired,
+  workingHeight:   PropTypes.number.isRequired,
+  filters:         PropTypes.arrayOf(PropTypes.shape({
+    id:            PropTypes.string.isRequired,
+    type:          PropTypes.string.isRequired,
+    data:          PropTypes.any,
+  })).isRequired,
+  filterChanged:   PropTypes.func.isRequired,
+  filterRemove:    PropTypes.func.isRequired,
+  filterAdd:       PropTypes.func.isRequired,
+  queryInterval:   PropTypes.number.isRequired,
+  intervalChanged: PropTypes.func.isRequired,
+  onQuery:         PropTypes.func.isRequired,
+};

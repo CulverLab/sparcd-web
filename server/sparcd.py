@@ -3900,9 +3900,12 @@ def message_add():
     priority = request.form.get('priority', None)
 
     # Check what we have from the requestor
-    if not all(item for item in [receiver, subject, message]):
+    if not all(item for item in [receiver, subject]):
         return "Not Found", 406
 
+    # Check the parameters
+    if not message:
+        message = "";
     if priority is None:
         priority = "normal"
 

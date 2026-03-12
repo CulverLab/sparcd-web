@@ -9,6 +9,8 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 import FilterCard from './FilterCard';
 
 // The names of the days to use
@@ -40,12 +42,12 @@ const dayValues = [
  * @param {object} formData The FormData to add the fields to
  */
 export function FilterDayOfWeekFormData(data, formData) {
-  formData.append('dayofweek', JSON.stringify(data.map((item) => dayValues[dayNames.findIndex((name) => name == item)])));
+  formData.append('dayofweek', JSON.stringify(data.map((item) => dayValues[dayNames.findIndex((name) => name === item)])));
 }
 
 /**
  * Returns the UI for filtering by day of the week
- * @param {object} {data} Saved day of the week data
+ * @param {object} [data] Saved day of the week data
  * @param {string} parentId The ID of the parent of this filter
  * @param {function} onClose The handler for closing this filter
  * @param {function} onChange The handler for when the filter data changes
@@ -53,26 +55,26 @@ export function FilterDayOfWeekFormData(data, formData) {
  */
 export default function FilterDayOfWeek({data, parentId, onClose, onChange}) {
   const theme = useTheme();
-  const cardRef = React.useRef();   // Used for sizeing
+  const cardRef = React.useRef(null);   // Used for sizing
+  const initialDaysRef = React.useRef(data ?? dayNames);
   const [listHeight, setListHeight] = React.useState(200);
-  const [selectedDays, setSelectedDays] = React.useState(data ? data : dayNames); // The user's selections
-  const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
+  const [selectedDays, setSelectedDays] = React.useState(initialDaysRef.current); // The user's selections
 
   // Set default data if we don't have any
   React.useEffect(() => {
     if (!data) {
-      onChange(selectedDays);
+      onChange(initialDaysRef.current);
     }
-  }, [data, onChange, selectedDays]);
+  }, [data, onChange]);
 
   // Calculate how large the list can be
   React.useLayoutEffect(() => {
-    if (parentId && cardRef && cardRef.current) {
+    if (parentId && cardRef.current) {
       const parentEl = document.getElementById(parentId);
       if (parentEl) {
         const parentRect = parentEl.getBoundingClientRect();
         let usedHeight = 0;
-        const childrenQueryIds = ['#filter-conent-header', '#filter-content-actions'];
+        const childrenQueryIds = ['#filter-content-header', '#filter-content-actions'];
         for (let curId of childrenQueryIds) {
           let childEl = cardRef.current.querySelector(curId);
           if (childEl) {
@@ -83,25 +85,25 @@ export default function FilterDayOfWeek({data, parentId, onClose, onChange}) {
         setListHeight(parentRect.height - usedHeight);
       }
     }
-  }, [parentId, cardRef]);
+  }, [parentId]);
 
   /**
    * Handles selecting all the day of the week choices
    * @function
    */
-  function handleSelectAll() {
+  const handleSelectAll = React.useCallback(() => {
     setSelectedDays(dayNames);
     onChange(dayNames);
-  }
+  }, [onChange]);
 
   /**
    * Clears all chosen selections
    * @function
    */
-  function handleSelectNone() {
+  const handleSelectNone = React.useCallback(() => {
     setSelectedDays([]);
     onChange([]);
-  }
+  }, [onChange]);
 
   /**
    * Handles the user selecting or deselecting a day of the week
@@ -109,17 +111,14 @@ export default function FilterDayOfWeek({data, parentId, onClose, onChange}) {
    * @param {object} event The triggering event data
    * @param {string} dayName The name of the day to add or remove from the filter
    */
-  function handleCheckboxChange(event, dayName) {
+  const handleCheckboxChange = React.useCallback((event, dayName) => {
 
     if (event.target.checked) {
-      const dayIdx = selectedDays.findIndex((item) => dayName === item);
       // Add the day in if we don't have it already
-      if (dayIdx < 0) {
-        const curDay = selectedDays;
-        curDay.push(dayName);
+      if (!selectedDays.includes(dayName)) {
+        const curDay = [...selectedDays, dayName];
         setSelectedDays(curDay);
         onChange(curDay);
-        setSelectionRedraw(selectionRedraw + 1);
       }
     } else {
       // Remove the day if we have it
@@ -127,22 +126,21 @@ export default function FilterDayOfWeek({data, parentId, onClose, onChange}) {
       if (curDay.length < selectedDays.length) {
         setSelectedDays(curDay);
         onChange(curDay);
-        setSelectionRedraw(selectionRedraw + 1);
       }
     }
-  }
+  }, [onChange, selectedDays]);
 
   // Return the UI for choosing the day of the week
   return (
     <FilterCard cardRef={cardRef} title="Day of Week Filter" onClose={onClose} 
                 actions={
                   <React.Fragment>
-                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
-                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
+                    <Button sx={{flex:1}} size="small" onClick={handleSelectAll}>Select All</Button>
+                    <Button sx={{flex:1}} size="small" onClick={handleSelectNone}>Select None</Button>
                   </React.Fragment>
                 }
     >
-      <Grid sx={{minHeight:listHeight+'px', maxHeight:listHeight+'px', height:listHeight+'px', minWidth:'250px', overflow:'scroll',
+      <Grid sx={{minHeight:listHeight, maxHeight:listHeight, height:listHeight, minWidth:'250px', overflowY:'auto',
                       border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
                       backgroundColor:'rgb(255,255,255,0.3)'
                     }}>
@@ -150,7 +148,7 @@ export default function FilterDayOfWeek({data, parentId, onClose, onChange}) {
           { dayNames.map((item) => 
               <FormControlLabel key={'filter-day-' + item}
                                 control={<Checkbox size="small" 
-                                                   checked={selectedDays.findIndex((curDay) => curDay===item) > -1 ? true : false}
+                                                   checked={selectedDays.includes(item)}
                                                    onChange={(event) => handleCheckboxChange(event,item)}
                                           />} 
                                 label={<Typography variant="body2">{item}</Typography>} />
@@ -161,3 +159,14 @@ export default function FilterDayOfWeek({data, parentId, onClose, onChange}) {
     </FilterCard>
   );
 }
+
+FilterDayOfWeek.propTypes = {
+  data:     PropTypes.arrayOf(PropTypes.string),
+  parentId: PropTypes.string.isRequired,
+  onClose:  PropTypes.func.isRequired,
+  onChange: PropTypes.func.isRequired,
+};
+
+FilterDayOfWeek.defaultProps = {
+  data: null,
+};

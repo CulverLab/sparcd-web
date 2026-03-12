@@ -14,6 +14,8 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 import FilterCard from './FilterCard';
 import { SpeciesOtherNamesContext, SpeciesInfoContext } from '../serverInfo';
 
@@ -25,12 +27,12 @@ import { SpeciesOtherNamesContext, SpeciesInfoContext } from '../serverInfo';
  * @param {array} speciesItems The complete list of species for mapping
  */
 export function FilterSpeciesFormData(data, formData, speciesItems) {
-  formData.append('species', JSON.stringify(data.map((item) => speciesItems[speciesItems.findIndex((species) => species.name == item)].scientificName)));
+  formData.append('species', JSON.stringify(data.map((item) => speciesItems.find((species) => species.name === item)?.scientificName).filter(Boolean)));
 }
 
 /**
  * Returns the UI for filtering by species
- * @param {object} {data} Saved species data
+ * @param {object} [data] Saved species data
  * @param {string} parentId The ID of the parent of this filter
  * @param {function} onClose The handler for closing this filter
  * @param {function} onChange The handler for when the filter data changes
@@ -38,32 +40,33 @@ export function FilterSpeciesFormData(data, formData, speciesItems) {
  */
 export default function FilterSpecies({data, parentId, onClose, onChange}) {
   const theme = useTheme();
-  const cardRef = React.useRef();   // Used for sizeing
   const speciesItems = React.useContext(SpeciesInfoContext);
   const speciesOtherNames = React.useContext(SpeciesOtherNamesContext);
-  const mergedSpecies = React.useMemo(() => speciesItems.map((item) => { return {...item, ...{defaultChecked:true}};}).concat(
-                                                        (speciesOtherNames ? speciesOtherNames : []).map((item) => {return {...item, ...{defaultChecked:false}};}) ), 
-                                        [speciesItems, speciesOtherNames]); // Consistant view of data
+  const mergedSpecies = React.useMemo(() => speciesItems.map((item) => { return {...item, defaultChecked:true};}).concat(
+                                                        (speciesOtherNames ?? []).map((item) => {return {...item, defaultChecked:false};}) ), 
+                                        [speciesItems, speciesOtherNames]); // Consistent view of data
+  const cardRef = React.useRef(null);   // Used for sizing
+  const initialSpeciesRef = React.useRef(data ? data : mergedSpecies.filter(item => item.defaultChecked).map(item => item.name)); // The user's selections
+  const searchInputRef = React.useRef(null);    // Reference the search text box
   const [displayedSpecies, setDisplayedSpecies] = React.useState(mergedSpecies); // The visible species
   const [listHeight, setListHeight] = React.useState(200);
-  const [selectedSpecies, setSelectedSpecies] = React.useState(data ? data : mergedSpecies.map((item)=>item.defaultChecked ? item.name : null)); // The user's selections
-  const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
+  const [selectedSpecies, setSelectedSpecies] = React.useState(initialSpeciesRef.current);
 
   // Set the default data if not set yet
   React.useEffect(() => {
     if (!data) {
-      onChange(selectedSpecies);
+      onChange(initialSpeciesRef.current);
     }
-  }, [data, onChange, selectedSpecies]);
+  }, [data, onChange]);
 
   // Calculate how large the list can be
   React.useLayoutEffect(() => {
-    if (parentId && cardRef && cardRef.current) {
+    if (parentId && cardRef.current) {
       const parentEl = document.getElementById(parentId);
       if (parentEl) {
         const parentRect = parentEl.getBoundingClientRect();
         let usedHeight = 0;
-        const childrenQueryIds = ['#filter-conent-header', '#filter-content-actions', '#filter-species-search-wrapper'];
+        const childrenQueryIds = ['#filter-content-header', '#filter-content-actions', '#filter-species-search-wrapper'];
         for (let curId of childrenQueryIds) {
           let childEl = cardRef.current.querySelector(curId);
           if (childEl) {
@@ -74,30 +77,54 @@ export default function FilterSpecies({data, parentId, onClose, onChange}) {
         setListHeight(parentRect.height - usedHeight);
       }
     }
-  }, [parentId, cardRef]);
+  }, [parentId]);
+
+  /**
+   * Handles a change in the species search
+   * @function
+   * @param {object} event The triggering event data
+   */
+  const handleSearchChange= React.useCallback((event) => {
+    if (event.target.value) {
+      const ucSearch = event.target.value.toUpperCase();
+      setDisplayedSpecies(mergedSpecies.filter((item) => item.name.toUpperCase().includes(ucSearch)));
+    } else {
+      setDisplayedSpecies(mergedSpecies);
+    }
+  }, [mergedSpecies]);
+
+  /**
+   * Handles clearing the species search
+   */
+  const handleClearSearch = React.useCallback(() => {
+    if (searchInputRef.current) {
+      searchInputRef.current.value = '';
+      setDisplayedSpecies(mergedSpecies);
+    }
+  }, [mergedSpecies]);
 
   /**
    * Handles selecting all the species choices from the visible list
    * @function
    */
-  function handleSelectAll() {
-    const curSpecies = displayedSpecies.map((item) => item.name);
-    const newSpecies = curSpecies.filter((item) => selectedSpecies.findIndex((selItem) => selItem === item) < 0);
-    const updatedSelections = [...selectedSpecies, ...newSpecies];
+  const handleSelectAll = React.useCallback(() => {
+    const existingSet = new Set(selectedSpecies);
+    const updatedSelections = [...selectedSpecies,
+                              ...displayedSpecies.map(item => item.name).filter(newItem => !existingSet.has(newItem))];    
     setSelectedSpecies(updatedSelections);
     onChange(updatedSelections);
     handleClearSearch();
-  }
+  }, [displayedSpecies, handleClearSearch, onChange, selectedSpecies]);
 
   /**
    * Handles clearing all selected species choices
    * @function
    */
-  function handleSelectNone() {
+  const handleSelectNone = React.useCallback(() => {
     setSelectedSpecies([]);
     onChange([]);
     handleClearSearch();
-  }
+  }, [handleClearSearch, onChange]);
 
   /**
    * Handles the user selecting or deselecting a species
@@ -105,17 +132,14 @@ export default function FilterSpecies({data, parentId, onClose, onChange}) {
    * @param {object} event The triggering event data
    * @param {string} speciesName The name of the species to add or remove from the filter
    */
-  function handleCheckboxChange(event, speciesName) {
+  const handleCheckboxChange = React.useCallback((event, speciesName) => {
 
     if (event.target.checked) {
-      const speciesIdx = selectedSpecies.findIndex((item) => speciesName === item);
       // Add the species in if we don't have it already
-      if (speciesIdx < 0) {
-        const curSpecies = selectedSpecies;
-        curSpecies.push(speciesName);
+      if (!selectedSpecies.includes(speciesName)) {
+        const curSpecies = [...selectedSpecies, speciesName];
         setSelectedSpecies(curSpecies);
         onChange(curSpecies);
-        setSelectionRedraw(selectionRedraw + 1);
       }
     } else {
       // Remove the species if we have it
@@ -123,46 +147,20 @@ export default function FilterSpecies({data, parentId, onClose, onChange}) {
       if (curSpecies.length < selectedSpecies.length) {
         setSelectedSpecies(curSpecies);
         onChange(curSpecies);
-        setSelectionRedraw(selectionRedraw + 1);
       }
     }
-  }
-
-  /**
-   * Handles a change in the species search
-   * @function
-   * @param {object} event The triggering event data
-   */
-  function handleSearchChange(event) {
-    if (event.target.value) {
-      const ucSearch = event.target.value.toUpperCase();
-      setDisplayedSpecies(mergedSpecies.filter((item) => item.name.toUpperCase().includes(ucSearch)));
-    } else {
-      setDisplayedSpecies(mergedSpecies);
-    }
-  }
-
-  /**
-   * Handles clearing the species search
-   */
-  function handleClearSearch() {
-    const searchEl = document.getElementById('file-species-search');
-    if (searchEl) {
-      searchEl.value = '';
-      setDisplayedSpecies(mergedSpecies);
-    }
-  }
+  }, [onChange, selectedSpecies]);
 
   // Return the UI for filtering by species
   return (
     <FilterCard cardRef={cardRef} title="Species Filter" onClose={onClose} actions={
                 <React.Fragment>
-                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
-                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
+                    <Button sx={{flex:1}} size="small" onClick={handleSelectAll}>Select All</Button>
+                    <Button sx={{flex:1}} size="small" onClick={handleSelectNone}>Select None</Button>
                 </React.Fragment>
               }
     >
-      <Grid sx={{minHeight:listHeight+'px', maxHeight:listHeight+'px', height:listHeight+'px', minWidth:'250px', overflow:'scroll',
+      <Grid sx={{minHeight:listHeight, maxHeight:listHeight, height:listHeight, minWidth:'250px', overflowY:'auto',
                       border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
                       backgroundColor:'rgb(255,255,255,0.3)'
                     }}>
@@ -170,7 +168,7 @@ export default function FilterSpecies({data, parentId, onClose, onChange}) {
           { displayedSpecies.map((item) => 
               <FormControlLabel key={'filter-species-' + item.name}
                                 control={<Checkbox size="small" 
-                                                   checked={selectedSpecies.findIndex((curSpecies) => curSpecies===item.name) > -1 ? true : false}
+                                                   checked={selectedSpecies.includes(item.name)}
                                                    onChange={(event) => handleCheckboxChange(event,item.name)}
                                           />} 
                                 label={<Typography variant="body2">{item.name}</Typography>} />
@@ -185,6 +183,7 @@ export default function FilterSpecies({data, parentId, onClose, onChange}) {
           label="Search"
           slotProps={{
             input: {
+              inputRef:searchInputRef,
               endAdornment:(
                 <InputAdornment position="end">
                   <IconButton onClick={handleClearSearch}>
@@ -200,3 +199,14 @@ export default function FilterSpecies({data, parentId, onClose, onChange}) {
     </FilterCard>
   );
 }
+
+FilterSpecies.propTypes = {
+  data:     PropTypes.arrayOf(PropTypes.string),
+  parentId: PropTypes.string.isRequired,
+  onClose:  PropTypes.func.isRequired,
+  onChange: PropTypes.func.isRequired,
+};
+
+FilterSpecies.defaultProps = {
+  data: null,
+};

@@ -14,6 +14,8 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 import { CollectionsInfoContext } from '../serverInfo';
 import FilterCard from './FilterCard';
 
@@ -30,7 +32,7 @@ export function FilterCollectionsFormData(data, formData) {
 /**
  * Returns the UI for filtering by date
  * @function
- * @param {object} {data} Any stored collections data
+ * @param {object} [data] Any stored collections data
  * @param {string} parentId The ID of the parent of this filter
  * @param {function} onClose The handler for closing this filter
  * @param {function} onChange The handler for when the filter data changes
@@ -38,28 +40,29 @@ export function FilterCollectionsFormData(data, formData) {
  */
 export default function FilterCollections({data, parentId, onClose, onChange}) {
   const theme = useTheme();
-  const cardRef = React.useRef();   // Used for sizeing
   const collectionItems = React.useContext(CollectionsInfoContext);
+  const cardRef = React.useRef(null);   // Used for sizing
+  const searchRef = React.useRef(null); // Reference to search text box
+  const initialCollectionsRef = React.useRef(data ?? collectionItems.map(item => item.bucket));
   const [displayedCollections, setDisplayedCollections] = React.useState(collectionItems); // The visible collections
   const [listHeight, setListHeight] = React.useState(200);
-  const [selectedCollections, setSelectedCollections] = React.useState(data ? data : collectionItems.map((item)=>item.bucket)); // The user's selections
-  const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
+  const [selectedCollections, setSelectedCollections] = React.useState(initialCollectionsRef.current); // The user's selections
 
   // Set the initial data if we don't have any
   React.useEffect(() => {
     if (!data) {
-      onChange(selectedCollections);
+      onChange(initialCollectionsRef.current);
     }
-  }, [data, onChange, selectedCollections]);
+  }, [data, onChange]);
 
   // Calculate how large the list can be
   React.useLayoutEffect(() => {
-    if (parentId && cardRef && cardRef.current) {
+    if (parentId && cardRef.current) {
       const parentEl = document.getElementById(parentId);
       if (parentEl) {
         const parentRect = parentEl.getBoundingClientRect();
         let usedHeight = 0;
-        const childrenQueryIds = ['#filter-conent-header', '#filter-content-actions', '#filter-collection-search-wrapper'];
+        const childrenQueryIds = ['#filter-content-header', '#filter-content-actions', '#filter-collection-search-wrapper'];
         for (let curId of childrenQueryIds) {
           let childEl = cardRef.current.querySelector(curId);
           if (childEl) {
@@ -70,32 +73,32 @@ export default function FilterCollections({data, parentId, onClose, onChange}) {
         setListHeight(parentRect.height - usedHeight);
       }
     }
-  }, [parentId, cardRef]);
+  }, [parentId]);
 
   /**
    * Handles resetting the search field
    * @function
    */
   const handleClearSearch = React.useCallback(() => {
-    const searchEl = document.getElementById('file-collections-search');
-    if (searchEl) {
-      searchEl.value = '';
+    if (searchRef.current) {
+      searchRef.current.value = '';
       setDisplayedCollections(collectionItems);
     }
-  }, [setDisplayedCollections]);
+  }, [collectionItems, setDisplayedCollections]);
 
   /**
    * Handles selecting all collections to the filter
    * @function
    */
   const handleSelectAll = React.useCallback(() => {
-    const curCollections = displayedCollections.map((item) => item.bucket);
-    const newCollections = curCollections.filter((item) => selectedCollections.findIndex((selItem) => selItem === item) < 0);
-    const updatedSelections = [...selectedCollections, ...newCollections];
+    const existingSet = new Set(selectedCollections);
+    const updatedSelections = [...selectedCollections,
+                                ...displayedCollections.map(item => item.bucket).filter(prevItem => !existingSet.has(prevItem))
+                              ];
     setSelectedCollections(updatedSelections);
     onChange(updatedSelections);
     handleClearSearch();
-  }, [displayedCollections, handleClearSearch, selectedCollections, setSelectedCollections])
+  }, [displayedCollections, handleClearSearch, onChange, selectedCollections, setSelectedCollections])
 
   /**
    * Clears all selected collections
@@ -105,7 +108,7 @@ export default function FilterCollections({data, parentId, onClose, onChange}) {
     setSelectedCollections([]);
     onChange([]);
     handleClearSearch();
-  }, [handleClearSearch, setSelectedCollections]);
+  }, [handleClearSearch, onChange, setSelectedCollections]);
 
   /**
    * Handles when the user selects or deselects a collection
@@ -116,14 +119,11 @@ export default function FilterCollections({data, parentId, onClose, onChange}) {
   const handleCheckboxChange = React.useCallback((event, collectionName) => {
 
     if (event.target.checked) {
-      const collectionIdx = selectedCollections.findIndex((item) => collectionName === item);
       // Add the collections in if we don't have it already
-      if (collectionIdx < 0) {
-        const curCollections = selectedCollections;
-        curCollections.push(collectionName);
+      if (!selectedCollections.includes(collectionName)) {
+        const curCollections = [...selectedCollections, collectionName];
         setSelectedCollections(curCollections);
         onChange(curCollections);
-        setSelectionRedraw(selectionRedraw + 1);
       }
     } else {
       // Remove the collections if we have it
@@ -131,10 +131,9 @@ export default function FilterCollections({data, parentId, onClose, onChange}) {
       if (curCollections.length < selectedCollections.length) {
         setSelectedCollections(curCollections);
         onChange(curCollections);
-        setSelectionRedraw(selectionRedraw + 1);
       }
     }
-  }, [selectedCollections, setSelectedCollections, setSelectionRedraw]);
+  }, [onChange, selectedCollections, setSelectedCollections]);
 
   /**
    * Handles the user changing the search criteria
@@ -156,12 +155,12 @@ export default function FilterCollections({data, parentId, onClose, onChange}) {
     <FilterCard cardRef={cardRef} title="Collections Filter" onClose={onClose}
                 actions={
                   <React.Fragment>
-                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
-                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
+                    <Button sx={{flex:1}} size="small" onClick={handleSelectAll}>Select All</Button>
+                    <Button sx={{flex:1}} size="small" onClick={handleSelectNone}>Select None</Button>
                   </React.Fragment>
                 }
     >
-      <Grid sx={{minHeight:listHeight+'px', maxHeight:listHeight+'px', height:listHeight+'px', minWidth:'250px', overflow:'scroll',
+      <Grid sx={{minHeight:listHeight, maxHeight:listHeight, height:listHeight, minWidth:'250px', overflowY:'auto',
                       border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
                       backgroundColor:'rgb(255,255,255,0.3)'
                     }}>
@@ -169,7 +168,7 @@ export default function FilterCollections({data, parentId, onClose, onChange}) {
           { displayedCollections.map((item) => 
               <FormControlLabel key={'filter-collections-' + item.name}
                                 control={<Checkbox size="small" 
-                                                   checked={selectedCollections.findIndex((curCollections) => curCollections===item.bucket) > -1 ? true : false}
+                                                   checked={selectedCollections.includes(item.bucket)}
                                                    onChange={(event) => handleCheckboxChange(event,item.bucket)}
                                           />} 
                                 label={<Typography variant="body2">{item.name}</Typography>} />
@@ -184,6 +183,7 @@ export default function FilterCollections({data, parentId, onClose, onChange}) {
           label="Search"
           slotProps={{
             input: {
+              inputRef:searchRef,
               endAdornment:(
                 <InputAdornment position="end">
                   <IconButton onClick={handleClearSearch}>
@@ -199,3 +199,18 @@ export default function FilterCollections({data, parentId, onClose, onChange}) {
     </FilterCard>
   );
 }
+
+FilterCollections.propTypes = {
+  /** Any stored collections data - array of bucket name strings */
+  data:      PropTypes.arrayOf(PropTypes.string),
+  /** The ID of the parent element, used for height calculations */
+  parentId:  PropTypes.string.isRequired,
+  /** Called when the filter is closed */
+  onClose:   PropTypes.func.isRequired,
+  /** Called with the updated array of selected bucket strings when selections change */
+  onChange:  PropTypes.func.isRequired,
+};
+
+FilterCollections.defaultProps = {
+  data: null,
+};

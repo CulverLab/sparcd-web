@@ -9,35 +9,12 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 import FilterCard from './FilterCard';
 
-// The names of the hours to use
-const hoursNames = [
-  '1',
-  '2',
-  '3',
-  '4',
-  '5',
-  '6',
-  '7',
-  '8',
-  '9',
-  '10',
-  '11',
-  '12',
-  '13',
-  '14',
-  '15',
-  '16',
-  '17',
-  '18',
-  '19',
-  '20',
-  '21',
-  '22',
-  '23',
-  '24',
-];
+// The names of the hours to use (numeric values as strings)
+const hoursNames = Array.from({length: 24}, (_, i) => String(i));
 
 /**
  * Adds hour information to form data
@@ -51,7 +28,7 @@ export function FilterHourFormData(data, formData) {
 
 /**
  * Returns the UI for filtering by hours
- * @param {object} {data} Saved hour data
+ * @param {object} [data] Saved hour data
  * @param {string} parentId The ID of the parent of this filter
  * @param {function} onClose The handler for closing this filter
  * @param {function} onChange The handler for when the filter data changes
@@ -59,26 +36,26 @@ export function FilterHourFormData(data, formData) {
  */
 export default function FilterHour({data, parentId, onClose, onChange}) {
   const theme = useTheme();
-  const cardRef = React.useRef();   // Used for sizeing
+  const cardRef = React.useRef(null);   // Used for sizing
+  const initialHoursRef = React.useRef(data ? data : hoursNames); // The user's selections
   const [listHeight, setListHeight] = React.useState(200);
-  const [selectedHours, setSelectedHours] = React.useState(data ? data : hoursNames); // The user's selections
-  const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
+  const [selectedHours, setSelectedHours] = React.useState(initialHoursRef.current); // The user's selections
 
   // Set the default data if we don't have any yet
   React.useEffect(() => {
     if (!data) {
-      onChange(selectedHours);
+      onChange(initialHoursRef.current);
     }
-  }, [data, onChange, selectedHours]);
+  }, [data, onChange]);
 
   // Calculate how large the list can be
   React.useLayoutEffect(() => {
-    if (parentId && cardRef && cardRef.current) {
+    if (parentId && cardRef.current) {
       const parentEl = document.getElementById(parentId);
       if (parentEl) {
         const parentRect = parentEl.getBoundingClientRect();
         let usedHeight = 0;
-        const childrenQueryIds = ['#filter-conent-header', '#filter-content-actions'];
+        const childrenQueryIds = ['#filter-content-header', '#filter-content-actions'];
         for (let curId of childrenQueryIds) {
           let childEl = cardRef.current.querySelector(curId);
           if (childEl) {
@@ -89,25 +66,25 @@ export default function FilterHour({data, parentId, onClose, onChange}) {
         setListHeight(parentRect.height - usedHeight);
       }
     }
-  }, [parentId, cardRef]);
+  }, [parentId]);
 
   /**
    * Handles selecting all the filter choices
    * @function
    */
-  function handleSelectAll() {
+  const handleSelectAll = React.useCallback(() => {
     setSelectedHours(hoursNames);
     onChange(hoursNames);
-  }
+  }, [onChange]);
 
   /**
    * Handles clearing all of the filter choices
    * @function
    */
-  function handleSelectNone() {
+  const handleSelectNone = React.useCallback(() => {
     setSelectedHours([]);
     onChange([]);
-  }
+  }, [onChange]);
 
 
   /**
@@ -116,17 +93,14 @@ export default function FilterHour({data, parentId, onClose, onChange}) {
    * @param {object} event The triggering event data
    * @param {string} hourName The name of the hour to add or remove from the filter
    */
-  function handleCheckboxChange(event, hourName) {
+  const handleCheckboxChange = React.useCallback((event, hourName) => {
 
     if (event.target.checked) {
-      const hourIdx = selectedHours.findIndex((item) => hourName === item);
       // Add the hour in if we don't have it already
-      if (hourIdx < 0) {
-        const curHours = selectedHours;
-        curHours.push(hourName);
+      if (!selectedHours.includes(hourName)) {
+        const curHours = [...selectedHours, hourName];
         setSelectedHours(curHours);
         onChange(curHours);
-        setSelectionRedraw(selectionRedraw + 1);
       }
     } else {
       // Remove the hour if we have it
@@ -134,22 +108,21 @@ export default function FilterHour({data, parentId, onClose, onChange}) {
       if (curHours.length < selectedHours.length) {
         setSelectedHours(curHours);
         onChange(curHours);
-        setSelectionRedraw(selectionRedraw + 1);
       }
     }
-  }
+  }, [onChange, selectedHours]);
 
   // Return the UI for filtering by the hour
   return (
     <FilterCard cardRef={cardRef} title="Hour Filter" onClose={onClose}
                 actions={
                   <React.Fragment>
-                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
-                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
+                    <Button sx={{flex:1}} size="small" onClick={handleSelectAll}>Select All</Button>
+                    <Button sx={{flex:1}} size="small" onClick={handleSelectNone}>Select None</Button>
                   </React.Fragment>
                 }
     >
-      <Grid sx={{minHeight:listHeight+'px', maxHeight:listHeight+'px', height:listHeight+'px', minWidth:'250px', overflow:'scroll',
+      <Grid sx={{minHeight:listHeight, maxHeight:listHeight, height:listHeight, minWidth:'250px', overflowY:'auto',
                       border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
                       backgroundColor:'rgb(255,255,255,0.3)'
                     }}>
@@ -157,7 +130,7 @@ export default function FilterHour({data, parentId, onClose, onChange}) {
           { hoursNames.map((item) => 
               <FormControlLabel key={'filter-hours-' + item}
                                 control={<Checkbox size="small" 
-                                                   checked={selectedHours.findIndex((curHour) => curHour===item) > -1 ? true : false}
+                                                   checked={selectedHours.includes(item)}
                                                    onChange={(event) => handleCheckboxChange(event,item)}
                                           />} 
                                 label={<Typography variant="body2">{item}</Typography>} />
@@ -168,3 +141,14 @@ export default function FilterHour({data, parentId, onClose, onChange}) {
     </FilterCard>
   );
 }
+
+FilterHour.propTypes = {
+  data:     PropTypes.arrayOf(PropTypes.string),
+  parentId: PropTypes.string.isRequired,
+  onClose:  PropTypes.func.isRequired,
+  onChange: PropTypes.func.isRequired,
+};
+
+FilterHour.defaultProps = {
+  data: null,
+};

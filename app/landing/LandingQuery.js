@@ -69,13 +69,13 @@ export default function LandingQuery() {
       return null;
     }
 
-  // Clamp the number of tiles to show to the available data
-  const numTiles = Math.min(3, animalsNums.length);
-  const foundIdx = new Set();
+    // Clamp the number of tiles to show to the available data
+    const numTiles = Math.min(3, animalsNums.length);
+    const foundIdx = new Set();
 
-  while (foundIdx.size < numTiles) {
-    foundIdx.add(Math.floor(Math.random() * animalsNums.length));
-  }
+    while (foundIdx.size < numTiles) {
+      foundIdx.add(Math.floor(Math.random() * animalsNums.length));
+    }
 
     return [...foundIdx];
   }, [animalsNums]);
@@ -85,7 +85,7 @@ export default function LandingQuery() {
     <Stack>
       <Grid id="sandbox-query-info-wrapper" container direction="row" alignItems="center" justifyContent="space-around"
             sx={{paddingTop:'10px'}}>
-        { animalsNums?.map((item, idx) =>  showAnimalIdx?.includes(idx) && <LandingInfoTile key={item[1]} title={item[1]} details={item[0]} />
+        { animalsNums?.map((item, idx) => showAnimalIdx?.includes(idx) && <LandingInfoTile key={item[0]} title={item[1]} details={item[0]} />
         )
       }
       </Grid>
