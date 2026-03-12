@@ -9,9 +9,10 @@ import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
-import Grid from '@mui/material/Grid';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
+
+import PropTypes from 'prop-types';
 
 import { Level } from '../components/Messages';
 import { AddMessageContext, TokenExpiredFuncContext, TokenContext } from '../serverInfo';
@@ -20,20 +21,20 @@ import * as utils from '../utils';
 /**
  * Returns the UI for the Landing page
  * @function
- * @param {object} collection The collection associatd with the upload to repair
- * @param {object} upload The upload to be repaired
+ * @param {object} collectionInfo The collection associated with the upload to repair
+ * @param {object} uploadInfo The upload to be repaired
  * @param {function} onUploadImages Function to call when the user wants to try repairing by loading images
  * @param {function} onUploadMovies Function to call when the user wants to try repairing by loading movies
- * @param {function} onClose Function to call the use is finished
+ * @param {function} onClose Function to call when the user is finished
  * @returns {object} The rendered UI
  */
 export default function UploadRepair({collectionInfo, uploadInfo, onUploadImages, onUploadMovies, onClose}) {
   const theme = useTheme();
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
-  const setTokenExpired = React.useContext(TokenExpiredFuncContext);
+  const tokenExpiredFunc = React.useContext(TokenExpiredFuncContext);
   const uploadToken = React.useContext(TokenContext);  // Login token
   const [failureMessage, setFailureMessage] = React.useState(null);     // Holds messages upon failure
-  const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
+  const serverURL = React.useMemo(() => utils.getServer(), []);  // The server URL to use
 
   /**
    * Function to mark the currently selected upload as completed
@@ -47,7 +48,7 @@ export default function UploadRepair({collectionInfo, uploadInfo, onUploadImages
     formData.append('uploadKey', uploadInfo.key);
 
     try {
-      const resp = fetch(uploadCompleteUrl, {
+      fetch(uploadCompleteUrl, {
         credentials: 'include',
         method: 'POST',
         body: formData,
@@ -57,7 +58,7 @@ export default function UploadRepair({collectionInfo, uploadInfo, onUploadImages
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setTokenExpired();
+                tokenExpiredFunc();
               }
               throw new Error(`Failed to mark upload complete: ${resp.status}`, {cause:resp});
             }
@@ -74,17 +75,17 @@ export default function UploadRepair({collectionInfo, uploadInfo, onUploadImages
         })
         .catch(function(err) {
           console.log('Mark Upload Complete Error: ',err);
-          const message = "An error occured while trying to mark upload as complete";
+          const message = "An error occurred while trying to mark upload as complete";
           addMessage(Level.Error, message);
           setFailureMessage(message)
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Mark Upload Complete Unknown Error: ',err);
-      const message = "An unknown error occured while trying to mark upload as complete";
+      const message = "An unknown error occurred while trying to mark upload as complete";
       addMessage(Level.Error, message);
       setFailureMessage(message)
     }
-  }, [addMessage, serverURL, setTokenExpired, uploadToken]);
+  }, [addMessage, serverURL, tokenExpiredFunc, uploadToken]);
 
   /**
    * Function to continue the image upload
@@ -98,12 +99,12 @@ export default function UploadRepair({collectionInfo, uploadInfo, onUploadImages
       onUploadMovies(collectionInfo, uploadInfo);
       onClose();
     }
-  }, []);
+  }, [collectionInfo, onClose, onUploadImages, onUploadMovies, uploadInfo]);
 
   // Return the UI
   return (
     <Box id="landing-page-fix-upload-wrapper" sx={{...theme.palette.screen_overlay_grey, zIndex:11111}}>
-      <Card id='anding-page-fix-upload' variant="outlined" sx={{ ...theme.palette.folder_upload }} >
+      <Card id='landing-page-fix-upload' variant="outlined" sx={{ ...theme.palette.folder_upload }} >
         <CardHeader sx={{ textAlign: 'center' }} title="Repair an incomplete upload" />
         <CardContent>
           <Typography gutterBottom variant="body2" sx={{fontWeight:'bold'}}>
@@ -134,3 +135,11 @@ export default function UploadRepair({collectionInfo, uploadInfo, onUploadImages
     </Box>
   );
 }
+
+UploadRepair.propTypes = {
+  collectionInfo: PropTypes.object.isRequired,
+  uploadInfo: PropTypes.object.isRequired,
+  onUploadImages: PropTypes.func.isRequired,
+  onUploadMovies: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired,
+};

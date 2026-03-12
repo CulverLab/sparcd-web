@@ -3,13 +3,11 @@
 /** @module landing/LandingInfoTile */
 
 import * as React from 'react';
-import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import Grid from '@mui/material/Grid';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import PriorityHighOutlinedIcon from '@mui/icons-material/PriorityHighOutlined';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
+
+import PropTypes from 'prop-types';
 
 /**
  * Returns the UI for information tiles for the landing page
@@ -33,3 +31,8 @@ export default function LandingInfoTile({title, details}) {
     </Grid>
   );
 }
+
+LandingInfoTile.propTypes = {
+  title: PropTypes.string.isRequired,
+  details: PropTypes.string.isRequired,
+};

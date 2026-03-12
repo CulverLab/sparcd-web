@@ -1,3 +1,5 @@
+'use client'
+
 /** @module components/LocationItem */
 
 import * as React from 'react';

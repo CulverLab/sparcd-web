@@ -14,6 +14,8 @@ import { useTheme } from '@mui/material/styles';
 
 import { allTimezones, useTimezoneSelect } from "react-timezone-select";
 
+import PropTypes from 'prop-types';
+
 import LocationItem from '../components/LocationItem'
 import { meters2feet } from '../utils';
 import { BaseURLContext, TokenExpiredFuncContext, TokenContext } from '../serverInfo';
@@ -23,8 +25,8 @@ import { BaseURLContext, TokenExpiredFuncContext, TokenContext } from '../server
  * @function
  * @param {string} displayCoordSystem The coordinate system to display location information in
  * @param {string} measurementFormat The format to display measurement formats
- * @param {object} collectionInfo Array of collections the user can choose from
- * @param {object} locationItems Array of locations uthe user can choose from
+ * @param {Array} collectionInfo Array of collections the user can choose from
+ * @param {Array} locationItems Array of locations uthe user can choose from
  * @param {function} onCollectionChange Handles where the user chooses a collection
  * @param {function} onCommentChange Handles where the user changes the comment field
  * @param {function} onLocationChange Handles where the user chooses a location
@@ -34,11 +36,11 @@ import { BaseURLContext, TokenExpiredFuncContext, TokenContext } from '../server
 export default function FolderUploadForm({displayCoordSystem, measurementFormat, collectionInfo, locationItems, onCollectionChange,
                                           onCommentChange, onLocationChange, onTimezoneChange}) {
   const theme = useTheme();
-  const setTokenExpired = React.useContext(TokenExpiredFuncContext);
+  const tokenExpiredFunc = React.useContext(TokenExpiredFuncContext);
   const serverURL = React.useContext(BaseURLContext);
   const uploadToken = React.useContext(TokenContext);
   const { options, parseTimezone } = useTimezoneSelect({ labelStyle:'altName', allTimezones });
-  const [selectedTimezone, setSelectedTimezone] = React.useState(options.filter((item) => item.offset === -(new Date().getTimezoneOffset() / 60))[0].value);
+  const [selectedTimezone, setSelectedTimezone] = React.useState(options.filter((item) => item.offset === -(new Date().getTimezoneOffset() / 60))[0]?.value ?? options[0]?.value ?? '');
   const [tooltipData, setTooltipData] = React.useState(null);       // Data for tooltip
 
   let curLocationFetchIdx = -1; // Working index of location data to fetch
@@ -49,7 +51,7 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
    * @param {int} locIdx The index of the location to get the details for
    */
   const getTooltipInfo = React.useCallback((locIdx) => {
-    if (curLocationFetchIdx != locIdx) {
+    if (curLocationFetchIdx !== locIdx) {
       curLocationFetchIdx = locIdx;
       const cur_loc = locationItems[curLocationFetchIdx];
       const locationInfoUrl = serverURL + '/locationInfo?t=' + encodeURIComponent(uploadToken);
@@ -62,7 +64,7 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
       formData.append('lon', cur_loc.lngProperty);
       formData.append('ele', cur_loc.elevationProperty);
       try {
-        const resp = fetch(locationInfoUrl, {
+        fetch(locationInfoUrl, {
           credentials: 'include',
           method: 'POST',
           body: formData
@@ -72,7 +74,7 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
               } else {
                 if (resp.status === 401) {
                   // User needs to log in again
-                  setTokenExpired();
+                  tokenExpiredFunc();
                 }
                 throw new Error(`Failed to get location information: ${resp.status}`, {cause:resp});
               }
@@ -88,7 +90,7 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
           .catch(function(err) {
             console.log('Location tooltip Error: ',err);
         });
-      } catch (error) {
+      } catch (err) {
         console.log('Location tooltip Unknown Error: ',err);
       }
     }
@@ -101,7 +103,7 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
    */
   const clearTooltipInfo = React.useCallback((locIdx) => {
     // Only clear the information if we're the active tooltip
-    if (locIdx == curLocationFetchIdx) {
+    if (locIdx === curLocationFetchIdx) {
       setTooltipData(null);
     }
   }, [curLocationFetchIdx, setTooltipData]);
@@ -198,7 +200,7 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
       </FormControl>
       <FormControl fullWidth>
         <Grid container direction="column" alignContent="start" justifyContent="start" sx={{paddingTop:"10px"}} >
-          <Typography gutterBottom variant="body">
+          <Typography gutterBottom variant="body1">
             Mountain Range - Site Name - No. of images collected - Date Uploaded - Date collected
           </Typography>
           <Typography gutterBottom variant="body2">
@@ -209,7 +211,7 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
       </FormControl>
       <FormControl fullWidth={true}>
         <Grid container direction="row" alignItems="center" justifyContent="space-between" sx={{paddingTop:"10px"}} >
-          <Typography gutterBottom variant="body">
+          <Typography gutterBottom variant="body1">
             Timezone of images
           </Typography>
           <Select id="landing-page-upload-timezone" value={selectedTimezone} onChange={handleTimezoneChange}>
@@ -229,3 +231,14 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
     </Grid>
   );
 }
+
+FolderUploadForm.propTypes = {
+  displayCoordSystem: PropTypes.string.isRequired,
+  measurementFormat: PropTypes.string.isRequired,
+  collectionInfo: PropTypes.array.isRequired,
+  locationItems: PropTypes.array.isRequired,
+  onCollectionChange: PropTypes.func.isRequired,
+  onCommentChange: PropTypes.func.isRequired,
+  onLocationChange: PropTypes.func.isRequired,
+  onTimezoneChange: PropTypes.func.isRequired,
+};

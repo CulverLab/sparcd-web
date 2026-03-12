@@ -1,6 +1,6 @@
 'use client'
 
-/** @module components/FolderUpload Continue*/
+/** @module components/FolderUploadContinue */
 
 import * as React from 'react';
 import Box from '@mui/material/Box';
@@ -13,7 +13,9 @@ import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { AddMessageContext, SizeContext } from '../serverInfo';
+import PropTypes from 'prop-types';
+
+import { SizeContext } from '../serverInfo';
 
 /**
  * Renders the UI for continuing a previous upload
@@ -32,7 +34,6 @@ import { AddMessageContext, SizeContext } from '../serverInfo';
 export default function FolderUploadContinue({uploadPath, totalFileCount, remainingFileCount, elapsedSeconds,
                                               onContinue, onRestart, onCreateNew, onAbandon, onCancel}) {
   const theme = useTheme();
-  const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const uiSizes = React.useContext(SizeContext);
 
   /**
@@ -48,7 +49,7 @@ export default function FolderUploadContinue({uploadPath, totalFileCount, remain
     // Days
     let cur_num = Math.floor(remain_seconds / (24 * 60 * 60));
     if (cur_num > 0) {
-      results += `${cur_num} hours `;
+      results += `${cur_num} days `;
       remain_seconds -= cur_num * (24 * 60 * 60);
     }
 
@@ -93,26 +94,26 @@ export default function FolderUploadContinue({uploadPath, totalFileCount, remain
            }
           />
         <CardContent>
-          <Typography gutterBottom variant="body">
+          <Typography gutterBottom variant="body1">
             An incomplete upload from '{uploadPath}' has been detected. How would you like to proceed?
           </Typography>
           <Typography gutterBottom variant="body2">
             {remainingFileCount} out of {totalFileCount} files have been uploaded
           </Typography>
           <Typography gutterBottom variant="body2">
-            Uploaded created {generateSecondsElapsedText(elapsedSeconds)} ago
+            Upload created {generateSecondsElapsedText(elapsedSeconds)} ago
           </Typography>
           <Grid id="landing-page-upload-continue-options-wrapper" container direction="row" rowSpacing={1} alignItems="center" justifyContent="flex-start"
                 sx={{paddingTop:'10px'}}>
             <Grid id="landing-page-upload-continue-options-continue" container direction="row" alignItems="start" justifyContent="flex-start"
-                sx={{border:'1px solid #c3c3d2', borderRadius:'5px', width:'100%', backgroundColor:'#eaeaf9', padding:'50x 0px'}}>
+                sx={{border:'1px solid #c3c3d2', borderRadius:'5px', width:'100%', backgroundColor:'#eaeaf9', padding:'50px 0px'}}>
               <Button id="sandbox-upload-continue-continue" size="small" onClick={onContinue}>Resume Upload</Button>
               <Typography gutterBottom variant="body2" component='div' sx={{width:'70%', marginLeft:'auto'}}>
                 The upload continues from where it left off and will upload the remaining files. This is helpful when the files to upload haven't changed
               </Typography>
             </Grid>
             <Grid id="landing-page-upload-continue-options-restart" container direction="row" alignItems="start" justifyContent="flex-start"
-                sx={{border:'1px solid #c3c3d2', borderRadius:'5px', width:'100%', backgroundColor:'#eaeaf9', padding:'50x 0px'}}>
+                sx={{border:'1px solid #c3c3d2', borderRadius:'5px', width:'100%', backgroundColor:'#eaeaf9', padding:'50px 0px'}}>
               <Button id="sandbox-upload-continue-restart" size="small" onClick={onRestart}>Restart Upload</Button>
               <Typography gutterBottom variant="body2" component='div' sx={{width:'70%', marginLeft:'auto'}} >
                 Restart the entire upload starting from the first image until the last. This is helpful if previously loaded images were changed, replaced, 
@@ -120,7 +121,7 @@ export default function FolderUploadContinue({uploadPath, totalFileCount, remain
               </Typography>
             </Grid>
             <Grid id="landing-page-upload-continue-options-create" container direction="row" alignItems="start" justifyContent="flex-start"
-                sx={{border:'1px solid #c3c3d2', borderRadius:'5px', width:'100%', backgroundColor:'#eaeaf9', padding:'50x 0px'}}>
+                sx={{border:'1px solid #c3c3d2', borderRadius:'5px', width:'100%', backgroundColor:'#eaeaf9', padding:'50px 0px'}}>
               <Button id="sandbox-upload-continue-create" size="small" onClick={onCreateNew}>Create New Upload</Button>
               <Typography gutterBottom variant="body2" component='div' sx={{width:'70%', marginLeft:'auto'}} >
                 Remove the previous upload attempt and create a new upload. This is helpful if the previous upload was incomplete or incorrect
@@ -128,7 +129,7 @@ export default function FolderUploadContinue({uploadPath, totalFileCount, remain
               </Typography>
             </Grid>
             <Grid id="landing-page-upload-continue-options-abandon" container direction="row" alignItems="start" justifyContent="flex-start"
-                sx={{border:'1px solid #c3c3d2', borderRadius:'5px', width:'100%', backgroundColor:'#eaeaf9', padding:'50x 0px'}}>
+                sx={{border:'1px solid #c3c3d2', borderRadius:'5px', width:'100%', backgroundColor:'#eaeaf9', padding:'50px 0px'}}>
               <Button id="sandbox-upload-continue-abandon" size="small" onClick={onAbandon}>Abandon Upload</Button>
               <Typography gutterBottom variant="body2" component='div' sx={{width:'70%', marginLeft:'auto'}} >
                 Will abandon the previous upload attempt and not try to upload anything else. This is helpful if the upload is no longer needed or
@@ -138,10 +139,22 @@ export default function FolderUploadContinue({uploadPath, totalFileCount, remain
           </Grid>
         </CardContent>
         <CardActions>
-          <Button id="sandbox-upload-continue-cancel" sx={{'flex':'1'}} size="small" onClick={onCancel}>Cancel</Button>
+          <Button id="sandbox-upload-continue-cancel" sx={{flex:1}} size="small" onClick={onCancel}>Cancel</Button>
         </CardActions>
       </Card>
       </Grid>
     </Box>
   );
 }
+
+FolderUploadContinue.propTypes = {
+  uploadPath: PropTypes.string.isRequired,
+  totalFileCount: PropTypes.number.isRequired,
+  remainingFileCount: PropTypes.number.isRequired,
+  elapsedSeconds: PropTypes.number.isRequired,
+  onContinue: PropTypes.func.isRequired,
+  onRestart: PropTypes.func.isRequired,
+  onCreateNew: PropTypes.func.isRequired,
+  onAbandon: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+};

@@ -11,15 +11,17 @@ import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 import { SizeContext } from '../serverInfo';
 
 /**
- * Returns the UI for ithe details of a new upload
+ * Returns the UI for the details of a new upload
  * @function
- * @param {number} stepNumber The step number to display
+ * @param {string} stepNumber The step number to display
  * @param {number} stepTotal The total number of steps
- * @param {object} content The Card content to display
- * @param {object} actionInfo An array of button labels, onClick handlers, and disabled boolean values for each button
+ * @param {React.node} content The Card content to display
+ * @param {Array<{label: string, onClick: function, disabled: boolean}>} actionInfo An array of button labels, onClick handlers, and disabled boolean values for each button
  * @returns {object} The rendered UI
  */
 export default function FolderNewUpload({stepNumber, stepTotal, content, actionInfo}) {
@@ -36,7 +38,7 @@ export default function FolderNewUpload({stepNumber, stepTotal, content, actionI
          }
          subheader={
           <React.Fragment>
-            <Typography gutterBottom variant="body">
+            <Typography gutterBottom variant="body1">
               Select Collection and Location to proceed
             </Typography>
             <br />
@@ -51,9 +53,20 @@ export default function FolderNewUpload({stepNumber, stepTotal, content, actionI
       </CardContent>
       <CardActions>
         {actionInfo?.map((item, idx) =>
-          <Button key={idx} sx={{'flex':'1'}} size="small" onClick={item.onClick} disabled={item.disabled}>{item.label}</Button>
+          <Button key={`${item.label}-${idx}`} sx={{flex:1}} size="small" onClick={item.onClick} disabled={item.disabled}>{item.label}</Button>
           )}
       </CardActions>
     </Card>
   );
 }
+
+FolderNewUpload.propTypes = {
+  stepNumber: PropTypes.number.isRequired,
+  stepTotal: PropTypes.number.isRequired,
+  content: PropTypes.node.isRequired,
+  actionInfo: PropTypes.arrayOf(PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    onClick: PropTypes.func.isRequired,
+    disabled: PropTypes.bool,
+  })),
+};
