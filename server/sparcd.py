@@ -337,6 +337,10 @@ def sendnextimage():
     q_param = request.args.get('q')
     print("RETURN _next IMAGE:",image_path,flush=True)
 
+    # Make sure we have a good query
+    if not image_path:
+        return 'Resource not found', 404
+
     # Normalize parameters
     if w_param:
         try:
@@ -1836,7 +1840,7 @@ def sandbox_file():
         # Upload the file to S3
         S3Connection.upload_file(s3_url, user_info.name,
                                         get_password(token, db), s3_bucket,
-                                        s3_path + '/' + remote_name,
+                                        make_s3_path((s3_path, remote_name)),
                                         upload_file)
 
         # Update the database entry to show the file is uploaded
