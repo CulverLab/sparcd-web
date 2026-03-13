@@ -51,7 +51,7 @@ export default function LandingUpload({loadingSandbox, onChange}) {
                 // User needs to log in again
                 tokenExpiredFunc();
               }
-              throw new Error(`Failed to get upload statistics: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get upload statistics: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {

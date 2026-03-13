@@ -63,7 +63,6 @@ function haveLowMemory() {
     const memMax = performance.memory.jsHeapSizeLimit;
 
     // Return whether we have enough available memory
-    console.log('HACK: MEMORY: ', memMax / (1024*1024), memUsed / (1024*1024), (memMax * 0.8) / (1024*1024));
     return memUsed > memMax * 0.8;  // True if we're low on memory
   }
 
@@ -107,7 +106,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
   const [filesSelected, setFilesSelected] = React.useState(0);
   const [finishingUpload, setFinishingUpload] = React.useState(false); // Used when finishing up an upload
   const [forceRedraw, setForceRedraw] = React.useState(0);
-  const [haveFailedUpload, setHaveFailedUpload] = React.useState(false); // Used to flag that some files didn't get uploaded successfully
   const [inputSize, setInputSize] = React.useState({'width':252,'height':21}); // Updated when UI rendered
   const [locationSelection, setLocationSelection] = React.useState(null);
   const [newUpload, setNewUpload] = React.useState(false); // Used to indicate that we have  a new upload
@@ -187,7 +185,9 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       },
       (err) => {      // Failure
           if (numRetries >= 6) {
-            addMessage(Level.Error, 'A problem ocurred while getting failed files for the upload');
+            const msg = `A problem occurred getting failed files for the upload. Upload ID: ${uploadId}`;
+            console.log('ERROR', msg);
+            addMessage(Level.Error, msg);
             setUploadState(uploadingState.error);
           } else {
             numRetries++;
@@ -198,7 +198,9 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
     // Check for a problem
     if (!success) {
-      addMessage(Level.Error, 'An unknown problem ocurred while getting failed files for the upload');
+      const msg = `An unknown problem occurred while getting failed files for the upload. Upload ID: ${uploadId}`;
+      console.log('ERROR', msg);
+      addMessage(Level.Error, msg);
       setUploadState(uploadingState.error);
     }
   }, [addMessage, setUploadState]);
@@ -221,7 +223,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       setUploadState(uploadingState.none);
       disableIdleCheckFunc(false);       // Enable idle checking
     } else {
-      // We have failed uploads. Keep track of what we have so that we can retry when
+      // We may have failed uploads. Keep track of what we have so that we can retry when
       // the uploads have stabilized (the ones that could succeed, have succeeded)
       if (respData.uploaded !== prevUploadCount || !startTs) {
         // Something updated, we're not ready to get the failed images
@@ -250,7 +252,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                       },
                 () => {   // Failure function
                       console.log('ERROR: Unable to find failed files in list of files to upload');
-                      addMessage(Level.Error, 'An error ocurred while trying to fetch list of failed files from the server');
+                      addMessage(Level.Error, 'An error occurred while trying to fetch list of failed files from the server');
                       setUploadState(uploadingState.uploadFailure);
                       disableIdleCheckFunc(false);    // Enable checking for idle
                       }
@@ -285,7 +287,9 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       },
       (err) => {      // Failure
         if (numRetries >= 6) {
-          addMessage(Level.Error, 'A problem ocurred while checking upload image counts');
+          const msg = `A problem occurred while checking upload image counts. Upload ID: ${uploadId}`;
+          console.log('ERROR', msg);
+          addMessage(Level.Error, msg);
           setUploadState(uploadingState.error);
           disableIdleCheckFunc(false);    // Enable checking for idle
         } else {
@@ -298,7 +302,9 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
     // Check for an error
     if (!success) {
-      addMessage(Level.Error, 'An unknown problem ocurred while checking upload image counts');
+      const msg = `An unknown problem occurred while checking upload image counts. Upload ID: ${uploadId}`;
+      console.log('ERROR', msg);
+      addMessage(Level.Error, msg);
       setUploadState(uploadingState.error);
       disableIdleCheckFunc(false);    // Enable checking for idle
     }
@@ -332,14 +338,14 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
         onSuccess(uploadId, respData);
       },
       (err) => {      // Failure
-        addMessage(Level.Error, 'A problem ocurred while completing image upload');
+        addMessage(Level.Error, 'A problem occurred while completing image upload');
         onFailure(uploadId);
       }
     );
 
     // Check for an error
     if (!success) {
-      addMessage(Level.Error, 'An unknown problem ocurred while completing image upload');
+      addMessage(Level.Error, 'An unknown problem occurred while completing image upload');
       onFailure(uploadId);
     }
   }
@@ -404,7 +410,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
             // Tell the database about the failed files
             // After several failures to upload, move on - we will catch them later and try again
             const nextFiles = getNextUploadChunk(fileChunk, numFiles, startTs);
-            setHaveFailedUpload(true);
             if (nextFiles.files.length > 0) {
               window.setTimeout(() => uploadChunk(nextFiles.files, uploadId), 10);
             }
@@ -415,9 +420,9 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     // Check for a problem making the call
     if (!success) {
       console.log('Upload Images Unknown Error: ');
-      addMessage(Level.Error, 'An unknown problem ocurred while uploading images');
+      addMessage(Level.Error, 'An unknown problem occurred while uploading images');
     }
-  }, [addMessage, options, selectedTimezone, serverURL, setHaveFailedUpload, uploadToken]);
+  }, [addMessage, options, selectedTimezone, serverURL, uploadToken]);
 
   /**
    * Handles uploading a folder of files
@@ -439,7 +444,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
 
     disableIdleCheckFunc(true);    // Disable the checks for idle until we're done
     setUploadingFiles(true);
-    setHaveFailedUpload(false);
     setUploadState(uploadingState.uploading);
 
     // Figure out how many instances we want sending data
@@ -458,7 +462,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     window.setTimeout(() => getUploadCounts(uploadId, uploadFiles), 1000);
 
     setWorkingUploadId(uploadId);
-  }, [addMessage, getUploadCounts, setHaveFailedUpload, setWorkingUploadId, setUploadingFiles, uploadChunk]);
+  }, [addMessage, getUploadCounts, setWorkingUploadId, setUploadingFiles, uploadChunk]);
 
   /**
    * Calls the cancelation function when the user clicks cancel
@@ -534,6 +538,48 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       cancelUpload();
     }
   }, [addMessage, cancelUpload, setNewUpload, setUploadState, uploadFolder]);
+
+  /**
+   * Calculates the highest level file path based upon the starting path and each of the file's name
+   * @function
+   * @param {Array} files The list of file upload entries to look through
+   * @param {string} defaultPath The path to return if there isn't a common path
+   * @returns {string} Returns the topmost path
+   */
+  function getRelativePath(files, defaultPath) {
+    let paths = new Set();
+
+    if (!files) {
+      return defaultPath;
+    }
+
+    // Get the set of possibilities
+    for (const oneFile of files) {
+      paths.add(oneFile.webkitRelativePath.substr(0, oneFile.webkitRelativePath.length - oneFile.name.length - 1));
+    }
+
+    // Check for needing to go up a level in the paths
+    while (paths.size > 1) {
+      // Working out way up to the most common path
+      const pathSep = Array.from(paths)[0].indexOf('\\') >= 0 ? '\\' : '/';
+      const newPaths = new Set();
+
+      for (const onePath of paths) {
+        const lastPos = onePath.lastIndexOf(pathSep);
+        if (lastPos > -1) {
+          newPaths.add(onePath.substr(0, lastPos));
+        } else {
+          newPaths.add(onePath);
+        }
+      }
+
+      // Assign our new list to paths and try again
+      paths = newPaths;
+    }
+
+    // Return what we have
+    return paths.size > 0 ? Array.from(paths)[0] : defaultPath;
+  }
 
   /**
    * Handles the user wanting to upload files
@@ -624,7 +670,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       }
       return;
     }
-    relativePath = relativePath.substr(0, relativePath.length - allowedFiles[0].name.length - 1);
+    relativePath = getRelativePath(allowedFiles, relativePath);
 
     if (!recovery) {
       const success = Server.checkPreviousUpload(serverURL, uploadToken, relativePath, tokenExpiredFunc, 
@@ -636,14 +682,18 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                           if (folderCancelRef.current) {
                             folderCancelRef.current.disabled = false;
                           }
-                          addMessage(Level.Error, 'A problem ocurred while preparing for upload');
+                          const msg = `A problem occurred while preparing for upload. Upload ID: ${uploadId}`;
+                          console.log('ERROR', msg);
+                          addMessage(Level.Error, msg);
                           setUploadState(uploadingState.error);
                         }
         );
 
       // Check for an error
       if (!success) {
-        addMessage(Level.Error, 'An unknown problem ocurred while preparing for upload');
+        const msg = `An unknown problem occurred while preparing for upload. Upload ID: ${uploadId}`;
+        console.log('ERROR', msg);
+        addMessage(Level.Error, msg);
         setUploadState(uploadingState.error);
       }
     } else {
@@ -666,13 +716,17 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                                                       if (folderCancelRef.current) {
                                                         folderCancelRef.current.disabled = false;
                                                       }
-                                                      addMessage(Level.Error, 'A problem ocurred while preparing for upload');
+                                                      const msg = `A problem occurred while preparing for upload. Upload ID: ${uploadId}`;
+                                                      console.log('ERROR', msg);
+                                                      addMessage(Level.Error, msg);
                                                       setUploadState(uploadingState.error);
                                                       cancelUpload();
                                                     });
                   // Check for an error
                   if (!success) {
-                    addMessage(Level.Error, 'An unknown problem ocurred while preparing for recovery of an upload');
+                    const msg = `An unknown problem occurred while preparing for recovery of an upload. Upload ID: ${uploadId}`;
+                    console.log('ERROR', msg);
+                    addMessage(Level.Error, msg);
                     setUploadState(uploadingState.error);
                     cancelUpload();
                   }
@@ -763,6 +817,31 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     uploadFolder(workingUploadFiles, workingUploadId);
   }, [setUploadState, uploadFolder, workingUploadFiles, workingUploadId]);
 
+  /** Function to handle the user wanting to retry after failed upload as part of initial upload
+   * @function
+   */
+  const failedUploadRetry = React.useCallback(() => {
+  }, []);
+//    disableIdleCheckFunc(true);    // Disable the checks for idle until we're done
+//
+//    setUploadState(uploadingState.retryingFailed);
+//    handleFailedUploads(uploadId, uploadFiles, 
+//        () => {   // Success function
+//              setUploadState(uploadingState.none);
+//              disableIdleCheckFunc(false);    // Enable checking for idle
+//              },
+//        () => {   // Failure function
+//              console.log('ERROR: Unable to find failed files in list of files to upload');
+//              addMessage(Level.Error, 'An error occurred while trying to fetch list of failed files from the server');
+//              setUploadState(uploadingState.uploadFailure);
+//              disableIdleCheckFunc(false);    // Enable checking for idle
+//              }
+//      );
+//    // Start checking the upload counts
+//    window.setTimeout(() => internalGetUploadCounts(uploadId, uploadFiles), 2000);
+//
+//  }, [disableIdleCheckFunc, handleFailedUploads, uploadFiles, uploadId]);
+
   /**
    * Mark the failed upload as completed
    * @function
@@ -818,13 +897,13 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                           },
                           (err) => {   // Failure
                             setDisableDetails(false);
-                            addMessage(Level.Error, 'A problem ocurred while preparing for new sandbox upload');
+                            addMessage(Level.Error, 'A problem occurred while preparing for new sandbox upload');
                           }
                         );
         // Check for an error
         if (!success) {
           setDisableDetails(false);
-          addMessage(Level.Error, 'An unknown problem ocurred while preparing for new sandbox upload');
+          addMessage(Level.Error, 'An unknown problem occurred while preparing for new sandbox upload');
         }
     }, 100);
   }, [addMessage, collectionSelection, comment, disableUploadDetailsRef, locationSelection, newUploadFiles, setDisableDetails, 
@@ -859,13 +938,13 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
         },
         (err) => {        // Failure
             setUploadingFiles(false);
-            setNotificationMessage({message:'An error ocurred while trying to continue the upload', action:() => {cancelUpload();failedIgnore();} });
+            setNotificationMessage({message:'An error occurred while trying to continue the upload', action:() => {cancelUpload();failedIgnore();} });
         }
     );
 
     // Check for an error
     if (!success) {
-      const message = 'An unknown problem ocurred while confirming continuation of upload';
+      const message = 'An unknown problem occurred while confirming continuation of upload';
       addMessage(Level.Error, message);
       setNotificationMessage({message, action:cancelUpload});
     }
@@ -929,13 +1008,13 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                               },
                               (err) => {
                                   disableUploadCheckRef.current = false;
-                                  addMessage(Level.Error, 'A problem ocurred while preparing for reset sandbox upload');
+                                  addMessage(Level.Error, 'A problem occurred while preparing for reset sandbox upload');
                               }
                             );
 
     // Check for an error
     if (!success) {
-      addMessage(Level.Error, 'An unknown problem ocurred while preparing for reset sandbox upload');
+      addMessage(Level.Error, 'An unknown problem occurred while preparing for reset sandbox upload');
     }
   }, [addMessage, continueUploadInfo, disableUploadCheckRef, prevUploadCheckState, setContinueUploadInfo, setPrevUploadCheck,
       setUploadingFileCounts, uploadFolder]);
@@ -966,13 +1045,13 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                               },
                               (err) => {   // Failure
                                   disableUploadCheckRef.current = false;
-                                  addMessage(Level.Error, 'A problem ocurred while preparing for abandoning sandbox upload');
+                                  addMessage(Level.Error, 'A problem occurred while preparing for abandoning sandbox upload');
                               }
                           );
 
     // Check for an error
     if (!success) {
-      addMessage(Level.Error, 'An unknown problem ocurred while preparing for abandoning sandbox upload');
+      addMessage(Level.Error, 'An unknown problem occurred while preparing for abandoning sandbox upload');
     }
   }, [addMessage, continueUploadInfo, onCompleted, prevUploadCheckState, setCollectionSelection,
       setComment, setContinueUploadInfo, setLocationSelection, setNewUpload, setPrevUploadCheck, setUploadingFileCounts, tokenExpiredFunc]);
@@ -1092,6 +1171,8 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
         return "Retrying failed images";
       case uploadingState.uploadFailure:
         return "Failed to upload all files";
+      case uploadingState.error:
+        return "An error occurred while uploading files";
       default:
         console.log('WARNING: invalid upload state', state);
         return "<INVALID UPLOAD STATE STRING REQUEST>";
@@ -1157,6 +1238,14 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
           <React.Fragment>
             <Button id="folder_upload_fail_retry" sx={{flex:1}} size="small" onClick={failedRetry}>Retry Now</Button>
             <Button id="folder_upload_fail_ignore" sx={{flex:1}} size="small" onClick={failedIgnore}>Retry Later</Button>
+            <Button id="folder_upload_fail_done" sx={{flex:1, whiteSpace:"nowrap"}} size="small" onClick={failedDone}>Mark Completed</Button>
+          </React.Fragment>
+        );
+      }
+      if (uploadState === uploadingState.error) {
+        return (
+          <React.Fragment>
+            <Button id="folder_upload_fail_retry" sx={{flex:1}} size="small" onClick={failedUploadRetry}>Retry failed files</Button>
             <Button id="folder_upload_fail_done" sx={{flex:1, whiteSpace:"nowrap"}} size="small" onClick={failedDone}>Mark Completed</Button>
           </React.Fragment>
         );

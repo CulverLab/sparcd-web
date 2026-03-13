@@ -76,7 +76,7 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
                   // User needs to log in again
                   tokenExpiredFunc();
                 }
-                throw new Error(`Failed to get location information: ${resp.status}`, {cause:resp});
+                throw new Error(`Failed to get location information: ${resp.status}: ${await resp.text()}`);
               }
             })
           .then((respData) => {

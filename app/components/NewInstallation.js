@@ -76,7 +76,7 @@ export default function NewInstallation({newInstallToken, isRepair, onCancel}) {
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to check if a new install is viable: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to check if a new install is viable: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -110,12 +110,12 @@ export default function NewInstallation({newInstallToken, isRepair, onCancel}) {
         })
         .catch(function(err) {
           console.log('Check New Install Error: ', err);
-          addMessage(Level.Error, 'A problem ocurred while checking the viability of a new install');
+          addMessage(Level.Error, 'A problem occurred while checking the viability of a new install');
           setInstallStep(InstallStep.checkInstallFailed);
       });
     } catch (err) {
       console.log('Check New Install Unknown Error: ',err);
-      addMessage(Level.Error, 'An unknown problem ocurred while checking the viability of a new install');
+      addMessage(Level.Error, 'An unknown problem occurred while checking the viability of a new install');
       setInstallStep(InstallStep.checkInstallFailed);
     }
 
@@ -143,7 +143,7 @@ export default function NewInstallation({newInstallToken, isRepair, onCancel}) {
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to create a new installation: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to create a new installation: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -155,12 +155,12 @@ export default function NewInstallation({newInstallToken, isRepair, onCancel}) {
         })
         .catch(function(err) {
           console.log('New Install Error: ', err);
-          addMessage(Level.Error, 'A problem ocurred while creating a new install');
+          addMessage(Level.Error, 'A problem occurred while creating a new install');
           setInstallStep(InstallStep.installFailed);
       });
     } catch (err) {
       console.log('New Install Unknown Error: ',err);
-      addMessage(Level.Error, 'An unknown problem ocurred while creating a new install');
+      addMessage(Level.Error, 'An unknown problem occurred while creating a new install');
       setInstallStep(InstallStep.installFailed);
     }
   }, [addMessage, serverURL, setTokenExpired, setInstallStep])
@@ -186,7 +186,7 @@ export default function NewInstallation({newInstallToken, isRepair, onCancel}) {
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to repair existing installation: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to repair existing installation: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -198,12 +198,12 @@ export default function NewInstallation({newInstallToken, isRepair, onCancel}) {
         })
         .catch(function(err) {
           console.log('Install Repair Error: ', err);
-          addMessage(Level.Error, 'A problem ocurred while trying to repair an existing installation');
+          addMessage(Level.Error, 'A problem occurred while trying to repair an existing installation');
           setInstallStep(InstallStep.repairFailed);
       });
     } catch (err) {
       console.log('Install Repair Unknown Error: ',err);
-      addMessage(Level.Error, 'An unknown problem ocurred while trying to repair an existing installation');
+      addMessage(Level.Error, 'An unknown problem occurred while trying to repair an existing installation');
       setInstallStep(InstallStep.repairFailed);
     }
   }, [addMessage, serverURL, setTokenExpired, setInstallStep])

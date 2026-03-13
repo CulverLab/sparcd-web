@@ -155,7 +155,7 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update collection information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update collection information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -181,11 +181,11 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
         })
         .catch(function(err) {
           console.log('Admin Update Collection Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to update collection information');
+          addMessage(Level.Warning, 'An error occurred when attempting to update collection information');
       });
     } catch (error) {
       console.log('Admin Update Collection Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update collection information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to update collection information');
     }
   }, [addMessage, collectionInfo, editingState, serverURL, setEditingState, settingsToken]);
 
@@ -208,7 +208,7 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update changed settings information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update changed settings information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -218,11 +218,11 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
         })
         .catch(function(err) {
           console.log('Admin Save Location/Species Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to complete saving the changed settings information');
+          addMessage(Level.Warning, 'An error occurred when attempting to complete saving the changed settings information');
       });
     } catch (error) {
       console.log('Admin Save Location/Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to complete saving the changed settings information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to complete saving the changed settings information');
     }
   }, [addMessage, serverURL, settingsToken])
 
@@ -245,7 +245,7 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to abandon changed settings information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to abandon changed settings information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -255,11 +255,11 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
         })
         .catch(function(err) {
           console.log('Admin Abandon Location/Species Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to abandon the changed settings information');
+          addMessage(Level.Warning, 'An error occurred when attempting to abandon the changed settings information');
       });
     } catch (error) {
       console.log('Admin Abandon Location/Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to abandon the changed settings information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to abandon the changed settings information');
     }
   }, [addMessage, serverURL, settingsToken])
 
@@ -289,7 +289,7 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to get collection details information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get collection details information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -298,11 +298,11 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
         })
         .catch(function(err) {
           console.log('Admin Collection Details Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to get collection details');
+          addMessage(Level.Warning, 'An error occurred when attempting to get collection details');
       });
     } catch (error) {
       console.log('Admin Collection Details Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to get collection details');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to get collection details');
     }
 
   }, [addMessage, serverURL, setEditingState, settingsToken]);

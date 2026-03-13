@@ -121,7 +121,7 @@ export default function CheckIncompleteUploads({onSandboxRefresh, onCancel}) {
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update changed settings information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update changed settings information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -137,13 +137,13 @@ export default function CheckIncompleteUploads({onSandboxRefresh, onCancel}) {
         })
         .catch(function(err) {
           console.log('Admin Save Location/Species Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to complete saving the changed settings information');
+          addMessage(Level.Warning, 'An error occurred when attempting to complete saving the changed settings information');
           setCheckingForIncomplete(false);
           setCheckingFailed(true);
       });
     } catch (err) {
       console.log('Admin Save Location/Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to complete saving the changed settings information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to complete saving the changed settings information');
       setCheckingForIncomplete(false);
       setCheckingFailed(true);
     }

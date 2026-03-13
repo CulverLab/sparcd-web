@@ -38,7 +38,7 @@ export function checkPreviousUpload(serverURL, token, path, onExpiredToken, onSu
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to check upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to check previousupload: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -114,7 +114,7 @@ export function updateUploadRecovery(serverURL, token, collId, locId, uploadKey,
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to recover upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to recover upload: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -192,7 +192,7 @@ export function continueNewUpload(serverURL, token, collectionId, locationId, pa
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to add new sandbox upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to add new sandbox upload: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -247,7 +247,7 @@ export function prevUploadResetContinue(serverURL, token, uploadId, files, onExp
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to reset sandbox upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to reset sandbox upload: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -300,7 +300,7 @@ export function prevUploadAbandonContinue(serverURL, token, uploadId, onExpiredT
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to abandoning sandbox upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to abandoning sandbox upload: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -360,7 +360,7 @@ export function checkUploadedFiles(serverURL, token, uploadId, files, onExpiredT
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to check upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to check upload: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -410,7 +410,7 @@ export function handleFailedUploads (serverURL, token, uploadId, uploadedFiles, 
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to get failed files for upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to get failed files for upload: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -460,7 +460,7 @@ export function getUploadCounts(serverURL, token, uploadId, uploadFiles, onExpir
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to get uploaded files count: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to get uploaded files count: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -513,7 +513,7 @@ export function uploadCompleted(serverURL, token, uploadId, onExpiredToken, onSu
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to mark upload as completed: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to mark upload as completed: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -575,7 +575,7 @@ export function uploadChunk(serverURL, token, fileChunk, uploadId, numFiles, tzI
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to upload files: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to upload files: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {

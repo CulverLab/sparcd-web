@@ -9,6 +9,7 @@ import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
+import Grid from '@mui/material/Grid';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
@@ -60,7 +61,7 @@ export default function UploadRepair({collectionInfo, uploadInfo, onUploadImages
                 // User needs to log in again
                 tokenExpiredFunc();
               }
-              throw new Error(`Failed to mark upload complete: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to mark upload complete: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -103,7 +104,9 @@ export default function UploadRepair({collectionInfo, uploadInfo, onUploadImages
 
   // Return the UI
   return (
-    <Box id="landing-page-fix-upload-wrapper" sx={{...theme.palette.screen_overlay_grey, zIndex:11111}}>
+    <Grid id="landing-page-fix-upload-wrapper" container direction="row" alignItems="center" justifyContent="center" 
+          sx={{...theme.palette.screen_overlay_grey, zIndex:11111}}
+    >
       <Card id='landing-page-fix-upload' variant="outlined" sx={{ ...theme.palette.folder_upload }} >
         <CardHeader sx={{ textAlign: 'center' }} title="Repair an incomplete upload" />
         <CardContent>
@@ -132,7 +135,7 @@ export default function UploadRepair({collectionInfo, uploadInfo, onUploadImages
           </Button>
         </CardActions>
       </Card>
-    </Box>
+    </Grid>
   );
 }
 

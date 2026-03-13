@@ -104,7 +104,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                   // User needs to log in again
                   setTokenExpired();
                 }
-                throw new Error(`Failed to update changed settings information: ${resp.status}`, {cause:resp});
+                throw new Error(`Failed to update changed settings information: ${resp.status}: ${await resp.text()}`);
               }
             })
           .then((respData) => {
@@ -220,7 +220,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to get admin users: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get admin users: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -230,11 +230,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Users Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to load user information');
+          addMessage(Level.Warning, 'An error occurred when attempting to load user information');
       });
     } catch (err) {
       console.log('Admin Users Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to load user information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to load user information');
     }    
   }, [addMessage, serverURL, settingsToken, setSelectedUsers, setTokenExpired, setUserInfo]);
 
@@ -257,7 +257,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to get admin species: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get admin species: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -267,11 +267,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Species Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to load species information');
+          addMessage(Level.Warning, 'An error occurred when attempting to load species information');
       });
     } catch (err) {
       console.log('Admin Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to load species information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to load species information');
     }
   }, [addMessage, serverURL, settingsToken, setMasterSpecies, setSelectedSpecies, setTokenExpired]);
 
@@ -307,7 +307,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update collection information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update collection information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -329,11 +329,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Update Collection Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to update collection information');
+          addMessage(Level.Warning, 'An error occurred when attempting to update collection information');
       });
     } catch (err) {
       console.log('Admin Update Collection Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update collection information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to update collection information');
     }
   }, [addMessage, collectionInfo, editingState, serverURL, setEditingState, settingsToken]);
 
@@ -368,7 +368,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update collection information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update collection information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -386,11 +386,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Update Collection Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to update collection information');
+          addMessage(Level.Warning, 'An error occurred when attempting to update collection information');
       });
     } catch (err) {
       console.log('Admin Update Collection Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update collection information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to update collection information');
     }
   }, [addMessage, collectionInfo, editingState, serverURL, setEditingState, settingsToken]);
 
@@ -438,7 +438,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update user information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update user information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -458,11 +458,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Update User Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to update user information');
+          addMessage(Level.Warning, 'An error occurred when attempting to update user information');
       });
     } catch (err) {
       console.log('Admin Update User Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update user information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to update user information');
     }
   }, [addMessage, editingState, serverURL, setEditingState, settingsToken, userInfo]);
 
@@ -499,7 +499,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update species information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update species information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -532,7 +532,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
               } else {
                 console.log('Error: unable to find species locally to update');
                 if (typeof(onError) === 'function') {
-                  onError("A problem ocurred updating the UI with these changes. Please refresh to see the updates");
+                  onError("A problem occurred updating the UI with these changes. Please refresh to see the updates");
                 }
               }
             } else if (typeof(onError) === 'function') {
@@ -541,11 +541,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Update Species Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to update species information');
+          addMessage(Level.Warning, 'An error occurred when attempting to update species information');
       });
     } catch (err) {
       console.log('Admin Update Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update species information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to update species information');
     }
   }, [addMessage, editingState, masterSpecies, serverURL, setMasterSpecies, setSpeciesModified, settingsToken,]);
 
@@ -590,7 +590,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update location information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update location information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -631,7 +631,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
               } else {
                 console.log('Error: unable to find location locally to update');
                 if (typeof(onError) === 'function') {
-                  onError("A problem ocurred updating the UI with these changes. Please refresh to see the updates");
+                  onError("A problem occurred updating the UI with these changes. Please refresh to see the updates");
                 }
               }
             } else if (typeof(onError) === 'function') {
@@ -640,11 +640,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Update Location Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to update location information');
+          addMessage(Level.Warning, 'An error occurred when attempting to update location information');
       });
     } catch (err) {
       console.log('Admin Update Location Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update location information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to update location information');
     }
   }, [addMessage, editingState, locationItems, serverURL, setLocationsModified, settingsToken]);
 
@@ -667,7 +667,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update changed settings information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update changed settings information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -677,11 +677,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Save Location/Species Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to complete saving the changed settings information');
+          addMessage(Level.Warning, 'An error occurred when attempting to complete saving the changed settings information');
       });
     } catch (err) {
       console.log('Admin Save Location/Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to complete saving the changed settings information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to complete saving the changed settings information');
     }
   }, [addMessage, serverURL, settingsToken])
 
@@ -704,7 +704,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to abandon changed settings information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to abandon changed settings information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -714,11 +714,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Abandon Location/Species Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to abandon the changed settings information');
+          addMessage(Level.Warning, 'An error occurred when attempting to abandon the changed settings information');
       });
     } catch (err) {
       console.log('Admin Abandon Location/Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to abandon the changed settings information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to abandon the changed settings information');
     }
   }, [addMessage, serverURL, settingsToken])
 
@@ -767,7 +767,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to get collection details information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get collection details information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -776,11 +776,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Collection Details Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to get collection details');
+          addMessage(Level.Warning, 'An error occurred when attempting to get collection details');
       });
     } catch (err) {
       console.log('Admin Collection Details Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to get collection details');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to get collection details');
     }
 
   }, [addMessage, serverURL, setEditingState, settingsToken]);
@@ -830,7 +830,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to get location details information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get location details information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -839,11 +839,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Location Details Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to get location details');
+          addMessage(Level.Warning, 'An error occurred when attempting to get location details');
       });
     } catch (err) {
       console.log('Admin Location Details Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to get location details');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to get location details');
     }
 
   }, [addMessage, serverURL, setEditingState, settingsToken]);

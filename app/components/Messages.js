@@ -1,8 +1,7 @@
-'use client'
-
 /** @module Messages */
 
 import * as React from 'react';
+import Button from '@mui/material/Button';
 import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import Grid from '@mui/material/Grid';
@@ -129,7 +128,7 @@ export function Messages({messages, messagesMax, messagesTimeout, closeCb}) {
   const curMax = (!messagesMax || typeof messagesMax !== 'number' || messagesMax < 1) ? MAX_DISPLAY_MESSAGES : Math.min(messages.length, messagesMax);
 
 	// Figure out the timeout
-  const curTimeout = (!messagesTimeout || typeof messagesTimeout !== 'number') ? 6 : messagesTimeout;
+  const curTimeout = (messagesTimeout && typeof messagesTimeout === 'number') ? messagesTimeout : 6;
 
   /**
    * Handles generating the UI of a message as well as setting the timeout
@@ -144,7 +143,7 @@ export function Messages({messages, messagesMax, messagesTimeout, closeCb}) {
     if (typeof window !== "undefined" && !(curMessage.messageId in timeoutIds.current)) {
       timeoutIds.current[curMessage.messageId] = window.setTimeout(
         () => handleCloseMessage(curMessage.messageId),
-        curTimeout * 1000
+        curMessage.level !== Level.Error ? curTimeout * 1000 : 30 * 60 * 1000   // 30 minutes if an error is displayed
       );
     }
 
@@ -171,6 +170,13 @@ export function Messages({messages, messagesMax, messagesTimeout, closeCb}) {
             {curMessage.message}
           </Typography>
         </Grid>
+        { curMessage.level === Level.Error && 
+              <Grid container direction="row" alignItems="center" justifyContent="center" sx={{paddingTop:'10px'}}>
+                <Button variant="contained" onClick={()=>handleCloseMessage(curMessage.messageId)}>
+                  OK
+                </Button>
+              </Grid>
+        }
       </Grid>
     );
   }

@@ -205,7 +205,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed checked to see if user is an admin: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed checked to see if user is an admin: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -216,11 +216,11 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
         })
         .catch(function(err) {
           console.log('Check For Admin Error: ', err);
-          addMessage(Level.Warning, "An error ocurred while logging in for administration purposes");
+          addMessage(Level.Warning, "An error occurred while logging in for administration purposes");
       });
     } catch (err) {
       console.log('Check For Admin Unknown Error: ',err);
-      addMessage(Level.Warning, "An unknown error ocurred while logging in for administration purposes");
+      addMessage(Level.Warning, "An unknown error occurred while logging in for administration purposes");
     }
 
   }, [addMessage, serverURL, settingsToken, setTokenExpired])

@@ -41,7 +41,7 @@ export default function LandingQuery() {
                 // User needs to log in again
                 tokenExpiredFunc();
               }
-              throw new Error(`Failed to get species statistics: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get species statistics: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {

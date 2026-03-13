@@ -274,7 +274,7 @@ export default function Queries({loadingCollections}) {
               // User needs to log in again
               setTokenExpired();
             }
-            throw new Error(`Failed to complete query: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to complete query: ${resp.status}: ${await resp.text()}`);
           }
       })
       .then((respData) => {
@@ -311,7 +311,7 @@ export default function Queries({loadingCollections}) {
       if (activeQuery === queryId) {
         activeQuery = null;
         setWaitingOnQuery(null);
-        addMessage(Level.Error, 'An error ocurred while executing the query', 'Query Error');
+        addMessage(Level.Error, 'An error occurred while executing the query', 'Query Error');
       }
     }
   }, [activeQuery, addMessage, getQueryFormData, queryToken, serverURL, setIsExpanded, setQueryRedraw, setQueryResults,
