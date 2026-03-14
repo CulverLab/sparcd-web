@@ -16,15 +16,16 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
 
 /**
  * Provides the UI for the message's toolbar
  * @function
- * @param {string} messageId The ID of the message itself
  * @param {object} message The message itself
  * @param {boolean} isSelected The message is selected
  * @param {object} menuItems The list of menu item names with their handling functions
- * @param {function} onReadMessage The function to call for reading the message
+ * @param {function} onDelete Function to call to delete a message
+ * @param {function} onRead The function to call for reading the message
  * @param {function} onSelChange The function to call when the selected state of the message changes
  * @returns {object} The UI for the toolbar
  */
@@ -34,7 +35,7 @@ export default function MessageLine({message, isSelected, menuItems, onDelete, o
 
   // Format the date
   const formattedDate = React.useMemo(() => {
-    return message.created_sec == null ? '': formatTimestamp(-(message.created_sec));
+    return message.created_sec == null ? '': formatTimestamp(-(message.created_sec)); // Get when the message was created
   }, [message.created_sec]);
 
   /**
@@ -43,7 +44,7 @@ export default function MessageLine({message, isSelected, menuItems, onDelete, o
    */
   const handleMoreClose = React.useCallback(() => {
     setMenuAnchor(null);
-  }, [setMenuAnchor]);
+  }, []);
 
   /**
    * Returns the function for handling menu clicks
@@ -60,7 +61,7 @@ export default function MessageLine({message, isSelected, menuItems, onDelete, o
   /**
    * Formats the timestamp for a message
    * @function
-   * @param {number} elapsedSec The number of seconds from now to apply to the timestamp
+   * @param {number} elapsedSec The number of seconds from now to apply to the timestamp. Use a negative value to go back in time
    */
   function formatTimestamp(elapsedSec) {
     let curTs = new Date();
@@ -145,3 +146,22 @@ export default function MessageLine({message, isSelected, menuItems, onDelete, o
     </React.Fragment>
   );
 }
+
+MessageLine.propTypes = {
+  message: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    subject: PropTypes.string,
+    sender: PropTypes.string,
+    receiver: PropTypes.string,
+    created_sec: PropTypes.number,
+    read_sec: PropTypes.number,
+  }).isRequired,
+  isSelected: PropTypes.bool.isRequired,
+  menuItems: PropTypes.arrayOf(PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    action: PropTypes.func.isRequired,
+  })).isRequired,
+  onDelete: PropTypes.func.isRequired,
+  onRead: PropTypes.func.isRequired,
+  onSelChange: PropTypes.func.isRequired,
+};

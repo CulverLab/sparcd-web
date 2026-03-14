@@ -9,6 +9,8 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 import FilterCard from './FilterCard';
 
 // The names of the month to use
@@ -27,22 +29,6 @@ const monthNames = [
   'DECEMBER'
 ];
 
-// The values of the month names
-const monthValues = [
-  1,
-  2,
-  3,
-  4,
-  5,
-  6,
-  7,
-  8,
-  9,
-  10,
-  11,
-  12
-];
-
 /**
  * Adds month information to form data
  * @function
@@ -50,12 +36,12 @@ const monthValues = [
  * @param {object} formData The FormData to add the fields to
  */
 export function FilterMonthFormData(data, formData) {
-  formData.append('month', JSON.stringify(data.map((item) => monthValues[monthNames.findIndex((name) => name == item)])));
+  formData.append('month', JSON.stringify(data.map((item) => monthNames.findIndex((name) => name === item) + 1)));
 }
 
 /**
  * Returns the UI for filtering by month
- * @param {object} {data} Saved month data
+ * @param {object} [data] Saved month data
  * @param {string} parentId The ID of the parent of this filter
  * @param {function} onClose The handler for closing this filter
  * @param {function} onChange The handler for when the filter data changes
@@ -63,26 +49,26 @@ export function FilterMonthFormData(data, formData) {
  */
 export default function FilterMonth({data, parentId, onClose, onChange}) {
   const theme = useTheme();
-  const cardRef = React.useRef();   // Used for sizeing
+  const cardRef = React.useRef(null);   // Used for sizing
+  const initialMonthRef = React.useRef(data ? data : monthNames); // The user's selections
   const [listHeight, setListHeight] = React.useState(200);
-  const [selectedMonths, setSelectedMonths] = React.useState(data ? data : monthNames); // The user's selections
-  const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
+  const [selectedMonths, setSelectedMonths] = React.useState(initialMonthRef.current);
 
-  // Set hte default data if we don't have any
+  // Set the default data if we don't have any
   React.useEffect(() => {
     if (!data) {
-      onChange(selectedMonths);
+      onChange(initialMonthRef.current);
     }
-  }, [data, onChange, selectedMonths]);
+  }, [data, onChange]);
 
   // Calculate how large the list can be
   React.useLayoutEffect(() => {
-    if (parentId && cardRef && cardRef.current) {
+    if (parentId && cardRef.current) {
       const parentEl = document.getElementById(parentId);
       if (parentEl) {
         const parentRect = parentEl.getBoundingClientRect();
         let usedHeight = 0;
-        const childrenQueryIds = ['#filter-conent-header', '#filter-content-actions'];
+        const childrenQueryIds = ['#filter-content-header', '#filter-content-actions'];
         for (let curId of childrenQueryIds) {
           let childEl = cardRef.current.querySelector(curId);
           if (childEl) {
@@ -93,25 +79,25 @@ export default function FilterMonth({data, parentId, onClose, onChange}) {
         setListHeight(parentRect.height - usedHeight);
       }
     }
-  }, [parentId, cardRef]);
+  }, [parentId]);
 
   /**
    * Handle selecting all the filter choices
    * @function
    */
-  function handleSelectAll() {
+  const handleSelectAll = React.useCallback(() => {
     setSelectedMonths(monthNames);
     onChange(monthNames);
-  }
+  }, [onChange]);
 
   /**
    * Handles clearing all the filter choices
    * @function
    */
-  function handleSelectNone() {
+  const handleSelectNone = React.useCallback(() => {
     setSelectedMonths([]);
     onChange([]);
-  }
+  }, [onChange]);
 
   /**
    * Handles the user selecting or deselecting an month
@@ -119,17 +105,14 @@ export default function FilterMonth({data, parentId, onClose, onChange}) {
    * @param {object} event The triggering event data
    * @param {string} monthName The name of the month to add or remove from the filter
    */
-  function handleCheckboxChange(event, monthName) {
+  const handleCheckboxChange = React.useCallback((event, monthName) => {
 
     if (event.target.checked) {
-      const monthIdx = selectedMonths.findIndex((item) => monthName === item);
       // Add the month in if we don't have it already
-      if (monthIdx < 0) {
-        const curMonths = selectedMonths;
-        curMonths.push(monthName);
+      if (!selectedMonths.includes(monthName)) {
+        const curMonths = [...selectedMonths, monthName];
         setSelectedMonths(curMonths);
         onChange(curMonths);
-        setSelectionRedraw(selectionRedraw + 1);
       }
     } else {
       // Remove the month if we have it
@@ -137,22 +120,21 @@ export default function FilterMonth({data, parentId, onClose, onChange}) {
       if (curMonths.length < selectedMonths.length) {
         setSelectedMonths(curMonths);
         onChange(curMonths);
-        setSelectionRedraw(selectionRedraw + 1);
       }
     }
-  }
+  }, [onChange, selectedMonths]);
 
   // Return the UI for the month filter
   return (
     <FilterCard cardRef={cardRef} title="Month Filter" onClose={onClose} 
                 actions={
                   <React.Fragment>
-                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
-                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
+                    <Button sx={{flex:1}} size="small" onClick={handleSelectAll}>Select All</Button>
+                    <Button sx={{flex:1}} size="small" onClick={handleSelectNone}>Select None</Button>
                   </React.Fragment>
                 }
     >
-      <Grid sx={{minHeight:listHeight+'px', maxHeight:listHeight+'px', height:listHeight+'px', minWidth:'250px', overflow:'scroll',
+      <Grid sx={{minHeight:listHeight, maxHeight:listHeight, height:listHeight, minWidth:'250px', overflowY:'auto',
                       border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
                       backgroundColor:'rgb(255,255,255,0.3)'
                     }}>
@@ -160,7 +142,7 @@ export default function FilterMonth({data, parentId, onClose, onChange}) {
           { monthNames.map((item) => 
               <FormControlLabel key={'filter-months-' + item}
                                 control={<Checkbox size="small" 
-                                                   checked={selectedMonths.findIndex((curMonth) => curMonth===item) > -1 ? true : false}
+                                                   checked={selectedMonths.includes(item)}
                                                    onChange={(event) => handleCheckboxChange(event,item)}
                                           />} 
                                 label={<Typography variant="body2">{item}</Typography>} />
@@ -171,3 +153,14 @@ export default function FilterMonth({data, parentId, onClose, onChange}) {
     </FilterCard>
   );
 }
+
+FilterMonth.propTypes = {
+  data:     PropTypes.arrayOf(PropTypes.string),
+  parentId: PropTypes.string.isRequired,
+  onClose:  PropTypes.func.isRequired,
+  onChange: PropTypes.func.isRequired,
+};
+
+FilterMonth.defaultProps = {
+  data: null,
+};

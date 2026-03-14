@@ -6,15 +6,17 @@ import * as React from 'react';
 import Grid from '@mui/material/Grid';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 /**
  * Renders an single uploaded folder item in the upload sidebar
  * @function
- * @param {object} uploadItem On instance of an uploaded item
- * @param {boolean} selected Set truthiness to true if this upload is selected
+ * @param {string} name The name of the upload to display
+ * @param {boolean} selected Whether this item is selected
  * @param {function} onClick The parent handler when a new upload is selected
  * @returns {object} The rendered UI
  */
-export default function UploadSidebarItem({uploadItem, selected, onClick}) {
+export default function UploadSidebarItem({name, selected, onClick}) {
   const theme = useTheme();
 
   // Setup the elements appearance
@@ -25,8 +27,14 @@ export default function UploadSidebarItem({uploadItem, selected, onClick}) {
 
   // Returns the upload item UI
   return (
-    <Grid display='flex' justifyContent='left' size='grow' sx={{...curTheme}} onClick={onClick} >
-      {uploadItem.name}
+    <Grid display='flex' justifyContent='flex-start' size='grow' sx={{...curTheme}} onClick={onClick} >
+      {name ? name : "<unknown>"}
     </Grid>
   );
 }
+
+UploadSidebarItem.propTypes = {
+  name: PropTypes.string.isRequired,
+  selected: PropTypes.bool,
+  onClick: PropTypes.func.isRequired,
+};

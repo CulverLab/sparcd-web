@@ -15,7 +15,6 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { useTheme } from '@mui/material/styles';
 
 import PropTypes from 'prop-types';
@@ -34,24 +33,24 @@ const EditingStates = {
  * Returns the UI for administrator tasks
  * @function
  * @param {boolean} loadingCollections Flag indicating collections are being loaded
- * @param {function} onConfirmPassword Function for confirming a password re-entry
  * @param {function} onClose Function for when the user wants to close this
  */
-export default function SettingsOwner({loadingCollections, onConfirmPassword, onClose}) {
+export default function SettingsOwner({loadingCollections, onClose}) {
   const theme = useTheme();
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const collectionInfo = React.useContext(CollectionsInfoContext);
-  const setTokenExpired = React.useContext(TokenExpiredFuncContext);
+  const tokenHasExpired = React.useContext(TokenExpiredFuncContext);
   const settingsToken = React.useContext(TokenContext);  // Login token
   const uiSizes = React.useContext(SizeContext);  // UI Dimensions
   const panelsWrapperRef = React.useRef(null);  // Used for sizeing
   const [activeTab, setActiveTab] = React.useState(0);
   const [detailsHeight, setDetailsHeight] = React.useState(500); // Height for displaying details
   const [editingState, setEditingState] = React.useState({type:EditingStates.None, data:null})
-  const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
-  const [userInfo, setUserInfo] = React.useState(null); // Contains information on users
 
   const [selectedCollections, setSelectedCollections] = React.useState(loadingCollections ? [] : collectionInfo); // Used for searches
+
+  // Additional variables
+  const serverURL = React.useMemo(() => utils.getServer(), []);  // The server URL to use
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {
@@ -143,7 +142,7 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
     formData.append('allPermissions', JSON.stringify(collectionNewInfo.allPermissions));
 
     try {
-      const resp = fetch(userUpdateCollUrl, {
+      fetch(userUpdateCollUrl, {
         credentials: 'include',
         method: 'POST',
         body: formData
@@ -153,9 +152,9 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setTokenExpired();
+                tokenHasExpired();
               }
-              throw new Error(`Failed to update collection information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update collection information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -181,87 +180,13 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
         })
         .catch(function(err) {
           console.log('Admin Update Collection Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to update collection information');
+          addMessage(Level.Warning, 'An error occurred when attempting to update collection information');
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Admin Update Collection Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update collection information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to update collection information');
     }
-  }, [addMessage, collectionInfo, editingState, serverURL, setEditingState, settingsToken]);
-
-  /**
-   * Handles the commit of any species or location changes
-   * @function
-   */
-  const handleSaveChanges = React.useCallback(() => {
-    const adminCompleteUrl = serverURL + '/adminCompleteChanges?t=' + encodeURIComponent(settingsToken);
-
-    try {
-      const resp = fetch(adminCompleteUrl, {
-        credentials: 'include',
-        method: 'PUT',
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
-              }
-              throw new Error(`Failed to update changed settings information: ${resp.status}`, {cause:resp});
-            }
-          })
-        .then((respData) => {
-            // Handle the result
-            addMessage(Level.Information, 'Changes were successfully saved');
-            onClose();
-        })
-        .catch(function(err) {
-          console.log('Admin Save Location/Species Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to complete saving the changed settings information');
-      });
-    } catch (error) {
-      console.log('Admin Save Location/Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to complete saving the changed settings information');
-    }
-  }, [addMessage, serverURL, settingsToken])
-
-  /**
-   * Handles the abandonment of any species or location changes
-   * @function
-   */
-  const handleAbandonChanges = React.useCallback(() => {
-    const adminCompleteUrl = serverURL + '/adminAbandonChanges?t=' + encodeURIComponent(settingsToken);
-
-    try {
-      const resp = fetch(adminCompleteUrl, {
-        credentials: 'include',
-        method: 'PUT',
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
-              }
-              throw new Error(`Failed to abandon changed settings information: ${resp.status}`, {cause:resp});
-            }
-          })
-        .then((respData) => {
-            // Handle the result
-            addMessage(Level.Information, 'The outstanding changes were successfully abandoned');
-            onClose();
-        })
-        .catch(function(err) {
-          console.log('Admin Abandon Location/Species Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to abandon the changed settings information');
-      });
-    } catch (error) {
-      console.log('Admin Abandon Location/Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to abandon the changed settings information');
-    }
-  }, [addMessage, serverURL, settingsToken])
+  }, [addMessage, collectionInfo, editingState, serverURL, settingsToken, tokenHasExpired]);
 
   /**
    * Handles the new collection button press
@@ -277,7 +202,7 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
     formData.append('bucket', collection.bucket);
 
     try {
-      const resp = fetch(adminCollectionUrl, {
+      fetch(adminCollectionUrl, {
         credentials: 'include',
         method: 'POST',
         body: formData,
@@ -287,9 +212,9 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setTokenExpired();
+                tokenHasExpired();
               }
-              throw new Error(`Failed to get collection details information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get collection details information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -298,14 +223,14 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
         })
         .catch(function(err) {
           console.log('Admin Collection Details Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to get collection details');
+          addMessage(Level.Warning, 'An error occurred when attempting to get collection details');
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Admin Collection Details Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to get collection details');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to get collection details');
     }
 
-  }, [addMessage, serverURL, setEditingState, settingsToken]);
+  }, [addMessage, serverURL, settingsToken, tokenHasExpired]);
 
   /**
    * Handles the collection search button press
@@ -344,37 +269,37 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
         <Grid id="admin-settings-collection-details-header" container direction="row" justifyContent="space-between" alignItems="start"
               sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
           <Grid size={5}>
-            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold', paddingLeft:'5px'}}>
+            <Typography noWrap variant="body1" sx={{fontWeight:'bold', paddingLeft:'5px'}}>
               Name
             </Typography>
           </Grid>
           <Grid size={4} sx={{marginRight:'auto'}}>
-            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold'}}>
+            <Typography noWrap variant="body1" sx={{fontWeight:'bold'}}>
               ID
             </Typography>
           </Grid>
-          <Grid sizeo={3} sx={{leftMargin:'auto'}}>
-            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold', paddingRight:'5px'}}>
+          <Grid size={3} sx={{marginLeft:'auto'}}>
+            <Typography noWrap variant="body1" sx={{fontWeight:'bold', paddingRight:'5px'}}>
               email
             </Typography>
           </Grid>
         </Grid>
-        <Grid id='admin-settings-details' sx={{overflowX:'scroll',width:'100%', maxHeight:detailsHeight+'px' }}>
+        <Grid id='admin-settings-details' sx={{overflowX:'auto',width:'100%', maxHeight:detailsHeight+'px' }}>
         { selectedCollections.filter((item) => item.permissions.ownerProperty === true).map((item, idx) => 
-            <Grid container direction="row" id={"admin-species-"+idx} key={item.name+'-'+idx} direction="row" justifyContent="space-between" alignItems="start"
+            <Grid container direction="row" id={"admin-species-"+idx} key={item.name+'-'+idx} justifyContent="space-between" alignItems="start"
                   sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }} onDoubleClick={(event) => dblClickFunc(event,item)} >
               <Grid size={5}>
-                <Typography nowrap="true" variant="body2">
+                <Typography noWrap variant="body2">
                   {item.name}
                 </Typography>
               </Grid>
               <Grid size={4} sx={{marginRight:'auto'}}>
-                <Typography nowrap="true" variant="body2">
+                <Typography noWrap variant="body2">
                   {item.id}
                 </Typography>
               </Grid>
-              <Grid sizeo={3} sx={{leftMargin:'auto'}}>
-                <Typography nowrap="true" variant="body2">
+              <Grid size={3} sx={{marginLeft:'auto'}}>
+                <Typography noWrap variant="body2">
                   {item.email}
                 </Typography>
               </Grid>
@@ -454,7 +379,7 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
                                 {item.name}
                               </Typography>
                            }
-                     key={idx} {...a11yPropsTabPanel(idx)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }}
+                     {...a11yPropsTabPanel(idx)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }}
                   />
                 )
               }
@@ -524,3 +449,8 @@ export default function SettingsOwner({loadingCollections, onConfirmPassword, on
       </Grid>
   );
 }
+
+SettingsOwner.propTypes = {
+  loadingCollections: PropTypes.bool,
+  onClose:            PropTypes.func.isRequired,
+};

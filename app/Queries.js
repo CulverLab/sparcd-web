@@ -274,7 +274,7 @@ export default function Queries({loadingCollections}) {
               // User needs to log in again
               setTokenExpired();
             }
-            throw new Error(`Failed to complete query: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to complete query: ${resp.status}: ${await resp.text()}`);
           }
       })
       .then((respData) => {
@@ -311,7 +311,7 @@ export default function Queries({loadingCollections}) {
       if (activeQuery === queryId) {
         activeQuery = null;
         setWaitingOnQuery(null);
-        addMessage(Level.Error, 'An error ocurred while executing the query', 'Query Error');
+        addMessage(Level.Error, 'An error occurred while executing the query', 'Query Error');
       }
     }
   }, [activeQuery, addMessage, getQueryFormData, queryToken, serverURL, setIsExpanded, setQueryRedraw, setQueryResults,
@@ -602,8 +602,8 @@ export default function Queries({loadingCollections}) {
   function generateQueryResults(queryResults, maxHeight) {
     const tabsOrder = userSettings.sandersonOutput ? queryResults.tabs.order : queryResults.tabs.order.filter((item) => !item.includes('DrSanderson'));
     return (
-      <Grid container size="grow" alignItems="start" justifyContent="start">
-        <Grid size={2}  sx={{backgroundColor:"#EAEAEA", height:maxHeight+'px'}}>
+      <Grid id="query-results-panel-wrapper" container size="grow" alignItems="start" justifyContent="start">
+        <Grid size={2}  sx={{backgroundColor:"#EAEAEA", height:maxHeight}}>
           <Tabs id='query-results-tabs' value={activeTab} onChange={handleTabChange} aria-label="Query results" orientation="vertical" variant="scrollable"
                 scrollButtons={false} style={{overflow:'clip', maxHeight:'100%'}}>
           { tabsOrder.map((item, idx) => {
@@ -627,11 +627,11 @@ export default function Queries({loadingCollections}) {
           }
           </Tabs>
         </Grid>
-        <Grid size={10} sx={{overflowX:'scroll',display:'flex'}}>
+        <Grid size={10} sx={{overflowX:'auto',display:'flex'}}>
           { tabsOrder.map((item, idx) => {
               return (
                 <TabPanel id={'query-result-panel-'+item} value={activeTab} index={idx} key={item+'-'+idx} 
-                          style={{overflow:'clip', width:'100%', position:'relative',margin:'0 16px auto 8px', height:(maxHeight-20)+'px'}}>
+                          style={{overflowX:'auto', overflowY:'auto', width:'100%', position:'relative',margin:'0', height:(maxHeight-10)}}>
                   {generateResultPanel(queryResults, item, idx)}
                 </TabPanel>
               )}
@@ -666,7 +666,7 @@ export default function Queries({loadingCollections}) {
       </Grid>
       <Grid container id="query-results-wrapper" direction="row" alignItems="start" justifyContent="start" wrap="nowrap"
             spacing={2}
-            sx={{minHeight:(uiSizes.workspace.height-curHeight-dividerHeight-10)+"px", maxHeight:(uiSizes.workspace.height-curHeight-dividerHeight-10)+"px",
+            sx={{minHeight:(uiSizes.workspace.height-curHeight-dividerHeight-10), maxHeight:(uiSizes.workspace.height-curHeight-dividerHeight-10),
                  backgroundColor:'white', margin:0, overflow:'clip', padding:'5px'}}
       >
       { queryResults ? generateQueryResults(queryResults, uiSizes.workspace.height-curHeight-dividerHeight-10)  : null }
@@ -690,7 +690,7 @@ export default function Queries({loadingCollections}) {
       }
       { waitingOnQuery && 
           <Grid id="query-running-query-wrapper" container direction="row" alignItems="center" justifyContent="center" 
-                sx={{position:'absolute', top:0, left:0, width:'100vw', height:uiSizes.workspace.height+'px', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
+                sx={{position:'absolute', top:0, left:0, width:'100vw', height:uiSizes.workspace.height, backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
           >
             <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
               <Grid container direction="column" alignItems="center" justifyContent="center" >

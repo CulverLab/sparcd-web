@@ -388,9 +388,9 @@ class SPARCdDatabase:
         return self._db.sandbox_reset_upload(username, upload_id, files)
 
     def sandbox_upload_recovery_update(self, s3_id: str, username: str, bucket: str, \
-                                    upload_key: str, source_path: str, all_files: tuple, \
+                                    upload_key: str, source_path: str, \
                                     location_id: str, location_name: str, location_lat: float, \
-                                    location_lon: float, location_ele: float) -> bool:
+                                    location_lon: float, location_ele: float) -> Optional[tuple]:
         """ Updates the database with an upload recovery information
         Arguments:
             s3_id: the ID of the S3 instance
@@ -398,17 +398,17 @@ class SPARCdDatabase:
             bucket: the bucket of the upload
             upload_key: the key of the upload
             source_path: the path that the images are being uploaded from
-            all_files: the list of file names
             location_id: the ID of the location associated with the upload
             location_name: the name of the location
             location_lat: the latitude of the location
             location_lon: the longitude of the location
             location_ele: the elevation of the location
         Return:
-            Returns True if the recovery data could be set in the database
+            When successful, returns a tuple containing the the upload ID and a list of file names
+            that failed upload. None is returned upon failure
         """
         return self._db.sandbox_upload_recovery_update(s3_id, username, bucket, upload_key,
-                                                        source_path, all_files, location_id,
+                                                        source_path, location_id,
                                                         location_name, location_lat, location_lon,
                                                         location_ele)
 

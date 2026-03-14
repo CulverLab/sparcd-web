@@ -14,6 +14,8 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 import { LocationsInfoContext } from '../serverInfo';
 import FilterCard from './FilterCard';
 
@@ -25,13 +27,13 @@ import FilterCard from './FilterCard';
  * @param {array} locationsItems The complete list of locations used for mapping
  */
 export function FilterLocationsFormData(data, formData, locationItems) {
-  const id_data = locationItems.filter((item) => data.includes(item['nameProperty']))
-  formData.append('locations', JSON.stringify(id_data.map((item) => item['idProperty'])));
+  const idData = locationItems.filter((item) => data.includes(item.nameProperty))
+  formData.append('locations', JSON.stringify(idData.map((item) => item.idProperty)));
 }
 
 /**
  * Returns the UI for filtering by location
- * @param {object} {data} Saved location data
+ * @param {object} [data] Saved location data
  * @param {string} parentId The ID of the parent of this filter
  * @param {function} onClose The handler for closing this filter
  * @param {function} onChange The handler for when the filter data changes
@@ -39,28 +41,29 @@ export function FilterLocationsFormData(data, formData, locationItems) {
  */
 export default function FilterLocations({data, parentId, onClose, onChange}) {
   const theme = useTheme();
-  const cardRef = React.useRef();   // Used for sizeing
+  const cardRef = React.useRef(null);   // Used for sizing
   const locationItems = React.useContext(LocationsInfoContext);
+  const initialLocationRef = React.useRef(data ? data : locationItems.map((item)=>item.nameProperty)); // The user's selections
+  const searchInputRef = React.useRef(null); // The search textbox reference
   const [displayedLocations, setDisplayedLocations] = React.useState(locationItems); // The visible locations
   const [listHeight, setListHeight] = React.useState(200);
-  const [selectedLocations, setSelectedLocations] = React.useState(data ? data : locationItems.map((item)=>item.nameProperty)); // The user's selections
-  const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
+  const [selectedLocations, setSelectedLocations] = React.useState(initialLocationRef.current); // The user's selections
 
   // Set the default data if it's not set yet
   React.useEffect(() => {
     if (!data) {
-      onChange(selectedLocations);
+      onChange(initialLocationRef.current);
     }
-  }, [data, onChange, selectedLocations]);
+  }, [data, onChange]);
 
   // Calculate how large the list can be
   React.useLayoutEffect(() => {
-    if (parentId && cardRef && cardRef.current) {
+    if (parentId && cardRef.current) {
       const parentEl = document.getElementById(parentId);
       if (parentEl) {
         const parentRect = parentEl.getBoundingClientRect();
         let usedHeight = 0;
-        const childrenQueryIds = ['#filter-conent-header', '#filter-content-actions', '#filter-location-search-wrapper'];
+        const childrenQueryIds = ['#filter-content-header', '#filter-content-actions', '#filter-location-search-wrapper'];
         for (let curId of childrenQueryIds) {
           let childEl = cardRef.current.querySelector(curId);
           if (childEl) {
@@ -71,30 +74,40 @@ export default function FilterLocations({data, parentId, onClose, onChange}) {
         setListHeight(parentRect.height - usedHeight);
       }
     }
-  }, [parentId, cardRef]);
+  }, [parentId]);
+
+  /**
+   * Handles clearing the locations search
+   */
+  const handleClearSearch = React.useCallback(() => {
+    if (searchInputRef.current) {
+      searchInputRef.current.value = '';
+      setDisplayedLocations(locationItems);
+    }
+  }, [locationItems]);
 
   /**
    * Handles selecting all the location choices
    * @function
    */
-  function handleSelectAll() {
-    const curLocations = displayedLocations.map((item) => item.nameProperty);
-    const newLocations = curLocations.filter((item) => selectedLocations.findIndex((selItem) => selItem === item) < 0);
-    const updateSelections = [...selectedLocations, ...newLocations]
-    setSelectedLocations(updateSelections);
-    onChange(updateSelections);
+  const handleSelectAll = React.useCallback(() => {
+    const existingSet = new Set(selectedLocations);
+    const updatedSelections = [...selectedLocations,
+                                ...displayedLocations.map(item => item.nameProperty).filter(newItem => !existingSet.has(newItem))];
+    setSelectedLocations(updatedSelections);
+    onChange(updatedSelections);
     handleClearSearch();
-  }
+  }, [displayedLocations, handleClearSearch, onChange, selectedLocations]);
 
   /**
    * Handles clearing all selected location choices
    * @function
    */
-  function handleSelectNone() {
+  const handleSelectNone = React.useCallback(() => {
     setSelectedLocations([]);
     onChange([]);
     handleClearSearch();
-  }
+  }, [handleClearSearch, onChange]);
 
   /**
    * Handles the user selecting or deselecting a location
@@ -102,21 +115,14 @@ export default function FilterLocations({data, parentId, onClose, onChange}) {
    * @param {object} event The triggering event data
    * @param {object} location The location to add or remove from the filter
    */
-  function handleCheckboxChange(event, location) {
+  const handleCheckboxChange = React.useCallback((event, location) => {
 
     if (event.target.checked) {
-      const curIdx = selectedLocations.findIndex((item) => location.nameProperty === item.nameProperty && 
-                                                           location.idProperty === item.idProperty &&
-                                                           location.latProperty === item.latProperty &&
-                                                           location.lngProperty === item.lngProperty &&
-                                                           lcoation.elevationProperty === item.elevationProperty);
       // Add the location in if we don't have it already
-      if (curIdx < 0) {
-        const curlocations = selectedLocations;
-        curlocations.push(location.nameProperty);
+      if (!selectedLocations.includes(location.nameProperty)) {
+        const curlocations = [...selectedLocations, location.nameProperty];
         setSelectedLocations(curlocations);
         onChange(curlocations);
-        setSelectionRedraw(selectionRedraw + 1);
       }
     } else {
       // Remove the location if we have it
@@ -124,17 +130,16 @@ export default function FilterLocations({data, parentId, onClose, onChange}) {
       if (curlocations.length < selectedLocations.length) {
         setSelectedLocations(curlocations);
         onChange(curlocations);
-        setSelectionRedraw(selectionRedraw + 1);
       }
     }
-  }
+  }, [onChange, selectedLocations]);
 
   /**
    * Handles a change in the locations search
    * @function
    * @param {object} event The triggering event data
    */
-  function handleSearchChange(event) {
+  const handleSearchChange = React.useCallback((event) => {
     if (event.target.value) {
       const ucSearch = event.target.value.toUpperCase();
       const filtered = locationItems.filter((item) => item.nameProperty.toUpperCase().includes(ucSearch) || 
@@ -143,30 +148,19 @@ export default function FilterLocations({data, parentId, onClose, onChange}) {
     } else {
       setDisplayedLocations(locationItems);
     }
-  }
-
-  /**
-   * Handles clearing the locations search
-   */
-  function handleClearSearch() {
-    const searchEl = document.getElementById('file-location-search');
-    if (searchEl) {
-      searchEl.value = '';
-      setDisplayedLocations(locationItems);
-    }
-  }
+  }, [locationItems]);
 
   // Return the UI for filtering on locations
   return (
     <FilterCard cardRef={cardRef} title="Locations Filter" onClose={onClose}
                 actions={
                 <React.Fragment>  
-                  <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
-                  <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
+                  <Button sx={{flex:1}} size="small" onClick={handleSelectAll}>Select All</Button>
+                  <Button sx={{flex:1}} size="small" onClick={handleSelectNone}>Select None</Button>
                 </React.Fragment>  
                 }
     >
-      <Grid sx={{minHeight:listHeight+'px', maxHeight:listHeight+'px', height:listHeight+'px', minWidth:'250px', overflow:'scroll',
+      <Grid sx={{minHeight:listHeight, maxHeight:listHeight, height:listHeight, minWidth:'250px', overflowY:'auto',
                       border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
                       backgroundColor:'rgb(255,255,255,0.3)'
                     }}>
@@ -174,21 +168,17 @@ export default function FilterLocations({data, parentId, onClose, onChange}) {
           { displayedLocations.map((item, idx) => 
               <FormControlLabel key={'filter-locations-' + item.nameProperty + item.latProperty + item.lngProperty + '-' + idx}
                                 control={<Checkbox size="small" 
-                                                   checked={selectedLocations.findIndex((curLocation) => curLocation===item.nameProperty) > -1 ? true : false}
+                                                   checked={selectedLocations.includes(item.nameProperty)}
                                                    onChange={(event) => handleCheckboxChange(event,item)}
                                           />} 
                                 label={
-                                  <Grid container direction="row" alignItems="center" justifyContent="start" wrap="nowrap" sx={{width:"220px"}}>
-                                    <Grid wrap="nowrap">
-                                      <Typography variant="body2" sx={{fontWeight:'bold'}}>
-                                        {item.idProperty}
-                                      </Typography>
-                                    </Grid>
-                                    <Grid sx={{marginLeft:"auto"}}>
-                                      <Typography variant="body2" align="center" sx={{color:'darkgrey'}}>
-                                        {item.nameProperty}
-                                      </Typography>
-                                    </Grid>
+                                  <Grid container direction="row" alignItems="center" justifyContent="start" sx={{width:"220px", flexWrap:'nowrap'}}>
+                                    <Typography variant="body2" sx={{fontWeight:'bold'}}>
+                                      {item.idProperty}
+                                    </Typography>
+                                    <Typography variant="body2" align="center" sx={{color:'darkgrey', marginLeft:"auto"}}>
+                                      {item.nameProperty}
+                                    </Typography>
                                   </Grid>
                                 }
               />
@@ -203,6 +193,7 @@ export default function FilterLocations({data, parentId, onClose, onChange}) {
           label="Search"
           slotProps={{
             input: {
+              inputRef:searchInputRef,
               endAdornment:(
                 <InputAdornment position="end">
                   <IconButton onClick={handleClearSearch}>
@@ -218,3 +209,14 @@ export default function FilterLocations({data, parentId, onClose, onChange}) {
     </FilterCard>
   );
 }
+
+FilterLocations.propTypes = {
+  data:     PropTypes.arrayOf(PropTypes.string),
+  parentId: PropTypes.string.isRequired,
+  onClose:  PropTypes.func.isRequired,
+  onChange: PropTypes.func.isRequired,
+};
+
+FilterLocations.defaultProps = {
+  data: null,
+};

@@ -3,6 +3,8 @@
 /** @module components/ViewMessage */
 
 import * as React from 'react';
+import ArrowBackIosOutlinedIcon from '@mui/icons-material/ArrowBackIosOutlined';
+import ArrowForwardIosOutlinedIcon from '@mui/icons-material/ArrowForwardIosOutlined';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
@@ -19,25 +21,33 @@ import { useTheme } from '@mui/material/styles';
 
 import { Editor } from '@tinymce/tinymce-react';
 
+import PropTypes from 'prop-types';
+
 // Different types of messages
 export const MESSAGE_TYPE = {
   None: -1,
   New: 0,
   Read: 1,
   Reply: 2,
-  ReplyAll: 2
+  ReplyAll: 3
+};
+
+// Message navigation values
+const MESSAGE_NAV = {
+  prev: -1,
+  next: 1,
 };
 
 /**
  * Provides the UI for a user messages. If curMessage is set, messages are read-only. Otherwise
  * it's assumed that a message is being added
  * @function
- * @param {object} {curMessage} An array of messages to display. Control is read-only
- * @param {boolean} {messageType} The MESSAGE_TYPE the current message is
- * @param {function} {onRead} Called to indicate a message has been read
- * @param {function} {onAdd} Called to add a new message. Use when creating a new message
- * @param {function} {onReply} Called to reply to an existing message
- * @param {function} {onReplyAll} Called to reply-all to an existing message
+ * @param {object} [curMessage] An array of messages to display. Control is read-only
+ * @param {boolean} [messageType] The MESSAGE_TYPE the current message is
+ * @param {function} [onRead] Called to indicate a message has been read
+ * @param {function} [onAdd] Called to add a new message. Use when creating a new message
+ * @param {function} [onReply] Called to reply to an existing message
+ * @param {function} [onReplyAll] Called to reply-all to an existing message
  * @param {function} onClose Called when the user is finished
  * @returns {object} The UI for managing messages
  */
@@ -55,8 +65,18 @@ export default function ViewMessage({curMessage, messageType, onRead, onAdd, onR
   const [recipientError, setRecipientError] = React.useState(false);// Error with new recipient
   const [subjectError, setSubjectError] = React.useState(false);    // Error with new subject
 
+
+  /**
+   * Wrap onRead to prevent circular logic
+   * @function
+   * @param {Array} msgIds Array of message IDs
+   */
+  const wrappedOnRead = React.useCallback((msgIds) => {
+    onRead(msgIds);
+  }, [onRead]);
+
   // Determine the correct recipient
-  React.useLayoutEffect(() => {
+  React.useEffect(() => {
     if (!curMessage) {
       return;
     }
@@ -69,17 +89,17 @@ export default function ViewMessage({curMessage, messageType, onRead, onAdd, onR
     } else {
       setCurRecipient(curMessage[0].receiver);
     }
-  }, [curMessage, setCurRecipient]);
+  }, [curMessage, messageType, setCurRecipient]);
 
   // Set the first message as read
   React.useEffect(() => {
     if (curMessage) {
       if (readMessageIds.length === 0) {
         setReadMessageIds([curMessage[0].id]);
-        onRead([curMessage[0].id]);
+        wrappedOnRead([curMessage[0].id]);
       }
     }
-  }, [curMessage, messageType, readMessageIds, setReadMessageIds])
+  }, [curMessage, messageType, wrappedOnRead, readMessageIds, setReadMessageIds])
 
   /**
    * Adds a new message
@@ -91,8 +111,8 @@ export default function ViewMessage({curMessage, messageType, onRead, onAdd, onR
     if (!editorRef.current || !recipientRef.current || !subjectRef.current) {
       return;
     }
-    const recipError = !recipientRef.current.value || recipientRef.current.length < 2;
-    const subjError = !subjectRef.current.value || subjectRef.current.length < 2;
+    const recipError = !recipientRef.current.value || recipientRef.current.value.length < 2;
+    const subjError = !subjectRef.current.value || subjectRef.current.value.length < 2;
     setRecipientError(recipError);
     setSubjectError(subjError);
     if (recipError || subjError) {
@@ -107,49 +127,37 @@ export default function ViewMessage({curMessage, messageType, onRead, onAdd, onR
       return;
     }
 
-    onAdd(recipientRef.current.value, subjectRef.current.value, message, () => onClose());
+    onAdd(recipientRef.current.value, subjectRef.current.value, message, onClose);
 
-  }, [editorRef, recipientRef, setRecipientError, setMessageError, setSubjectError, subjectRef]);
-
-  /**
-   * Handles viewing the previous message
-   * @function
-   */
-  const handlePrevMessage = React.useCallback(() => {
-    if (curMessage && curMessageIndex > 0) {
-      const curMsg = curMessage[curMessageIndex - 1];
-      setCurMessageIndex(curMessageIndex - 1);
-      setCurReadMessage(curMsg);
-      setCurRecipient(curMsg.sender);
-      setCurSubject(curMsg.subject);
-
-      const readIndex = readMessageIds.findIndex((item) => item === curMsg.id);
-      if (readIndex === -1) {
-        readMessageIds.push(curMsg.id);
-        onRead([curMsg.id]);
-      }
-    }
-  }, [curMessageIndex, readMessageIds, setCurMessageIndex, setCurReadMessage]);
+  }, [editorRef, onAdd, onClose, recipientRef, setRecipientError, setMessageError, setSubjectError, subjectRef]);
 
   /**
-   * Handles viewing the next message
+   * Handles message viewing navigation
    * @function
+   * @param {number} navigation The number of messages to navigate
    */
-  const handleNextMessage = React.useCallback(() => {
-    if (curMessage && curMessageIndex < curMessage.length - 1) {
-      const curMsg = curMessage[curMessageIndex + 1];
-      setCurMessageIndex(curMessageIndex + 1);
-      setCurReadMessage(curMsg);
-      setCurRecipient(curMsg.sender);
-      setCurSubject(curMsg.subject);
-
-      const readIndex = readMessageIds.findIndex((item) => item === curMsg.id);
-      if (readIndex === -1) {
-        readMessageIds.push(curMsg.id);
-        onRead([curMsg.id]);
-      }
+  const handleNavigateMessage = React.useCallback((navigation) => {
+    if (!(navigation in MESSAGE_NAV)) {
+      return;
     }
-  }, [curMessageIndex, readMessageIds, setCurMessageIndex, setCurReadMessage]);
+
+    // Get and check the next message index
+    const nextIndex = curMessageIndex + navigation;
+    if (!curMessage || nextIndex < 0 || nextIndex >= curMessage.length) {
+      return;
+    }
+
+    const curMsg = curMessage[nextIndex];
+    setCurMessageIndex(nextIndex);
+    setCurReadMessage(curMsg);
+    setCurRecipient(curMsg.sender);
+    setCurSubject(curMsg.subject);
+
+    if (!readMessageIds.includes(curMsg.id)) {
+      setReadMessageIds(prev => [...prev, curMsg.id]);
+      wrappedOnRead([curMsg.id]);
+    }
+  }, [curMessage, curMessageIndex, readMessageIds, wrappedOnRead]);
 
   // Return the UI
   return (
@@ -159,10 +167,10 @@ export default function ViewMessage({curMessage, messageType, onRead, onAdd, onR
       >
         <Grid id="new-message-fields" container direction="column" style={{backgroundColor:'ghostwhite', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
           <TextField id='new-message-recepient'
-                      required={messageType === MESSAGE_TYPE.Read ? false : true}
+                      required={messageType !== MESSAGE_TYPE.Read}
                       error={recipientError}
                       inputRef={recipientRef}
-                      label={messageType === MESSAGE_TYPE.Read ? 'From' : 'To (comma seperated list of names. Send to admin to notify administrators)'}
+                      label={messageType === MESSAGE_TYPE.Read ? 'From' : 'To (comma separated list of names. Send to admin to notify administrators)'}
                       disabled={messageType === MESSAGE_TYPE.Read}
                       fullWidth
                       size="small"
@@ -174,7 +182,7 @@ export default function ViewMessage({curMessage, messageType, onRead, onAdd, onR
                       }}
                       sx={{marginBottom:'20px'}} />
           <TextField id='new-message-subject'
-                      required={messageType === MESSAGE_TYPE.Read ? false : true}
+                      required={messageType !== MESSAGE_TYPE.Read}
                       error={subjectError}
                       inputRef={subjectRef}
                       label='Subject'
@@ -214,16 +222,28 @@ export default function ViewMessage({curMessage, messageType, onRead, onAdd, onR
           />
           <Grid container direction="row" alignItems="center" justifyContent="space-between" sx={{paddingTop:'15px'}}>
             { messageType === MESSAGE_TYPE.Read && 
-              <Grid container direction="row">
-                <Button size="small" disabled={!curMessage || curMessage.length <= 1 || curMessageIndex === 0} onClick={handlePrevMessage}>&lt;</Button>
+              <Grid container direction="row" alignItems="center" >
+                <Button size="small" 
+                        aria-label="Previous message"
+                        disabled={!curMessage || curMessage.length <= 1 || curMessageIndex === 0}
+                        onClick={() => handleNavigateMessage(MESSAGE_NAV.prev)}
+                >
+                  <ArrowBackIosOutlinedIcon fontSize="small" />
+                </Button>
                 <Typography variant="body2" sx={{color:curMessage.length === 1 ? 'lightgrey':'black' }}>
                   {curMessageIndex + 1} of {curMessage ? curMessage.length : "?"}
                 </Typography>
-                <Button size="small" disabled={!curMessage || curMessage.length <= 1 || curMessageIndex === curMessage.length-1} onClick={handleNextMessage}>&gt;</Button>
+                <Button size="small" 
+                        aria-label="Next message"
+                        disabled={!curMessage || curMessage.length <= 1 || curMessageIndex === curMessage.length-1}
+                        onClick={() => handleNavigateMessage(MESSAGE_NAV.next)}
+                >
+                  <ArrowForwardIosOutlinedIcon fontSize="small" />
+                </Button>
               </Grid>
             }
             { messageType === MESSAGE_TYPE.Read && 
-              <div style={{leftMargin:'auto'}}>
+              <div style={{marginLeft:'auto'}}>
                 <Tooltip title='Reply'>
                   <IconButton aria-label="Reply messages" onClick={() => onReply(curReadMessage.id)} >
                     <ReplyIcon fontSize="small"/>
@@ -248,9 +268,9 @@ export default function ViewMessage({curMessage, messageType, onRead, onAdd, onR
           <Card id="new-message-error" sx={{minWidth:'200px', backgroundColor:'ghostwhite', border:'1px solid lightgrey', borderRadius:'20px'}} >
             <CardHeader title="There is no message content" />
             <CardContent sx={{paddingTop:'0px', paddingBottom:'0px'}}>
-              <Grid container direction="column" alignItems="start" justifyContent="start" wrap="nowrap"
+              <Grid container direction="column" alignItems="start" justifyContent="start"
                       spacing={1}
-                      sx={{paddingTop:'5px'}}
+                      sx={{paddingTop:'5px', flexWrap:'nowrap'}}
               >
               Do you still want to send the message?
               </Grid>
@@ -268,3 +288,38 @@ export default function ViewMessage({curMessage, messageType, onRead, onAdd, onR
     </React.Fragment>
   );
 }
+
+ViewMessage.propTypes = {
+  /** Array of message objects to display */
+  curMessage: PropTypes.arrayOf(
+    PropTypes.shape({
+      id:       PropTypes.string.isRequired,
+      sender:   PropTypes.string.isRequired,
+      receiver: PropTypes.string.isRequired,
+      subject:  PropTypes.string.isRequired,
+      message:  PropTypes.string.isRequired,
+    })
+  ),
+
+  /** The type of message being displayed */
+  messageType: PropTypes.oneOf(Object.values(MESSAGE_TYPE)).isRequired,
+
+  /** Called with an array of message IDs when messages are marked as read */
+  onRead: PropTypes.func.isRequired,
+
+  /** Called with (recipient, subject, message, onSuccess) to send a new message */
+  onAdd: PropTypes.func.isRequired,
+
+  /** Called with the message ID to open a reply */
+  onReply: PropTypes.func.isRequired,
+
+  /** Called with the message ID to open a reply-all */
+  onReplyAll: PropTypes.func.isRequired,
+
+  /** Called when the user closes the message dialog */
+  onClose: PropTypes.func.isRequired,
+};
+
+ViewMessage.defaultProps = {
+  curMessage: null,
+};

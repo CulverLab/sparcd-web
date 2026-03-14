@@ -479,7 +479,7 @@ class TotalDayFormatter:
                                                                             location['idProperty'])
                         if species_year_location_images:
                             result += '{:<28s} {:6d}'.format(location['nameProperty'],
-                                                                int(location['elevationProperty']))
+                                                        int(float(location['elevationProperty'])))
                             total = 0
                             for one_month in range(0, 12):
                                 syl_month_images = results.filter_month(
@@ -581,7 +581,7 @@ class TotalDayFormatter:
                 if location_species_images:
 
                     result += '{:<28s} {:6d}'.format(location['nameProperty'],
-                                                                int(location['elevationProperty']))
+                                                        int(float(location['elevationProperty'])))
                     total = 0
                     for one_month in range(0, 12):
                         location_species_month_images = results.filter_month(
@@ -709,7 +709,7 @@ class TotalDayFormatter:
 
                         if species_year_location_images:
                             result += '{:<28s} {:6d}'.format(location['nameProperty'],
-                                                                int(location['elevationProperty']))
+                                                        int(float(location['elevationProperty'])))
                             total = 0
                             for one_month in range(0, 12):
                                 syl_month_images = results.filter_month(
@@ -842,7 +842,7 @@ class TotalDayFormatter:
 
                 if species_location_images:
                     result += '{:<28s} {:6d}'.format(location['nameProperty'],
-                                                                int(location['elevationProperty']))
+                                                        int(float(location['elevationProperty'])))
                     total = 0
                     for one_month in range(0, 12):
                         species_location_month_images = results.filter_month(

@@ -9,17 +9,16 @@ import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
-import Checkbox from '@mui/material/Checkbox';
 import Grid from '@mui/material/Grid';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
+
+import PropTypes from 'prop-types';
 
 import MessageLine from './MessageLine';
 import MessagesToolbar from './MessagesToolbar';
 import ViewMessage, { MESSAGE_TYPE } from './ViewMessage';
-import { AddMessageContext, TokenExpiredFuncContext, SizeContext, UserMessageContext } from '../serverInfo';
+import { SizeContext, UserMessageContext } from '../serverInfo';
 
 /**
  * Provides the UI for user messages
@@ -32,12 +31,11 @@ import { AddMessageContext, TokenExpiredFuncContext, SizeContext, UserMessageCon
  * @returns {object} The UI for managing messages
  */
 export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClose}) {
-  const MAX_MESSAGE_DISPLAY_LENGTH = 50
   const theme = useTheme();
-  const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const uiSizes = React.useContext(SizeContext);  // UI Dimensions
   const userMessages = React.useContext(UserMessageContext); // The user's messages
   const contentRef = React.useRef();
+  const userMessagesRef = React.useRef();
   const [curMessages, setCurMessages] = React.useState(userMessages ? userMessages.messages : []);
   const [readMessage, setReadMessage] = React.useState(null);   // Contains the ID of the message to read
   const [newMessage, setNewMessage] = React.useState(false);    // User wants to compose a message
@@ -45,7 +43,7 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
   const [messageType, setMessageType] = React.useState(MESSAGE_TYPE.New); // Contains the reply message
   const [titlebarRect, setTitlebarRect] = React.useState(null); // Set when the UI displays
 
-  // Recalcuate where to place ourselves
+  // Recalculate where to place ourselves
   React.useLayoutEffect(() => {
     calculateSizes();
   }, []);
@@ -56,9 +54,10 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
       const curRect = contentRef.current.getBoundingClientRect();
       const curOffsetX = (uiSizes.window.width / 2.0) - (curRect.width / 2.0);
 
-      let el = document.getElementById('messages-wrapper');
-      el.style.left = curOffsetX +'px';
-      el.style.right = (curOffsetX + curRect.width) +'px';
+      if (userMessagesRef.current) {
+        userMessagesRef.current.style.left = curOffsetX +'px';
+        userMessagesRef.current.style.right = (curOffsetX + curRect.width) +'px';
+      }
     }
   }, [uiSizes.window.width]);
 
@@ -98,15 +97,15 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
   /**
    * Handles the user checking an individual checkbox
    * @function
-   * @param {number} idx The index of the message to enable
+   * @param {number} msgId The id of the message to enable
    */
-  function handleMessageChecked(event, idx) {
+  function handleMessageChecked(event, msgId) {
     if (event.target.checked) {
-      if (!selectedMessages.includes(idx)) {
-        setSelectedMessages([...selectedMessages, idx]);
+      if (!selectedMessages.includes(msgId)) {
+        setSelectedMessages([...selectedMessages, msgId]);
       }
     } else {
-      setSelectedMessages(selectedMessages.filter(item => item !== idx));
+      setSelectedMessages(selectedMessages.filter(item => item!== msgId));
     }
   }
 
@@ -115,13 +114,11 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
    * @function
    */
   function handleAllSelected(allSelected) {
-    const curSelection = !allSelected;
-
     // Only update the selected messages if we have messages to load
     if (userMessages && !userMessages.loading && curMessages) {
       // Select all messages
-      if (curSelection === true) {
-        setSelectedMessages(curMessages.map((item, idx) => idx));
+      if (allSelected === true) {
+        setSelectedMessages(curMessages.map((item) => item.id));
       } else {
         // Remove all selections
         setSelectedMessages([]);
@@ -139,7 +136,7 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
       return;
     }
 
-    const deleteIds = selectedMessages.map((item) => curMessages[item]).map((msg_item) => msg_item.id);
+    const deleteIds = selectedMessages;
 
     // Clear selected messages
     setSelectedMessages([]);
@@ -151,7 +148,7 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
     const remainMessages = curMessages.filter((item) => deleteIds.findIndex((fitem) => fitem === item.id) === -1);
     setCurMessages(remainMessages);
 
-  }, [selectedMessages, setSelectedMessages, userMessages]);
+  }, [curMessages, onDelete, selectedMessages]);
 
   /**
    * Handles deleting a single message
@@ -160,6 +157,7 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
    */
   const handleDeleteMessage = React.useCallback((deleteId) => {
 
+    // Find the item to delete
     const deleteIds = curMessages.filter((item) => item.id === deleteId).map((mitem) => mitem.id);
     if (!deleteIds || deleteIds.length <= 0) {
       return;
@@ -176,7 +174,7 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
     const remainMessages = curMessages.filter((item) => deleteIds.findIndex((fitem) => fitem === item.id) === -1);
     setCurMessages(remainMessages);
 
-  }, [selectedMessages, setSelectedMessages, userMessages]);
+  }, [curMessages, onDelete, selectedMessages]);
 
   /**
    * Handles the user reading a message
@@ -192,7 +190,7 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
     setMessageType(MESSAGE_TYPE.Read);
     setReadMessage(curMessages.filter((item) => foundIds.findIndex((fitem) => fitem === item.id) !== -1));
 
-  }, [setReadMessage, userMessages])
+  }, [curMessages])
 
   /**
    * Handles the reader wanting to read selected messages
@@ -204,10 +202,9 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
       return;
     }
 
-    const readMsgs = selectedMessages.map((item) => curMessages[item]);
-    setReadMessage(readMsgs)
+    setReadMessage(selectedMessages);
 
-  }, [selectedMessages, setReadMessage]);
+  }, [selectedMessages]);
 
   /**
    * Handles the user having read messages
@@ -221,11 +218,11 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
     setCurMessages(curMessages.map((item) => {
       const foundIdx = msgIds.findIndex((fitem) => fitem === item.id);
       if (foundIdx > -1) {
-        item.read_sec = 1;
+        return {...item, read_sec: 1};
       }
       return item;
     }));
-  }, [curMessages]);
+  }, [curMessages, onRead]);
 
   /**
    * Handles the user wanting to reply to a message
@@ -245,7 +242,7 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
     let newMessage = '<p> </p><p class="mceNonEditable" style="color:grey"> ----------------<br/>' + formattedOldMessage +  '</p>';
     setReadMessage([{...replyMsg, ...{subject:'RE: ' + replyMsg.subject, message:newMessage}}]);
     setMessageType(replyAll ? MESSAGE_TYPE.ReplyAll : MESSAGE_TYPE.Reply);
-  }, [setReadMessage, setMessageType, userMessages]);
+  }, [curMessages]);
 
   /**
    * Handles closing the active message
@@ -255,24 +252,13 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
     setReadMessage(null);
     setNewMessage(false);
     setMessageType(MESSAGE_TYPE.None);
-  }, [setMessageType, setNewMessage, setReadMessage]);
+  }, []);
 
   // Menu items for more button on each message
   const moreMenuItems = [
     {label: "Reply", action: (msgId) => handleMessageReply(msgId, false)},
     {label: "Reply All", action: (msgId) => handleMessageReply(msgId, true)},
   ];
-
-  /**
-   * Generates the click handler for menu items
-   * @function
-   * @param {string} messageId The ID of the message for this menu
-   * @param {function} menuClickHandler The handler for the menu click
-   */
-  function generateMenuClick(messageId, menuClickHandler) {
-    let curId = '' + messageId;
-    return () => {menuClickHandler(curId);handleMoreClose();};
-  }
 
   /**
    * Generated a line for each message (or blank ones)
@@ -307,13 +293,12 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
                        cursor:'pointer'
                       }}
             >
-              <MessageLine key={"message-line-" + idx}
-                            message={item}
-                            isSelected={selectedMessages.findIndex((item) => item === idx) !== -1}
+              <MessageLine message={item}
+                            isSelected={selectedMessages.includes(item.id)}
                             menuItems={moreMenuItems}
                             onDelete={() => handleDeleteMessage(item.id)}
                             onRead={() => handleReadMessage(item.id)}
-                            onSelChange={(event) => handleMessageChecked(event, idx)}
+                            onSelChange={(event) => handleMessageChecked(event, item.id)}
               />
             </Grid>
           )
@@ -360,7 +345,7 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
 
   return (
   <React.Fragment>
-    <Grid id='messages-wrapper'
+    <Grid id='user-messages-wrapper' ref={userMessagesRef}
          sx={{position:'absolute', top:(workingRect.y+20)+'px', right:'20px'}}
     >
       <Card id="messages-content" ref={contentRef} sx={{minWidth:'700px', backgroundColor:'ghostwhite', border:'1px solid lightgrey', borderRadius:'20px'}} >
@@ -393,3 +378,11 @@ export default function UserMessages({onAdd, onDelete, onRefresh, onRead, onClos
   </React.Fragment>
   )
 }
+
+UserMessages.propTypes = {
+  onAdd: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
+  onRefresh: PropTypes.func.isRequired,
+  onRead: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired,
+};

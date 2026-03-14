@@ -1,6 +1,6 @@
 'use client'
 
-/** @module components/FolderUpload */
+/** @module components/FolderUploadConfirm */
 
 import * as React from 'react';
 import Box from '@mui/material/Box';
@@ -12,16 +12,18 @@ import CardHeader from '@mui/material/CardHeader';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
+
+import PropTypes from 'prop-types';
  
 import { SizeContext } from '../serverInfo';
 
 /**
- * Renders the UI for uploading a folder of images
+ * Renders the UI for confirming the upload
  * @function
  * @param {string} title The title to display
- * @param {function} onConfirm THe user confirms the action
- * @param {function} onCancelThe user cancels the action
- * @param {object} children The children to display
+ * @param {function} onConfirm The user confirms the action
+ * @param {function} onCancel The user cancels the action
+ * @param {React.node} children The children to display
  * @returns {object} The rendered UI
  */
 export default function FolderUploadConfirm({title, onConfirm, onCancel, children}) {
@@ -50,11 +52,18 @@ export default function FolderUploadConfirm({title, onConfirm, onCancel, childre
               {children}
           </CardContent>
           <CardActions>
-            <Button id="sandbox-upload-continue-confirm-yes" sx={{'flex':'1'}} size="small" onClick={onConfirm}>Yes</Button>
-            <Button id="sandbox-upload-continue-confirm-no" sx={{'flex':'1'}} size="small" onClick={onCancel}>No</Button>
+            <Button id="sandbox-upload-continue-confirm-yes" sx={{flex:1}} size="small" onClick={onConfirm}>Yes</Button>
+            <Button id="sandbox-upload-continue-confirm-no" sx={{flex:1}} size="small" onClick={onCancel}>No</Button>
           </CardActions>
           </Card>
       </Grid>
     </Box>
   );
 }
+
+FolderUploadConfirm.propTypes = {
+  title: PropTypes.string.isRequired,
+  onConfirm: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+  children: PropTypes.node.isRequired,
+};

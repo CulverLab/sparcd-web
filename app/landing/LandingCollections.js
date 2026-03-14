@@ -1,3 +1,5 @@
+'use client'
+
 /** @module LandingCollections */
 
 import * as React from 'react';
@@ -10,6 +12,8 @@ import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
+
+import PropTypes from 'prop-types';
 
 import { CollectionsInfoContext, MobileDeviceContext } from '../serverInfo';
 
@@ -35,8 +39,7 @@ export default function LandingCollections({loadingCollections, onChange}) {
     onChange(event.target.value);
   }
 
-  const collectionItems = curCollectionsInfo;
-  const firstItem = collectionItems && collectionItems.length > 0 ? collectionItems[0] : null;
+  const firstItem = curCollectionsInfo && curCollectionsInfo.length > 0 ? curCollectionsInfo[0] : null;
 
   // Render the UI
   return (
@@ -48,7 +51,7 @@ export default function LandingCollections({loadingCollections, onChange}) {
             Refreshing...
           </Typography>
           <Box id='landing-collections-wrapper' sx={{ ...theme.palette.landing_collections, padding:'0px', minHeight:'40px' }} >
-          { collectionItems ?
+          { curCollectionsInfo ?
             <FormControl sx={{width:'100%'}}>
               <RadioGroup
                 id='collection-items'
@@ -56,8 +59,8 @@ export default function LandingCollections({loadingCollections, onChange}) {
                 onChange={handleChange}              
               >
                   {
-                    collectionItems.map(function(obj, idx) {
-                      const itemTheme = idx & 1 ? theme.palette.landing_collections_list : theme.palette.landing_collections_list_alt
+                    curCollectionsInfo.map(function(obj, idx) {
+                      const itemTheme = idx % 2 === 1 ? theme.palette.landing_collections_list : theme.palette.landing_collections_list_alt
                       return <FormControlLabel value={obj.name} control={<Radio />} label={obj.name} key={obj.name+'-'+idx}
                                                sx={{padding:'0px 5px', 
                                                     ...itemTheme,
@@ -80,3 +83,8 @@ export default function LandingCollections({loadingCollections, onChange}) {
     </React.Fragment>
   );
 }
+
+LandingCollections.propTypes = {
+  loadingCollections: PropTypes.bool.isRequired,
+  onChange: PropTypes.func.isRequired,
+};

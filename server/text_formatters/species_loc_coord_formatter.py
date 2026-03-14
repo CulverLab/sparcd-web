@@ -36,11 +36,13 @@ class SpeciesLocCoordFormatter:
 
                 # We format the easting then northing of the UTM coordiantes
                 result += '{:<28s}  {:8d}  {:8d}  {:7.0f}      {:8.6f}  {:8.6f}'. \
-                                format( \
-                                    location['nameProperty'], \
-                                    round(utm_coord[0]), round(utm_coord[1]), \
-                                    location['elevationProperty'], \
-                                    float(location['latProperty']), float(location['lngProperty']) \
+                                format(
+                                    location['nameProperty'],
+                                    round(utm_coord[0]), 
+                                    round(utm_coord[1]),
+                                    float(location['elevationProperty']),
+                                    float(location['latProperty']),
+                                    float(location['lngProperty'])
                                 ) + os.linesep
 
             result += os.linesep

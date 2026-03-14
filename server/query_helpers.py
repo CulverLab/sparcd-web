@@ -138,10 +138,11 @@ def list_uploads_thread(s3_url: str, user_name: str, user_secret: str, bucket: s
     Return:
         Returns an object with the loaded uploads
     """
-    uploads_info = S3Connection.list_uploads(s3_url, \
-                                        user_name, \
-                                        user_secret, \
-                                        bucket)
+    uploads_info = S3Connection.list_uploads(s3_url,    \
+                                        user_name,      \
+                                        user_secret,    \
+                                        bucket,         \
+                                        True)
 
     return {'bucket': bucket, 'uploads_info': uploads_info}
 

@@ -175,6 +175,7 @@ let theme = createTheme({
     },
     landing_page_map_image_wrapper: {
       maxHeight:'180px',
+      minWidth: '180px',
       border:'1px solid grey',
       borderRadius:'10px',
       overflow:'clip',

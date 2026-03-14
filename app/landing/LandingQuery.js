@@ -1,19 +1,11 @@
 'use client'
 
-/** @module LandingUQuery */
+/** @module LandingQuery */
 
 import * as React from 'react';
-import Box from '@mui/material/Box';
-import FormControl from '@mui/material/FormControl';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import Grid from '@mui/material/Grid';
-import PriorityHighOutlinedIcon from '@mui/icons-material/PriorityHighOutlined';
-import Radio from '@mui/material/Radio';
-import RadioGroup from '@mui/material/RadioGroup';
 import Stack from '@mui/material/Stack';
 import { useTheme } from '@mui/material/styles';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
 
 import LandingInfoTile from './LandingInfoTile';
 import { BaseURLContext, TokenExpiredFuncContext, TokenContext } from '../serverInfo';
@@ -25,20 +17,20 @@ import { BaseURLContext, TokenExpiredFuncContext, TokenContext } from '../server
  */
 export default function LandingQuery() {
   const theme = useTheme();
-  const setTokenExpired = React.useContext(TokenExpiredFuncContext);
+  const tokenExpiredFunc = React.useContext(TokenExpiredFuncContext);
   const serverURL = React.useContext(BaseURLContext);
   const queryToken = React.useContext(TokenContext);
   const [animalsNums,setAnimalsNums] = React.useState(null);
 
   /**
-   * Retreives the species stats from the server
+   * Retrieves the species stats from the server
    * @function
    */
   const getSpeciesStats = React.useCallback(() => {
     const speciesStatsUrl = serverURL + '/speciesStats?t=' + encodeURIComponent(queryToken);
 
     try {
-      const resp = fetch(speciesStatsUrl, {
+      fetch(speciesStatsUrl, {
           credentials: 'include',
           method: 'GET',
         }).then(async (resp) => {
@@ -47,9 +39,9 @@ export default function LandingQuery() {
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setTokenExpired();
+                tokenExpiredFunc();
               }
-              throw new Error(`Failed to get species statistics: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get species statistics: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -59,47 +51,33 @@ export default function LandingQuery() {
         .catch(function(err) {
           console.log('Species Statistics Error: ',err);
         });
-    } catch (error) {
+    } catch (err) {
       console.log('Species Statistics Unknown Error: ',err);
     }
-  }, [serverURL, setAnimalsNums, queryToken]);
+  }, [serverURL, queryToken]);
 
   // Get the statistics to show
   React.useLayoutEffect(() => {
     if (animalsNums === null) {
       getSpeciesStats();
     }
-  }, [animalsNums, setAnimalsNums]);
+  }, [animalsNums, getSpeciesStats]);
 
-  // TODO: Make animalsNums load from server
+  // Make animalsNums load from server
   const showAnimalIdx = React.useMemo(() => {
-    if (animalsNums === null) {
+    if (animalsNums === null || animalsNums.length === 0) {
       return null;
     }
 
-    let foundIdx = [Math.floor(Math.random() * animalsNums.length),
-                    Math.floor(Math.random() * animalsNums.length),
-                    Math.floor(Math.random() * animalsNums.length)];
-    let fixed = 0;
-    while (fixed < 5) {
-      let fixedValue = false;
-      for (let idx = 1; idx < foundIdx.length; idx++) {
-        const found = foundIdx.filter((item) => item === foundIdx[idx]);
-        if (found.length > 1) {
-          // We have a duplicate
-          foundIdx[idx] = Math.floor(Math.random() * animalsNums.length);
-          fixedValue = true;
-        }
-      }
+    // Clamp the number of tiles to show to the available data
+    const numTiles = Math.min(3, animalsNums.length);
+    const foundIdx = new Set();
 
-      if (fixedValue === true) {
-        fixed++;
-      } else {
-        break;
-      }
+    while (foundIdx.size < numTiles) {
+      foundIdx.add(Math.floor(Math.random() * animalsNums.length));
     }
 
-    return foundIdx;
+    return [...foundIdx];
   }, [animalsNums]);
 
   // Render the UI
@@ -107,7 +85,7 @@ export default function LandingQuery() {
     <Stack>
       <Grid id="sandbox-query-info-wrapper" container direction="row" alignItems="center" justifyContent="space-around"
             sx={{paddingTop:'10px'}}>
-        { animalsNums?.map((item, idx) =>  showAnimalIdx?.includes(idx) && <LandingInfoTile key={idx} title={item[1]} details={item[0]} />
+        { animalsNums?.map((item, idx) => showAnimalIdx?.includes(idx) && <LandingInfoTile key={item[0]} title={item[1]} details={item[0]} />
         )
       }
       </Grid>

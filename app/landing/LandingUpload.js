@@ -5,16 +5,16 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
-import Radio from '@mui/material/Radio';
 import Stack from '@mui/material/Stack';
 import { useTheme } from '@mui/material/styles';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+
+import PropTypes from 'prop-types';
 
 import IncompleteUploadItem from './IncompleteUploadItem';
 import LandingInfoTile from './LandingInfoTile';
-import { BaseURLContext, CollectionsInfoContext, TokenExpiredFuncContext, MobileDeviceContext, 
-         SandboxInfoContext, TokenContext, UserNameContext } from '../serverInfo';
+import { BaseURLContext, TokenExpiredFuncContext, MobileDeviceContext, 
+         SandboxInfoContext, TokenContext } from '../serverInfo';
 
 /**
  * Returns the UI for uploads on the Landing page
@@ -27,23 +27,20 @@ export default function LandingUpload({loadingSandbox, onChange}) {
   const theme = useTheme();
   const curSandboxInfo = React.useContext(SandboxInfoContext);
   const mobileDevice = React.useContext(MobileDeviceContext);
-  const setTokenExpired = React.useContext(TokenExpiredFuncContext);
+  const tokenExpiredFunc = React.useContext(TokenExpiredFuncContext);
   const serverURL = React.useContext(BaseURLContext);
   const uploadToken = React.useContext(TokenContext);
-  const userName = React.useContext(UserNameContext);
   const [numPrevUploads, setNumPrevUploads] = React.useState(null);
 
-  const sandboxItems = curSandboxInfo;
-
   /**
-   * Retreives the upload stats from the server
+   * Retrieves the upload stats from the server
    * @function
    */
   const getUploadStats = React.useCallback(() => {
     const uploadStatsUrl = serverURL + '/sandboxStats?t=' + encodeURIComponent(uploadToken);
 
     try {
-      const resp = fetch(uploadStatsUrl, {
+      fetch(uploadStatsUrl, {
           credentials: 'include',
           method: 'GET',
         }).then(async (resp) => {
@@ -52,9 +49,9 @@ export default function LandingUpload({loadingSandbox, onChange}) {
             } else {
               if (resp.status === 401) {
                 // User needs to log in again
-                setTokenExpired();
+                tokenExpiredFunc();
               }
-              throw new Error(`Failed to get upload statistics: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get upload statistics: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -64,23 +61,23 @@ export default function LandingUpload({loadingSandbox, onChange}) {
         .catch(function(err) {
           console.log('Upload Statistics Error: ',err);
         });
-    } catch (error) {
+    } catch (err) {
       console.log('Upload Statistics Unknown Error: ',err);
     }
-  }, [serverURL, setNumPrevUploads, uploadToken]);
+  }, [serverURL, uploadToken]);
 
   // Get the statistics to show
   React.useLayoutEffect(() => {
     if (numPrevUploads === null) {
       getUploadStats();
     }
-  }, [numPrevUploads, setNumPrevUploads]);
+  }, [getUploadStats, numPrevUploads]);
 
   // Determine if we have unfinished uploads
   const unfinished = React.useMemo(() => {
     let found = null;
-    if (sandboxItems && sandboxItems.length > 0) {
-      for (let oneItem of sandboxItems) {
+    if (curSandboxInfo && curSandboxInfo.length > 0) {
+      for (let oneItem of curSandboxInfo) {
         if (oneItem && oneItem.uploads && oneItem.uploads.length > 0) {
           for (let oneUp of oneItem.uploads) {
             if (oneUp && oneUp.uploadCompleted !== undefined) {
@@ -97,7 +94,7 @@ export default function LandingUpload({loadingSandbox, onChange}) {
       }
     }
     return found !== null;
-  }, [sandboxItems]);
+  }, [curSandboxInfo]);
 
   /**
    * Handle the user wanting to repair a sandbox item
@@ -107,14 +104,14 @@ export default function LandingUpload({loadingSandbox, onChange}) {
    */
   const handleRepairUpload = React.useCallback((sandboxItem, uploadItem) => {
     onChange(sandboxItem, uploadItem);
-  }, []);
+  }, [onChange]);
 
   // Render the UI
   return (
     <Stack>
       { unfinished || loadingSandbox  ? (
         <React.Fragment>
-          <Grid id="sandbox-status-wrapper" container direction="row" alignItems="sflex-tart" justifyContent="flex-start">
+          <Grid id="sandbox-status-wrapper" container direction="row" alignItems="flex-start" justifyContent="flex-start">
             <Grid size={{sm:4, md:4, lg:4}} sx={{left:'auto'}}>
               <Typography gutterBottom sx={{ ...theme.palette.landing_upload_prompt,
                           visibility: !loadingSandbox?"visible":"hidden" }} >
@@ -133,7 +130,7 @@ export default function LandingUpload({loadingSandbox, onChange}) {
           </Grid>
           <Grid id="sandbox-upload-item-wrapper" container direction="row" alignItems="start" justifyContent="start"
                 sx={{ ...theme.palette.landing_upload, padding:'0px 0px', minHeight:'40px', maxHeight:'120px'}} >
-            { sandboxItems?.map((item, idx) => {
+            { curSandboxInfo?.map((item, idx) => {
                 let curRow = 0;
                 const incompleteUploads = item.uploads.filter((item) => item.uploadCompleted === false);
                 return incompleteUploads.map((upItem, upIdx) => {
@@ -141,7 +138,7 @@ export default function LandingUpload({loadingSandbox, onChange}) {
                     return (<IncompleteUploadItem key={`${idx}-${upIdx}`}
                                                   upload={upItem}
                                                   collection={item}
-                                                  highlight={curRow & 0x01 === 0}
+                                                  highlight={(curRow & 0x01) === 0}
                                                   onRepair={handleRepairUpload}
                             />
                             );
@@ -156,13 +153,13 @@ export default function LandingUpload({loadingSandbox, onChange}) {
                 No incomplete uploads found
               </Typography>
       }
-      <Grid id="sandbox-upload-info-wrapper" container direction="row" alignItems="center" justifyContent="space-around"
+      <Grid id="sandbox-upload-note-wrapper" container direction="row" alignItems="center" justifyContent="space-around"
             sx={{paddingTop:'10px'}}>
         <Typography variant="body2" >
           If you think you have an incomplete upload that's not shown, contact your administrator
         </Typography>
       </Grid>
-      <Grid id="sandbox-upload-info-wrapper" container direction="row" alignItems="center" justifyContent="space-around"
+      <Grid id="sandbox-upload-details-wrapper" container direction="row" alignItems="center" justifyContent="space-around"
             sx={{paddingTop:'30px'}}>
         { numPrevUploads?.map((item, idx) => {
             return <LandingInfoTile key={idx} title={item[1]} details={item[0]} />
@@ -172,3 +169,8 @@ export default function LandingUpload({loadingSandbox, onChange}) {
     </Stack>
   );
 }
+
+LandingUpload.propTypes = {
+  loadingSandbox: PropTypes.bool.isRequired,
+  onChange: PropTypes.func.isRequired,
+};

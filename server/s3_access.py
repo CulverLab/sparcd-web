@@ -16,6 +16,8 @@ from typing import Optional, Callable
 import uuid
 from minio import Minio, S3Error
 
+from camtrap.v016 import camtrap
+
 # Prefix for SPARCd things
 SPARCD_PREFIX='sparcd-'
 
@@ -319,8 +321,8 @@ def get_upload_data_thread(minio: Minio, bucket: str, upload_paths: tuple, colle
                     upload_info.append({
                                  'path':one_path,
                                  'info':upload_json,
-                                 'location':csv_info[1],
-                                 'elevation':csv_info[12],
+                                 'location':csv_info[camtrap.CAMTRAP_DEPLOYMENT_LOCATION_ID_IDX],
+                                 'elevation':csv_info[camtrap.CAMTRAP_DEPLOYMENT_CAMERA_HEIGHT_IDX],
                                  'key':os.path.basename(one_path.rstrip('/\\')),
                                  'uploaded_folders': get_uploaded_folders(minio, bucket, one_path)
                                 })
@@ -674,8 +676,8 @@ class S3Connection:
                     upload_info = {
                                  'path':upload_path,
                                  'info':coll_info,
-                                 'location':csv_info[1],
-                                 'elevation':csv_info[12],
+                                 'location':csv_info[camtrap.CAMTRAP_DEPLOYMENT_LOCATION_ID_IDX],
+                                 'elevation':csv_info[camtrap.CAMTRAP_DEPLOYMENT_CAMERA_HEIGHT_IDX],
                                  'key':os.path.basename(upload_path.rstrip('/\\')),
                                  'uploaded_folders':get_uploaded_folders(minio, bucket, upload_path)
                                 }
@@ -771,10 +773,10 @@ class S3Connection:
 
             reader = csv.reader(StringIO(csv_data))
             for csv_info in reader:
-                common_name = get_common_name(csv_info[19])
+                common_name = get_common_name(csv_info[camtrap.CAMTRAP_OBSERVATION_COMMENT_IDX])
 
                 # Update the image with a species if we find it
-                cur_img = images_dict.get(csv_info[3])
+                cur_img = images_dict.get(csv_info[camtrap.CAMTRAP_OBSERVATION_MEDIA_ID_IDX])
                 if cur_img is not None:
 
                     # Add the species
@@ -782,14 +784,16 @@ class S3Connection:
                         cur_img['species'] = []
 
                     # Only return items that have data
-                    if not csv_info[8] or not csv_info[9]:
+                    if not csv_info[camtrap.CAMTRAP_OBSERVATION_SCIENTIFIC_NAME_IDX] or not \
+                                                            csv_info[camtrap.CAMTRAP_OBSERVATION_COUNT_IDX]:
                         continue
 
                     cur_img['species'].append({ 'name':common_name, \
-                                                'scientificName':csv_info[8], \
-                                                'count':csv_info[9]})
+                                'scientificName': \
+                                                csv_info[camtrap.CAMTRAP_OBSERVATION_SCIENTIFIC_NAME_IDX], \
+                                'count':csv_info[camtrap.CAMTRAP_OBSERVATION_COUNT_IDX]})
                 else:
-                    print(f'Unable to find collection image: {csv_info[3]}')
+                    print(f'Unable to find collection image: {csv_info[camtrap.CAMTRAP_OBSERVATION_MEDIA_ID_IDX]}')
         else:
             print(f'Unable to get observations information: {upload_info_path}')
 
@@ -799,13 +803,15 @@ class S3Connection:
 
 
     @staticmethod
-    def list_uploads(url: str, user: str, password: str, bucket: str) -> Optional[tuple]:
+    def list_uploads(url: str, user: str, password: str, bucket: str, \
+                                                extended_location: bool=False) -> Optional[tuple]:
         """ Returns the upload information for a collection
         Arguments:
             url: the URL to the s3 instance
             user: the name of the user to use when connecting
             password: the user's password
             bucket: the bucket of the uploads
+            extended_location: returns additional location information when set to True 
         Returns:
             Returns the uploads, or None
         """
@@ -848,11 +854,20 @@ class S3Connection:
                     reader = csv.reader(StringIO(csv_data))
                     for csv_info in reader:
                         if len(csv_info) >= 23:
-                            meta_info_data['loc'] = csv_info[1]
-                            meta_info_data['elevation'] =  csv_info[12]
+                            meta_info_data['loc'] = \
+                                                csv_info[camtrap.CAMTRAP_DEPLOYMENT_LOCATION_ID_IDX]
+                            meta_info_data['elevation'] = \
+                                            csv_info[camtrap.CAMTRAP_DEPLOYMENT_CAMERA_HEIGHT_IDX]
+                            if extended_location is True:
+                                meta_info_data['loc_name'] = \
+                                            csv_info[camtrap.CAMTRAP_DEPLOYMENT_LOCATION_NAME_IDX]
+                                meta_info_data['loc_lon'] = \
+                                                csv_info[camtrap.CAMTRAP_DEPLOYMENT_LONGITUDE_IDX]
+                                meta_info_data['loc_lat'] = \
+                                                csv_info[camtrap.CAMTRAP_DEPLOYMENT_LATITUDE_IDX]
                             break
                 else:
-                    print(f'Unable to get deployment information: {upload_info_path}')
+                    print(f'list_uploads: Unable to get deployment information: {upload_info_path}')
                     continue
 
                 # Uploaded images data
@@ -866,15 +881,19 @@ class S3Connection:
                         cur_row = cur_row + 1
                         if len(csv_info) >= 20:
                             # Get the fields of interest
-                            cur_species = { 'name':get_common_name(csv_info[19]), \
-                                            'scientificName':csv_info[8], \
-                                            'count':csv_info[9]}
+                            cur_species = {
+                                'name':get_common_name(csv_info[camtrap.CAMTRAP_OBSERVATION_COMMENT_IDX]), \
+                                'scientificName':csv_info[camtrap.CAMTRAP_OBSERVATION_SCIENTIFIC_NAME_IDX],\
+                                'count':csv_info[camtrap.CAMTRAP_OBSERVATION_COUNT_IDX]}
 
-                            image_name = os.path.basename(csv_info[3].rstrip('/\\'))
+                            image_name = os.path.basename(\
+                                                csv_info[camtrap.CAMTRAP_OBSERVATION_MEDIA_ID_IDX].\
+                                                                                    rstrip('/\\'))
                             temp_image = [one_image for one_image in cur_images if \
                                                 one_image['name'] == image_name and \
                                                 one_image['bucket'] == bucket and \
-                                                one_image['s3_path'] == csv_info[3]]
+                                                one_image['s3_path'] == \
+                                                        csv_info[camtrap.CAMTRAP_OBSERVATION_MEDIA_ID_IDX]]
                             if temp_image and len(temp_image) > 0:
                                 temp_image = temp_image[0]
 
@@ -882,14 +901,14 @@ class S3Connection:
                                 temp_image['species'].append(cur_species)
                             else:
                                 cur_images.append({ 'name':image_name,
-                                                    'timestamp':csv_info[4],
-                                                    'bucket': bucket,
-                                                    's3_path': csv_info[3],
-                                                    'species':[cur_species]})
+                                            'timestamp':csv_info[camtrap.CAMTRAP_OBSERVATION_TIMESTAMP_IDX],
+                                            'bucket': bucket,
+                                            's3_path': csv_info[camtrap.CAMTRAP_OBSERVATION_MEDIA_ID_IDX],
+                                            'species':[cur_species]})
                         elif csv_info:
                             print(f'Invalid CSV row ({cur_row}) read from {upload_info_path}')
                 else:
-                    print(f'Unable to get deployment information: {upload_info_path}')
+                    print(f'Unable to get observation information: {upload_info_path}')
                 meta_info_data['images'] = cur_images
                 coll_uploads.append(meta_info_data)
 
@@ -1364,7 +1383,7 @@ class S3Connection:
 
     @staticmethod
     def update_upload_metadata(url: str, user: str, password: str, bucket: str, upload_path: str, \
-                                    new_comment: str=None, images_species_count: int=None) -> bool:
+                                    new_comment: str=None, images_species_count: int=None) -> tuple:
         """ Update the upload's metadata on the S3 instance with a new count
         Arguments:
             url: the URL to the s3 instance
@@ -1375,7 +1394,8 @@ class S3Connection:
             new_comment: the comment to add to the metadata
             images_species_count: The count of images that have species
         Return:
-            Returns True if no problem was found and False otherwise
+            Returns a tuple of: True if no problem was found and False otherwise, and the updated
+            upload information if True is the first element
         """
         minio = Minio(url, access_key=user, secret_key=password)
 
@@ -1391,11 +1411,11 @@ class S3Connection:
             except json.JSONDecodeError:
                 print('update_upload_metadata_comment: Unable to load JSON information: ' \
                       f'{upload_info_path}')
-                return False
+                return False, None
         else:
             print('update_upload_metadata_comment: Unable to get upload information: ' \
                  f'{upload_info_path}')
-            return False
+            return False, None
 
         # Update and save the upload information
         if new_comment is not None:
@@ -1407,7 +1427,7 @@ class S3Connection:
                                                                     content_type='application/json')
 
         os.unlink(temp_file[1])
-        return True
+        return True, data
 
     @staticmethod
     def needs_repair(url: str, user: str, password: str) -> tuple:

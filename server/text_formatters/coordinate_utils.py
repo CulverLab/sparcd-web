@@ -28,7 +28,7 @@ def _get_utm_zone(lat: float, lon: float) -> int:
     if 56.0 <= lat < 64.0 and 3.0 <= lon < 12.0:
         return 32
 
-    return int(math.floor(((lon + 180) / 6) % 60) + 1)
+    return int(math.floor(((float(lon) + 180) / 6) % 60) + 1)
 
 
 def _get_utm_letter(lat: float) -> str:
@@ -39,7 +39,7 @@ def _get_utm_letter(lat: float) -> str:
         Returns the zone letter or None if the l;atitude is invalid
     """
     if -80.0 <= lat <= 84.0:
-        return 'CDEFGHJKLMNPQRSTUVWXX'[int(lat + 80) >> 3]
+        return 'CDEFGHJKLMNPQRSTUVWXX'[int(float(lat) + 80) >> 3]
 
     return None
 

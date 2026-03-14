@@ -11,12 +11,15 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 /**
  * Returns the UI for uploads on the Landing page
  * @function
  * @param {object} upload The upload item to display
- * @oaran {object} collection The collection associated with the upload
+ * @param {object} collection The collection associated with the upload
  * @param {boolean} highlight When set to true the row is highlighted
+ * @param {function} onRepair The function to call to repair the upload
  * @returns {object} The rendered UI
  */
 export default function IncompleteUploadItem({upload, collection, highlight, onRepair}) {
@@ -29,7 +32,7 @@ export default function IncompleteUploadItem({upload, collection, highlight, onR
       <Tooltip title="Incomplete upload" placement="left" sx={{paddingLeft:'5px'}}>
         <PriorityHighOutlinedIcon fontSize="small" sx={{color:"sandybrown"}} />
       </Tooltip>
-      <Typography variant="body" >
+      <Typography variant="body1" >
         {upload.name}
       </Typography>
       <Tooltip placement="left"
@@ -53,3 +56,17 @@ export default function IncompleteUploadItem({upload, collection, highlight, onR
     </Grid>
   );
 }
+
+IncompleteUploadItem.propTypes = {
+  upload: PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    path: PropTypes.string,
+    uploadUser: PropTypes.string,
+    imagesCount: PropTypes.number,
+    location: PropTypes.string,
+    folders: PropTypes.arrayOf(PropTypes.string),
+  }).isRequired,
+  collection: PropTypes.object.isRequired,
+  highlight: PropTypes.bool,
+  onRepair: PropTypes.func.isRequired,
+};

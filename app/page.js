@@ -526,7 +526,7 @@ export default function Home() {
                 // User needs to log in again
                 setUserLoginAgain(true);
               }
-              throw new Error(`Failed to get collections: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get collections: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -540,19 +540,19 @@ export default function Home() {
                                                                          first.date.time.hour > second.date.time.hour || 
                                                                          first.date.time.minute > second.date.time.minute || 
                                                                          first.date.time.second > second.date.time.second || 
-                                                                         first.tdate.ime.nano > second.date.time.nano) ? -1 : 1);
+                                                                         first.date.time.nano > second.date.time.nano) ? -1 : 1);
           }
           console.log('HACK: COLLECTIONS',curCollections);
           setCollectionInfo(curCollections);
         })
         .catch((err) => {
           console.log('Collections Error: ',err);
-          addMessage(Level.Error, 'A problem ocurred while fetching collection information');
+          addMessage(Level.Error, 'A problem occurred while fetching collection information');
           setLoadingCollections(false);
       });
     } catch (error) {
       console.log('Collections Unknown Error: ',error);
-      addMessage(Level.Error, 'An unknown problem ocurred while fetching collection information');
+      addMessage(Level.Error, 'An unknown problem occurred while fetching collection information');
       setLoadingCollections(false);
     }
   }
@@ -578,7 +578,7 @@ export default function Home() {
                 // User needs to log in again
                 setUserLoginAgain(true);
               }
-              throw new Error(`Failed to get sandbox: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get sandbox: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -589,12 +589,12 @@ export default function Home() {
         })
         .catch((err) => {
           console.log('Sandbox Error: ',err);
-          addMessage(Level.Error, 'A problem ocurred while fetching sandbox information');
+          addMessage(Level.Error, 'A problem occurred while fetching sandbox information');
           setLoadingSandbox(false);
       });
     } catch (error) {
       console.log('Sandbox Unknown Error: ',error);
-      addMessage(Level.Error, 'An unknown problem ocurred while fetching sandbox information');
+      addMessage(Level.Error, 'An unknown problem occurred while fetching sandbox information');
       setLoadingSandbox(false);
     }
   }
@@ -620,7 +620,7 @@ export default function Home() {
                 // User needs to log in again
                 setUserLoginAgain(true);
               }
-              throw new Error(`Failed to get locations: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get locations: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -632,12 +632,12 @@ export default function Home() {
         })
         .catch((err) => {
           console.log('Locations Error: ',err);
-          addMessage(Level.Error, 'A problem ocurred while fetching locations');
+          addMessage(Level.Error, 'A problem occurred while fetching locations');
           setLoadingLocations(false);
       });
     } catch (error) {
       console.log('Locations Error: ',error);
-      addMessage(Level.Error, 'An unknown problem ocurred while fetching locations');
+      addMessage(Level.Error, 'An unknown problem occurred while fetching locations');
       setLoadingLocations(false);
     }
   }
@@ -663,7 +663,7 @@ export default function Home() {
                 // User needs to log in again
                 setUserLoginAgain(true);
               }
-              throw new Error(`Failed to get species: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get species: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -675,12 +675,12 @@ export default function Home() {
         })
         .catch((err) => {
           console.log('Species Error: ',err);
-          addMessage(Level.Error, 'A problem ocurred while fetching species');
+          addMessage(Level.Error, 'A problem occurred while fetching species');
           setLoadingSpecies(false);
       });
     } catch (error) {
       console.log('Unknown Species Error: ',error);
-      addMessage(Level.Error, 'An unknown problem ocurred while fetching species');
+      addMessage(Level.Error, 'An unknown problem occurred while fetching species');
       setLoadingSpecies(false);
     }
   }
@@ -708,7 +708,7 @@ export default function Home() {
                 // User needs to log in again
                 setUserLoginAgain(true);
               }
-              throw new Error(`Failed to get additional species: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get additional species: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -725,12 +725,12 @@ export default function Home() {
         })
         .catch((err) => {
           console.log('Other Species Error: ',err);
-          addMessage(Level.Error, 'A problem ocurred while fetching additional species');
+          addMessage(Level.Error, 'A problem occurred while fetching additional species');
           setLoadingOtherSpecies(false);
       });
     } catch (error) {
       console.log('Unknown Other Species Error: ',error);
-      addMessage(Level.Error, 'An unknown problem ocurred while fetching additional species');
+      addMessage(Level.Error, 'An unknown problem occurred while fetching additional species');
       setLoadingOtherSpecies(false);
     }
   }
@@ -763,7 +763,7 @@ export default function Home() {
             if (resp.ok) {
               return resp.json();
             } else {
-              throw new Error(`Failed to log in: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to log in: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -870,7 +870,7 @@ export default function Home() {
                 // User needs to log in again
                 setUserLoginAgain(true);
               }
-              throw new Error(`Failed to log in: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to log in: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -896,12 +896,12 @@ export default function Home() {
         })
         .catch(function(err) {
           console.log('Error: ',err);
-          addMessage(Level.Error, 'A problem ocurred while fetching the upload information');
+          addMessage(Level.Error, 'A problem occurred while fetching the upload information');
           if (cbFailure) cbFailure();
       });
     } catch (error) {
       console.log('Error: ',error);
-      addMessage(Level.Error, 'An unknown problem ocurred while fetching the upload information');
+      addMessage(Level.Error, 'An unknown problem occurred while fetching the upload information');
       if (cbFailure) cbFailure();
     }
   }, [addMessage, collectionInfo, lastToken, serverURL, setUserLoginAgain]);
@@ -919,6 +919,15 @@ export default function Home() {
                                       }
                         )
   }, [curActionData, editCollectionUpload, setCurActionData]);
+
+  /**
+   * Updates the metadata on the current upload
+   * @function
+   * @param {object} uploadMetadata The updated metadata
+   */
+  const uploadUpdate = React.useCallback(() => {
+    loadCollections(lastToken)
+  }, [lastToken, loadCollections]);
 
   /**
    * Calls the callback to perform a search
@@ -988,7 +997,7 @@ export default function Home() {
                 // User needs to log in again
                 setUserLoginAgain(true);
               }
-              throw new Error(`Failed to check admin permissions: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to check admin permissions: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -1052,7 +1061,7 @@ export default function Home() {
                 // User needs to log in again
                 setUserLoginAgain(true);
               }
-              throw new Error(`Failed to check owner permissions: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to check owner permissions: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -1118,7 +1127,7 @@ export default function Home() {
                 // User needs to log in again
                 setUserLoginAgain(true);
               }
-              throw new Error(`Failed to set settings: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to set settings: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -1136,11 +1145,11 @@ export default function Home() {
         })
         .catch(function(err) {
           console.log('Settings Error: ',err);
-          addMessage(Level.Error, 'A problem ocurred while saving your settings');
+          addMessage(Level.Error, 'A problem occurred while saving your settings');
       });
     } catch (error) {
       console.log('Settings Unknown Error: ',err);
-      addMessage(Level.Error, 'An unknown problem ocurred while saving your settings');
+      addMessage(Level.Error, 'An unknown problem occurred while saving your settings');
     }
   }, [addMessage, lastToken, serverURL, setUserLoginAgain, setUserSettings, userSettings]);
 
@@ -1164,7 +1173,7 @@ export default function Home() {
                 // User needs to log in again
                 setUserLoginAgain(true);
               }
-              throw new Error(`Failed to get messages: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get messages: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -1178,12 +1187,12 @@ export default function Home() {
         })
         .catch((err) => {
           console.log('Fetch Message Error: ',err);
-          addMessage(Level.Error, 'A problem ocurred while fetching messages');
+          addMessage(Level.Error, 'A problem occurred while fetching messages');
           setUserMessages({...userMessages,...{loading:false, count:0, messages:[]}});
       });
     } catch (error) {
       console.log('Message Fetch Unknown Error: ',error);
-      addMessage(Level.Error, 'An unknown problem ocurred while fetching messages');
+      addMessage(Level.Error, 'An unknown problem occurred while fetching messages');
       setUserMessages({...userMessages,...{loading:false, count:0, messages:[]}});
     }
   }, [addMessage, lastToken, serverURL, setUserLoginAgain, setUserMessages]);
@@ -1218,7 +1227,7 @@ export default function Home() {
                 // User needs to log in again
                 setUserLoginAgain(true);
               }
-              throw new Error(`Failed to add new message: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to add new message: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -1229,11 +1238,11 @@ export default function Home() {
         })
         .catch(function(err) {
           console.log('Add Message Error: ',err);
-          addMessage(Level.Error, 'A problem ocurred while adding your message');
+          addMessage(Level.Error, 'A problem occurred while adding your message');
       });
     } catch (error) {
       console.log('Add Message Unknown Error: ',err);
-      addMessage(Level.Error, 'An unknown problem ocurred while adding your message');
+      addMessage(Level.Error, 'An unknown problem occurred while adding your message');
     }
   }, [addMessage, lastToken, serverURL, setUserLoginAgain]);
 
@@ -1262,7 +1271,7 @@ export default function Home() {
                 // User needs to log in again
                 setUserLoginAgain(true);
               }
-              throw new Error(`Failed to mark messages as read: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to mark messages as read: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -1270,11 +1279,11 @@ export default function Home() {
         })
         .catch(function(err) {
           console.log('Read Messages Error: ',err);
-//          addMessage(Level.Error, 'A problem ocurred while marking messages as read');
+//          addMessage(Level.Error, 'A problem occurred while marking messages as read');
       });
     } catch (error) {
       console.log('Read Messages Unknown Error: ',err);
-//      addMessage(Level.Error, 'An unknown problem ocurred while marking messages as read');
+//      addMessage(Level.Error, 'An unknown problem occurred while marking messages as read');
     }
   }, [addMessage, lastToken, serverURL, setUserLoginAgain]);
 
@@ -1303,7 +1312,7 @@ export default function Home() {
                 // User needs to log in again
                 setUserLoginAgain(true);
               }
-              throw new Error(`Failed to delete messages: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to delete messages: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -1311,11 +1320,11 @@ export default function Home() {
         })
         .catch(function(err) {
           console.log('Delete Messages Error: ',err);
-//          addMessage(Level.Error, 'A problem ocurred while deleting messages');
+//          addMessage(Level.Error, 'A problem occurred while deleting messages');
       });
     } catch (error) {
       console.log('Delete Messages Unknown Error: ',err);
-//      addMessage(Level.Error, 'An unknown problem ocurred while deleting messages');
+//      addMessage(Level.Error, 'An unknown problem occurred while deleting messages');
     }
   }, [addMessage, lastToken, serverURL, setUserLoginAgain]);
 
@@ -1471,6 +1480,7 @@ export default function Home() {
                             onCancel={() => setCurrentAction(UserActions.Upload, curActionData, false)} 
                             searchSetup={setupSearch}
                             uploadReload={uploadReload}
+                            uploadUpdateMetadata={uploadUpdate}
                     />
                   </SpeciesInfoContext.Provider>
                 </LocationsInfoContext.Provider>
@@ -1639,7 +1649,7 @@ export default function Home() {
           { (createNewInstance === true || repairInstance === true) &&
               <BaseURLContext.Provider value={serverURL}>
               <AddMessageContext.Provider value={addMessage}>
-                <NewInstallation token={lastToken} repair={repairInstance} onCancel={handleCancelNewInstallation} />
+                <NewInstallation newInstallToken={lastToken} isRepair={repairInstance} onCancel={handleCancelNewInstallation} />
               </AddMessageContext.Provider>
               </BaseURLContext.Provider>
         }
@@ -1657,7 +1667,7 @@ export default function Home() {
             messages.length > 0 && 
               <Grid id="messages-wrapper" container direction="row" alignItems="start" justifyContent="center"
                     sx={{...theme.palette.messages_wrapper, top: workspaceTop}}>
-                <Messages messages={messages} close_cb={handleCloseMessage}/>
+                <Messages messages={messages} closeCb={handleCloseMessage}/>
               </Grid>
           }
         </UserSettingsContext.Provider>

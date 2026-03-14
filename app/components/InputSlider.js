@@ -1,3 +1,5 @@
+'use client'
+
 /** @module components/InputSlider */
 
 import * as React from 'react';

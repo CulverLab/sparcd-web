@@ -11,9 +11,9 @@ import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
 import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
 
 /**
  * Provides the UI for the message's toolbar
@@ -61,3 +61,12 @@ export default function MessagesToolbar({haveSelectedMessages, onAllSelected, on
       </Grid>
   );
 }
+
+MessagesToolbar.propTypes = {
+  haveSelectedMessages: PropTypes.bool.isRequired,
+  onAllSelected: PropTypes.func.isRequired,
+  onDeleteSelected: PropTypes.func.isRequired,
+  onNewMessage: PropTypes.func.isRequired,
+  onReadSelected: PropTypes.func.isRequired,
+  onRefresh: PropTypes.func.isRequired,
+};

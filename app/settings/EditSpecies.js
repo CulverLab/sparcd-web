@@ -1,20 +1,19 @@
 /** @module components/EditSpecies */
 
 import * as React from 'react';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
-import Checkbox from '@mui/material/Checkbox';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
+
+import PropTypes from 'prop-types';
 
 import { AddMessageContext, DefaultImageIconURL } from '../serverInfo';
 import { Level } from '../components/Messages';
@@ -29,7 +28,12 @@ import { Level } from '../components/Messages';
  */
 export default function EditSpecies({data, onUpdate, onClose}) {
   const theme = useTheme();
+  const speciesKeybindRef = React.useRef(null);
+  const speciesNameRef = React.useRef(null);
+  const speciesSciNameRef = React.useRef(null);
+  const speciesUrlRef = React.useRef(null);
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
+  const defaultUrl = React.useContext(DefaultImageIconURL); // What to use when an icon url isn't specied
   const [isModified, setIsModified] = React.useState(false);
 
   /**
@@ -44,36 +48,32 @@ export default function EditSpecies({data, onUpdate, onClose}) {
     // Save the edited species data
     let updatedData = data ? JSON.parse(JSON.stringify(data)) : {};
 
-    let el = document.getElementById('edit-species-name');
-    if (el) {
-      updatedData.name = el.value;
+    if (speciesNameRef.current) {
+      updatedData.name = speciesNameRef.current.value;
       if (updatedData.name.length < 3) {
         addMessage(Level.Warning, "Please enter a longer name")
-        el.focus();
+        speciesNameRef.current.focus();
         return;
       }
     }
 
-    el = document.getElementById('edit-species-scientific');
-    if (el) {
-      updatedData.scientificName = el.value;
+    if (speciesSciNameRef.current) {
+      updatedData.scientificName = speciesSciNameRef.current.value;
       if (updatedData.scientificName.length <= 0) {
         addMessage(Level.Warning, "Please enter a scientific name")
-        el.focus();
+        speciesSciNameRef.current.focus();
         return;
       }
     }
 
-    el = document.getElementById('edit-species-keybind');
-    if (el) {
-      updatedData.keyBinding = el.value;
+    if (speciesKeybindRef.current) {
+      updatedData.keyBinding = speciesKeybindRef.current.value;
     }
 
-    el = document.getElementById('edit-species-url');
-    if (el) {
-      updatedData.speciesIconURL = el.value;
+    if (speciesUrlRef.current) {
+      updatedData.speciesIconURL = speciesUrlRef.current.value;
       if (!updatedData.speciesIconURL) {
-        updatedData.speciesIconURL = DefaultImageIconURL;
+        updatedData.speciesIconURL = defaultUrl;
       }
     }
 
@@ -84,16 +84,16 @@ export default function EditSpecies({data, onUpdate, onClose}) {
    <Grid sx={{minWidth:'50vw'}} > 
     <Card id="edit-species" sx={{backgroundColor:'#EFEFEF', border:"none", boxShadow:"none"}} >
       <CardHeader id='edit-species-header' title={
-                    <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
+                    <Grid container direction="row" alignItems="start" justifyContent="start" sx={{flexWrap:'nowrap'}}>
                       <Grid>
-                        <Typography gutterBottom variant="h6" component="h4" noWrap="true">
+                        <Typography gutterBottom variant="h6" component="h4" noWrap>
                           Edit Species
                         </Typography>
                       </Grid>
                       <Grid sx={{marginLeft:'auto'}} >
                         <div onClick={onClose}>
                           <Tooltip title="Close without saving">
-                            <Typography gutterBottom variant="body2" noWrap="true"
+                            <Typography gutterBottom variant="body2" noWrap
                                         sx={{textTransform:'uppercase',
                                         color:'grey',
                                         cursor:'pointer',
@@ -123,11 +123,10 @@ export default function EditSpecies({data, onUpdate, onClose}) {
                 size='small'
                 sx={{margin:'10px'}}
                 onChange={() => setIsModified(true)}
-                inputProps={{style: {fontSize: 12}}}
                 slotProps={{
-                  inputLabel: {
-                    shrink: true,
-                  },
+                  input:{inputRef:speciesNameRef},
+                  htmlInput: {style:{fontSize:12}},
+                  inputLabel: {shrink: true},
                 }}
                 />
           <TextField disabled={!!data}
@@ -137,11 +136,10 @@ export default function EditSpecies({data, onUpdate, onClose}) {
                 size='small'
                 sx={{margin:'10px'}}
                 onChange={() => setIsModified(true)}
-                inputProps={{style: {fontSize: 12}}}
                 slotProps={{
-                  inputLabel: {
-                    shrink: true,
-                  },
+                  input:{inputRef:speciesSciNameRef},
+                  htmlInput: {style:{fontSize:12}},
+                  inputLabel: {shrink: true},
                 }}
                 />
           <TextField 
@@ -151,11 +149,10 @@ export default function EditSpecies({data, onUpdate, onClose}) {
                 size='small'
                 sx={{margin:'10px'}}
                 onChange={() => setIsModified(true)}
-                inputProps={{maxLength:1, style: {fontSize: 12}}}
                 slotProps={{
-                  inputLabel: {
-                    shrink: true,
-                  },
+                  input:{inputRef:speciesKeybindRef},
+                  htmlInput: {style:{fontSize:12}, maxLength:1},
+                  inputLabel: {shrink: true},
                 }}
                 />
           <TextField 
@@ -166,20 +163,34 @@ export default function EditSpecies({data, onUpdate, onClose}) {
                 size='small'
                 sx={{margin:'10px'}}
                 onChange={() => setIsModified(true)}
-                inputProps={{style: {fontSize: 12}}}
                 slotProps={{
-                  inputLabel: {
-                    shrink: true,
-                  },
+                  input:{inputRef:speciesUrlRef},
+                  htmlInput: {style:{fontSize:12}},
+                  inputLabel: {shrink: true},
                 }}
                 />
         </Grid>          
         </CardContent>
         <CardActions id='filter-content-actions'>
-          <Button sx={{flex:'1', disabled:isModified === false }} onClick={onSaveChanges}>Save</Button>
-          <Button sx={{flex:'1'}} onClick={onClose} >Cancel</Button>
+          <Button sx={{flex:1}} disabled={!isModified} onClick={onSaveChanges}>Save</Button>
+          <Button sx={{flex:1}} onClick={onClose} >Cancel</Button>
         </CardActions>
     </Card>
   </Grid>
   );
 }
+
+EditSpecies.propTypes = {
+  data: PropTypes.shape({
+    name:           PropTypes.string,
+    scientificName: PropTypes.string,
+    keyBinding:     PropTypes.string,
+    speciesIconURL: PropTypes.string,
+  }),
+  onUpdate: PropTypes.func.isRequired,
+  onClose:  PropTypes.func.isRequired,
+};
+
+EditSpecies.defaultProps = {
+  data: null,
+};

@@ -158,7 +158,7 @@ class OccuranceFormatter:
         result += '  List of elevations and locations' + os.linesep
 
         for loc_index, location in enumerate(results.get_locations()):
-            result += ' {:2d} {:5.0f} '.format(loc_index + 1, location['elevationProperty']) + \
+            result += ' {:2d} {:5.0f} '.format(loc_index + 1, float(location['elevationProperty'])) + \
                                 location['nameProperty'] + os.linesep
         result += os.linesep
 

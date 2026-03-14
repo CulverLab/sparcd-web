@@ -5,7 +5,6 @@
 import * as React from 'react';
 import Autocomplete from '@mui/material/Autocomplete';
 import BorderColorOutlinedIcon from '@mui/icons-material/BorderColorOutlined';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
@@ -24,9 +23,11 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 import { Level } from '../components/Messages';
 import { AddMessageContext, CollectionsInfoContext, TokenExpiredFuncContext, geographicCoordinates, 
-         TokenContext, UserAdminContext, UserNameContext } from '../serverInfo';
+         TokenContext, UserNameContext } from '../serverInfo';
 import * as utils from '../utils';
 
 // Default settings if we never received them
@@ -51,13 +52,14 @@ function ensure_settings(settings) {
     return defaultSettings;
   }
 
+  const result = {...settings};
   for (let one_key of Object.keys(defaultSettings)) {
-    if (settings[one_key] === undefined || settings[one_key] === "undefined") {
-      settings[one_key] = defaultSettings[one_key]
+    if (result[one_key] === undefined || result[one_key] === "undefined") {
+      result[one_key] = defaultSettings[one_key];
     }
   }
 
-  return settings;
+  return result;
 }
 
 /**
@@ -77,20 +79,22 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
   const collectionsItems = React.useContext(CollectionsInfoContext);
   const setTokenExpired = React.useContext(TokenExpiredFuncContext);
   const settingsToken = React.useContext(TokenContext);  // Login token
+  const email1Ref = React.useRef(null);
+  const email2Ref = React.useRef(null);
+  const passwordRef = React.useRef(null);
+  const settingsWrapperRef = React.useRef(null);
   const userName = React.useContext(UserNameContext);
-  const passwordRef = React.useRef();
-  const email1Ref = React.useRef();
-  const email2Ref = React.useRef();
   const [changeEmail, setChangeEmail] = React.useState(false); // Used to signal changing the user's email
-  const [changedValue, setChangedValue] = React.useState(null); // Use to force redraw when settings change
   const [emailMessage, setEmailMessage] = React.useState(null); // The working email message
   const [isAdmin, setIsAdmin] = React.useState(false); // Used in case the user is an admin
   const [isOwner, setIsOwner] = React.useState(false); // Used in case the user has owner permissions on a collection
   const [getPassword, setGetPassword] = React.useState(false); // Used to signal that we need the user's password
-  const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
   const [showPassword, setShowPassword] = React.useState(false);  // Show the password?
   const [titlebarRect, setTitlebarRect] = React.useState(null); // Set when the UI displays
   const [userSettings, setUserSettings] = React.useState(curSettings ? ensure_settings(curSettings) : defaultSettings);
+
+  // Other variables
+  const serverURL = React.useMemo(() => utils.getServer(), []);
 
   // Built-in date formats
   const dateFormats = [
@@ -136,11 +140,12 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
   // Adds a mouse click handler to the document, and automatically removes it
   React.useEffect(() => {
       function onMouseClick (event) {
-        const el = document.getElementById('settings-wrapper');
-        const elRect = el.getBoundingClientRect();
-        if (event.clientX < elRect.x || event.clientX > elRect.x + elRect.width ||
-            event.clientY < elRect.y || event.clientY > elRect.y + elRect.height) {
-          onClose();
+        if (settingsWrapperRef.current) {
+          const elRect = settingsWrapperRef.current.getBoundingClientRect();
+          if (event.clientX < elRect.x || event.clientX > elRect.x + elRect.width ||
+              event.clientY < elRect.y || event.clientY > elRect.y + elRect.height) {
+            onClose();
+          }
         }
       }
 
@@ -149,14 +154,14 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
       return () => {
           document.removeEventListener("click", onMouseClick);
       }
-  });
+  }, [onClose]);
 
   // Automatically select the password edit field
   React.useEffect(() => {
     if (getPassword && passwordRef.current) {
       passwordRef.current.focus();
     }
-  }, [getPassword, passwordRef]);
+  }, [getPassword]);
 
   /**
    * Handler that toggles the show password state
@@ -189,7 +194,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
   const checkIfAdmin = React.useCallback(() => {
     try {
       const isAdminUrl = serverURL + '/adminCheck?t=' + encodeURIComponent(settingsToken)
-      const resp = fetch(isAdminUrl, {
+      fetch(isAdminUrl, {
         credentials: 'include',
         method: 'GET'
       }).then(async (resp) => {
@@ -200,7 +205,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed checked to see if user is an admin: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed checked to see if user is an admin: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -211,19 +216,20 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
         })
         .catch(function(err) {
           console.log('Check For Admin Error: ', err);
-          addMessage(Level.Warning, "An error ocurred while logging in for administration purposes");
+          addMessage(Level.Warning, "An error occurred while logging in for administration purposes");
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Check For Admin Unknown Error: ',err);
-      addMessage(Level.Warning, "An unknown error ocurred while logging in for administration purposes");
+      addMessage(Level.Warning, "An unknown error occurred while logging in for administration purposes");
     }
-  }, [addMessage, settingsToken, setIsAdmin])
+
+  }, [addMessage, serverURL, settingsToken, setTokenExpired])
 
   /**
    * Determines if the user has owner permissions on any collections
    * @function
    */
-  function checkIfOwner() {
+  const checkIfOwner = React.useCallback(() => {
     if (!collectionsItems) {
       return;
     }
@@ -243,7 +249,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
     }
 
     setIsOwner(isOwner);
-  }
+  }, [collectionsItems]);
 
   /**
    * Calculate our sizes and positions
@@ -267,10 +273,8 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
    * @param {object} value The new value to store
    */
   function handleValueChange(valueKey, value) {
-    const curSettings = userSettings;
-    curSettings[valueKey] = value;
+    const curSettings = {...userSettings, [valueKey]: value};
     setUserSettings(curSettings);
-    setChangedValue(valueKey + value + '');
     onChange(curSettings);
   }
 
@@ -295,9 +299,8 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
    * @function
    */
   function handleLoginConfirmation() {
-    const el = document.getElementById('password-entry');
-    if (el && typeof(onAdminSettings) === 'function') {
-      const newPw = el.value;
+    if (passwordRef.current && typeof onAdminSettings === 'function') {
+      const newPw = passwordRef.current.value;
       if (isAdmin) {
         onAdminSettings(newPw);
       } else if (isOwner) {
@@ -313,7 +316,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
    */
   const handleChangeEmail = React.useCallback(() => {
     setChangeEmail(true);
-  }, [setChangeEmail]);
+  }, []);
 
   /**
    * Handles when the user wants to save update email
@@ -323,10 +326,10 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
     let email1 = null;
     let email2 = null;
 
-    if (email1Ref && email1Ref.current) {
+    if (email1Ref.current) {
       email1 = email1Ref.current.value;
     }
-    if (email2Ref && email2Ref.current) {
+    if (email2Ref.current) {
       email2 = email2Ref.current.value;
     }
 
@@ -342,10 +345,8 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
 
     // Make the comparisons and help the user 
     if (email1 === email2) {
-      const curSettings = userSettings;
-      curSettings.email = email1;
+      const curSettings = {...userSettings, email:email1};
       setUserSettings(curSettings);
-      setChangedValue(email1);
       onChange(curSettings);
       setChangeEmail(false);
     } else {
@@ -354,24 +355,24 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
       email1Ref.current.select();
     }
 
-  }, [email1Ref, email2Ref, setChangeEmail, setEmailMessage, userSettings]);
+  }, [onChange, userSettings]);
 
   /**
    * Handles clearing an error message once the user starts changing email addresses
    * @function
    */
   const handleEmailChange = React.useCallback(() => {
-    if (emailMessage != null) {
+    if (emailMessage !== null) {
       setEmailMessage(null);
     }
-  }, [emailMessage, setEmailMessage]);
+  }, [emailMessage]);
 
 
   // Default the titlebar dimensions if it's not rendered yet
   let workingRect = titlebarRect;
-  if (workingRect == null) {
+  if (workingRect === null) {
     workingRect = calculateSizes();
-    if (workingRect == null) {
+    if (workingRect === null) {
       workingRect = {x:20,y:40,width:640};
     }
   }
@@ -380,11 +381,11 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
   React.useLayoutEffect(() => {
     checkIfAdmin();
     checkIfOwner();
-  }, []);
+  }, [checkIfAdmin, checkIfOwner]);
 
   // Return the UI
   return (
-    <Grid id='settings-wrapper'
+    <Grid id='settings-wrapper' ref={settingsWrapperRef}
          sx={{position:'absolute', top:(workingRect.y+20)+'px', right:'20px', zIndex:2000,
              border:'1px solid grey', backgroundColor:'silver', boxShadow:'2px 3px 3px #bbbbbb'}}
     >
@@ -392,9 +393,9 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
         <CardHeader title="Settings"
                     subheader={<span style={{fontSize:"smaller"}}><span>Customize settings for </span><span style={{fontWeight:'bold'}}>{userName}</span></span>} />
         <CardContent sx={{paddingTop:'0px', paddingBottom:'0px'}}>
-          <Grid container direction="column" alignItems="start" justifyContent="start" wrap="nowrap"
+          <Grid container direction="column" alignItems="start" justifyContent="start"
                   spacing={1}
-                  sx={{overflowY:'scroll', paddingTop:'5px'}}
+                  sx={{overflowY:'auto', paddingTop:'5px', flexWrap:"nowrap"}}
           >
             <Grid id="setting-dates" >
               <Autocomplete
@@ -508,7 +509,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
               sx={{position:'absolute', top:0, right:0, bottom:'50px', left:0, background:"rgb(0, 0, 0, 0.7)", zIndex:500}} >
           <Grid container direction="column" justifyContent="center" alignItems="center"
                 sx={{backgroundColor:'rgb(230,230,230)', padding:'15px 0', marginTop:'30%'}} spacing={2}>
-            <div id="admin-settings-login-close" sx={{height:'20px', flex:'1'}} onClick={() => setGetPassword(false)} style={{marginLeft:'auto', marginRight:'10px', cursor:'pointer'}} >
+            <div id="admin-settings-login-close" onClick={() => setGetPassword(false)} style={{marginLeft:'auto', marginRight:'10px', cursor:'pointer'}} >
                 <Typography variant="body3" sx={{textTransform:'uppercase',color:'black',backgroundColor:'rgba(255,255,255,0.3)',
                                                  padding:'3px 3px 3px 3px',borderRadius:'3px','&:hover':{backgroundColor:'rgba(255,255,255,0.7)',fontWeight:'bold'}
                                                }}>
@@ -531,13 +532,11 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
                     type={showPassword ? 'text' : 'password'}
                     size='small'
                     sx={{width:'95%', margin:'0px'}}
-                    inputProps={{style: {fontSize: 12}}}
-                    inputRef={passwordRef}
                     slotProps={{
-                      inputLabel: {
-                        shrink: true,
-                      },
+                      htmlInput: {style:{fontSize:12}},
+                      inputLabel: {shrink: true},
                       input: {
+                        inputRef: passwordRef,
                         endAdornment: 
                           <InputAdornment position='end'>
                             <IconButton
@@ -569,7 +568,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
               sx={{...theme.palette.screen_overlay_grey, zIndex:500}} >
           <Grid container direction="column" justifyContent="center" alignItems="center"
                 sx={{backgroundColor:'silver', padding:'15px 0', marginTop:'30%'}} spacing={2}>
-            <div id="admin-settings-change-password-close" sx={{height:'20px', flex:'1'}} onClick={() => setChangeEmail(false)}
+            <div id="admin-settings-change-password-close" onClick={() => setChangeEmail(false)}
                   style={{marginLeft:'auto', marginRight:'10px', cursor:'pointer'}} >
                 <Typography variant="body3" sx={{textTransform:'uppercase',color:'black',backgroundColor:'rgba(255,255,255,0.3)',
                                                  padding:'3px 3px 3px 3px',borderRadius:'3px','&:hover':{backgroundColor:'rgba(255,255,255,0.7)',fontWeight:'bold'}
@@ -588,13 +587,11 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
                   label="Email"
                   type='email'
                   sx={{width:'95%', margin:'0px'}}
-                  inputProps={{style: {fontSize: 12}}}
                   onChange={handleEmailChange}
-                  inputRef={email1Ref}
                   slotProps={{
-                    inputLabel: {
-                      shrink: true,
-                    },
+                    input:{inputRef:email1Ref},
+                    htmlInput: {style: {fontSize: 12}},
+                    inputLabel: {shrink: true},
                   }}
                   />
             <TextField required 
@@ -602,13 +599,11 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
                   label="Confirm Email"
                   type='email'
                   sx={{width:'95%', margin:'0px'}}
-                  inputProps={{style: {fontSize: 12}}}
                   onChange={handleEmailChange}
-                  inputRef={email2Ref}
                   slotProps={{
-                    inputLabel: {
-                      shrink: true,
-                    },
+                    input:{inputRef:email2Ref},
+                    htmlInput: {style: {fontSize: 12}},
+                    inputLabel: {shrink: true},
                   }}
                   />
             { emailMessage !== null &&
@@ -634,3 +629,16 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
     </Grid>
   );
 }
+
+Settings.propTypes = {
+  curSettings:     PropTypes.object,
+  onChange:        PropTypes.func.isRequired,
+  onClose:         PropTypes.func.isRequired,
+  onLogout:        PropTypes.func.isRequired,
+  onAdminSettings: PropTypes.func.isRequired,
+  onOwnerSettings: PropTypes.func.isRequired,
+};
+
+Settings.defaultProps = {
+  curSettings: null,
+};

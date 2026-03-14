@@ -3,7 +3,7 @@
 from typing import Optional
 
 from .analysis import Analysis
-from .coordinate_utils import DEFAULT_UTM_ZONE
+from .coordinate_utils import deg2utm_code, deg2utm, DEFAULT_UTM_ZONE
 
 # The default interval value
 DEFAULT_INTERVAL_MIN=0
@@ -11,8 +11,6 @@ DEFAULT_INTERVAL_MIN=0
 class Results:
     """ Contains the results of a query """
     # pylint: disable=too-many-instance-attributes
-    # All the known locations
-    _all_locations = None
     # All the known species
     _all_species = None
     # Sorted images
@@ -58,7 +56,6 @@ class Results:
 
         # We do this assignment so that it can be seen that the initializer was called even if a
         # problem ocurrs
-        self._all_locations = all_locations
         self._all_species = all_species
         self._results = results
         self._images = []
@@ -159,17 +156,46 @@ class Results:
 
         sorted_images = sorted(sorted_images, key=lambda cur_img: cur_img['image_dt'])
 
-        # Get all the locations and check for an unknown
+        # Get all the locations and check for an unknown (we use set here to remove duplicates)
         sorted_locations = sorted(set(map(lambda cur_img: cur_img['loc'], sorted_images)))
         have_unknown = False
         mapped_values = []
         for test_value in sorted_locations: # TODO: Handle only active locations
             found_items = [one_location for one_location in all_locations if \
-                                                    one_location['idProperty'] == test_value]
+                                        one_location['idProperty'].lower() == test_value.lower()]
             if found_items and len(found_items) > 0:
                 mapped_values.append(found_items[0])
             else:
-                have_unknown = True
+                # Try to find the entry in the results
+                new_loc = None
+                for one_result in results:
+                    if 'loc' in one_result and one_result['loc'] and \
+                                                                    one_result['loc'] == test_value:
+                        if all(key in one_result for key in ('loc_name','loc_lat','loc_lon')):
+                            try:
+                                # Build up our entry. If there's a problem with this entry, maybe
+                                # another would work out
+                                utm_x, utm_y = deg2utm(float(one_result['loc_lat']),
+                                                        float(one_result['loc_lon']))
+                                utm_zone, utm_letter = deg2utm_code(float(one_result['loc_lat']),
+                                                                    float(one_result['loc_lon']))
+                                new_loc = {
+                                    'nameProperty': one_result['loc_name'], \
+                                    'idProperty': test_value,
+                                    'latProperty': one_result['loc_lat'],
+                                    'lngProperty': one_result['loc_lon'],
+                                    'elevationProperty': one_result['elevation'],
+                                    'utm_x': str(round(utm_x)),
+                                    'utm_y': str(round(utm_y)),
+                                    'utm_code': str(utm_zone)+str(utm_letter),
+                                }
+                                mapped_values.append(new_loc)
+                                break
+                            except ValueError:
+                                pass
+                # Make sure we have found it
+                if new_loc is None:
+                    have_unknown = True
 
         sorted_locations = mapped_values
         if have_unknown:
@@ -236,11 +262,18 @@ class Results:
         locations_filtered = {one_location['idProperty']: [] for one_location in locations}
         species_filtered = {one_species['scientificName']: [] for one_species in species}
         years_filtered = {one_year: [] for one_year in years}
+        upper_locations_filtered = [one_loc.upper() for one_loc in locations_filtered]
 
         # Loop through the images and add them to the correct buckets
         for one_image in images:
             if one_image['loc'] in locations_filtered:
                 locations_filtered[one_image['loc']].append(one_image)
+            elif one_image['loc'].upper() in upper_locations_filtered:
+                # Find the right bucket to put this in
+                for one_loc in locations_filtered:
+                    if one_loc.upper() == one_image['loc'].upper():
+                        locations_filtered[one_loc].append(one_image)
+                        break
             else:
                 locations_filtered['unknown'].append(one_image)
             for one_species in one_image['species']:
@@ -305,13 +338,6 @@ class Results:
             return self._years
 
         raise RuntimeError('Call made to Results.get_years after bad initialization')
-
-    def get_all_locations(self) -> tuple:
-        """ Returns the list of all the locations """
-        if self._all_locations is not None:
-            return self._all_locations
-
-        raise RuntimeError('Call made to Results.get_all_locations after bad initialization')
 
     def get_all_species(self) -> tuple:
         """ Returns the list of all the species """
@@ -419,9 +445,9 @@ class Results:
         Return:
             The location instance or None if it's not found
         """
-        if self._all_locations is not None:
-            possible_loc = tuple((one_loc for one_loc in self._all_locations if \
-                                                            one_loc['idProperty'] == location_id))
+        if self._locations is not None:
+            possible_loc = tuple((one_loc for one_loc in self._locations if \
+                                        one_loc['idProperty'].lower() == location_id.lower()))
             # Check that it's not an unknown location
             if len(possible_loc) <= 0:
                 possible_loc = tuple(({'nameProperty':'Unknown', 'idProperty':location_id,
@@ -443,7 +469,7 @@ class Results:
         Return:
             The name of the location or None if it's not found
         """
-        if self._all_locations is not None:
+        if self._locations is not None:
             found_loc = self.get_image_location(location_id)
             if found_loc and 'nameProperty' in found_loc:
                 return found_loc['nameProperty']
@@ -503,7 +529,8 @@ class Results:
         Return:
             A tuple containing the images for that location
         """
-        return [one_image for one_image in images if one_image['loc'] == location_id]
+        return [one_image for one_image in images if one_image['loc'].lower() == \
+                                                                            location_id.lower()]
 
     def filter_species(self, images: tuple, species_sci_name: str) -> tuple:
         """ Filters the image by the species scientific name

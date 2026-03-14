@@ -103,7 +103,7 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
       <Grid id='left-sidebar' ref={sidebarRef} container direction='column' alignItems='stretch' columns='1' 
           style={{ 'minHeight':curHeight, 'maxHeight':curHeight, 'height':curHeight, 'top':curStart, 
                    'position':'absolute', ...theme.palette.left_sidebar }} >
-        { sandboxItems.map((item, idx) => <UploadSidebarItem uploadItem={item} key={item.name} selected={idx == curSelectionIndex}
+        { sandboxItems.map((item, idx) => <UploadSidebarItem uploadItem={item.name} key={item.name} selected={idx == curSelectionIndex}
                                                              onClick={(ev) => onSandboxChange(ev, item.name)} />) }
       </Grid>
       <Grid id='upload-workspace' container spacing={0} direction="column" alignItems="center" justifyContent="center"

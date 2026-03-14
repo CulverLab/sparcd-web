@@ -7,16 +7,19 @@ import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 
+import PropTypes from 'prop-types';
+
 /**
  * Renders a progress element with a label
  * @function
- * @param {object} props Contains the current value to display
+ * @param {number} percentValue The percentage value to display
+ * @param {...*} props Any props for the CircularProgress
  * @returns {object} The rendered progress bar with a label
  */
-export default function ProgressWithLabel(props) {
+export default function ProgressWithLabel({percentValue, ...props}) {
   return (
     <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-      <CircularProgress variant="determinate" {...props} />
+      <CircularProgress variant="determinate" {...props}/>
       <Box
         sx={{
           top: 0,
@@ -34,9 +37,13 @@ export default function ProgressWithLabel(props) {
           component="div"
           sx={{ color: 'text.secondary' }}
         >
-          {`${Math.round(props.value)}%`}
+          {`${Math.round(percentValue ?? 0)}%`}
         </Typography>
       </Box>
     </Box>
   );
 }
+
+ProgressWithLabel.propTypes = {
+  percentValue: PropTypes.number.isRequired,
+};

@@ -23,13 +23,17 @@ import { useTheme } from '@mui/material/styles';
 import PropTypes from 'prop-types';
 
 import CheckIncompleteUploads from './CheckIncompleteUploads';
+import CollectionList from './CollectionList';
 import EditCollection from './EditCollection';
 import EditLocation from './EditLocation';
 import EditSpecies from './EditSpecies';
 import EditUser from './EditUser';
+import LocationList from './LocationList';
+import SpeciesList from './SpeciesList';
+import UserList from './UserList';
 import { Level } from '../components/Messages';
 import { AddMessageContext, CollectionsInfoContext, TokenExpiredFuncContext, LocationsInfoContext, 
-         SizeContext, SpeciesInfoContext, TokenContext } from '../serverInfo';
+         SizeContext, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
 
 const EditingStates = {
@@ -72,7 +76,6 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   const [detailsHeight, setDetailsHeight] = React.useState(500); // Height for displaying details
   const [editingState, setEditingState] = React.useState({type:EditingStates.None, data:null})
   const [masterSpecies, setMasterSpecies] = React.useState(null); // Contains information on species
-  const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
   const [locationsModified, setLocationsModified] = React.useState(false); // Indicates the location was modified and needs to be updated on S3
   const [serverModificationsChecked, setServerModificationsChecked] = React.useState(false); // Did we check the server for stored changes?
   const [speciesModified, setSpeciesModified] = React.useState(false); // Indicates the species was modified and needs to be updated on S3
@@ -85,13 +88,16 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   const [sortColumn, setSortColumn] = React.useState(1);  // Used to indicate which column is sorted (1 represents the first column)
   const [sortDirection, setSortDirection] = React.useState(SortDirection.Ascending);  // Used to indicate which way a column is sorted
 
+  // Other variables
+  const serverURL = React.useMemo(() => utils.getServer(), []);
+
   // Check if we have stored changes on the server
   React.useEffect(() => {
     if (!serverModificationsChecked) {
       const adminCheckUrl = serverURL + '/adminCheckChanges?t=' + encodeURIComponent(settingsToken);
 
       try {
-        const resp = fetch(adminCheckUrl, {
+        fetch(adminCheckUrl, {
           credentials: 'include',
           method: 'GET',
         }).then(async (resp) => {
@@ -102,7 +108,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                   // User needs to log in again
                   setTokenExpired();
                 }
-                throw new Error(`Failed to update changed settings information: ${resp.status}`, {cause:resp});
+                throw new Error(`Failed to update changed settings information: ${resp.status}: ${await resp.text()}`);
               }
             })
           .then((respData) => {
@@ -123,11 +129,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
           .catch(function(err) {
             console.log('Admin Location/Species Check Error: ',err);
         });
-      } catch (error) {
+      } catch (err) {
         console.log('Admin Location/Species Check Unknown Error: ',err);
       }
     }
-  }, [addMessage, locationsModified, serverModificationsChecked, serverURL, setServerModificationsChecked, settingsToken, speciesModified])
+  }, [addMessage, serverModificationsChecked, serverURL, settingsToken])
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {
@@ -207,7 +213,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     const adminUsersUrl = serverURL + '/adminUsers?t=' + encodeURIComponent(settingsToken);
 
     try {
-      const resp = fetch(adminUsersUrl, {
+      fetch(adminUsersUrl, {
         credentials: 'include',
         method: 'GET',
       }).then(async (resp) => {
@@ -218,7 +224,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to get admin users: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get admin users: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -228,13 +234,13 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Users Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to load user information');
+          addMessage(Level.Warning, 'An error occurred when attempting to load user information');
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Admin Users Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to load user information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to load user information');
     }    
-  }, [addMessage, serverURL, settingsToken, setSelectedUsers, setTokenExpired, setUserInfo]);
+  }, [addMessage, serverURL, settingsToken, setTokenExpired]);
 
   /**
    * Gets the master species information from the server (not the per-user species)
@@ -244,7 +250,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     const adminSpeciesUrl = serverURL + '/adminSpecies?t=' + encodeURIComponent(settingsToken);
 
     try {
-      const resp = fetch(adminSpeciesUrl, {
+      fetch(adminSpeciesUrl, {
         credentials: 'include',
         method: 'GET',
       }).then(async (resp) => {
@@ -255,7 +261,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to get admin species: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get admin species: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -265,13 +271,13 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Species Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to load species information');
+          addMessage(Level.Warning, 'An error occurred when attempting to load species information');
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Admin Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to load species information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to load species information');
     }
-  }, [addMessage, serverURL, settingsToken, setMasterSpecies, setSelectedSpecies, setTokenExpired]);
+  }, [addMessage, serverURL, settingsToken, setTokenExpired]);
 
   /**
    * Updates the collection information on the server
@@ -293,7 +299,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     formData.append('allPermissions', JSON.stringify(collectionNewInfo.allPermissions));
 
     try {
-      const resp = fetch(userUpdateCollUrl, {
+      fetch(userUpdateCollUrl, {
         credentials: 'include',
         method: 'POST',
         body: formData
@@ -305,7 +311,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update collection information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update collection information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -327,11 +333,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Update Collection Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to update collection information');
+          addMessage(Level.Warning, 'An error occurred when attempting to update collection information');
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Admin Update Collection Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update collection information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to update collection information');
     }
   }, [addMessage, collectionInfo, editingState, serverURL, setEditingState, settingsToken]);
 
@@ -354,7 +360,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     formData.append('allPermissions', JSON.stringify(collectionNewInfo.allPermissions));
 
     try {
-      const resp = fetch(userUpdateCollUrl, {
+      fetch(userUpdateCollUrl, {
         credentials: 'include',
         method: 'POST',
         body: formData
@@ -366,7 +372,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update collection information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update collection information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -384,11 +390,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Update Collection Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to update collection information');
+          addMessage(Level.Warning, 'An error occurred when attempting to update collection information');
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Admin Update Collection Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update collection information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to update collection information');
     }
   }, [addMessage, collectionInfo, editingState, serverURL, setEditingState, settingsToken]);
 
@@ -424,7 +430,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     formData.append('admin', userNewInfo.admin);
 
     try {
-      const resp = fetch(userUpdateUrl, {
+      fetch(userUpdateUrl, {
         credentials: 'include',
         method: 'POST',
         body: formData
@@ -436,7 +442,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update user information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update user information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -456,11 +462,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Update User Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to update user information');
+          addMessage(Level.Warning, 'An error occurred when attempting to update user information');
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Admin Update User Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update user information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to update user information');
     }
   }, [addMessage, editingState, serverURL, setEditingState, settingsToken, userInfo]);
 
@@ -485,7 +491,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     formData.append('iconURL', newInfo.speciesIconURL);
 
     try {
-      const resp = fetch(speciesUpdateUrl, {
+      fetch(speciesUpdateUrl, {
         credentials: 'include',
         method: 'POST',
         body: formData
@@ -497,7 +503,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update species information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update species information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -530,7 +536,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
               } else {
                 console.log('Error: unable to find species locally to update');
                 if (typeof(onError) === 'function') {
-                  onError("A problem ocurred updating the UI with these changes. Please refresh to see the updates");
+                  onError("A problem occurred updating the UI with these changes. Please refresh to see the updates");
                 }
               }
             } else if (typeof(onError) === 'function') {
@@ -539,11 +545,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Update Species Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to update species information');
+          addMessage(Level.Warning, 'An error occurred when attempting to update species information');
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Admin Update Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update species information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to update species information');
     }
   }, [addMessage, editingState, masterSpecies, serverURL, setMasterSpecies, setSpeciesModified, settingsToken,]);
 
@@ -576,7 +582,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     formData.append('description', newInfo.descriptionProperty);
 
     try {
-      const resp = fetch(locationsUpdateUrl, {
+      fetch(locationsUpdateUrl, {
         credentials: 'include',
         method: 'POST',
         body: formData
@@ -588,7 +594,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update location information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update location information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -619,9 +625,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 }
               } else if (!oldEditingState.data) {
                 // We have a new location
-                let newLocationItems = locationItems;
-                newLocationItems.push(respData.data);
-                locationItems.push(curLocation);
+                locationItems.push(respData.data);
                 setLocationsModified(true);
                 if (typeof(onSuccess) === 'function') {
                   onSuccess();
@@ -629,7 +633,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
               } else {
                 console.log('Error: unable to find location locally to update');
                 if (typeof(onError) === 'function') {
-                  onError("A problem ocurred updating the UI with these changes. Please refresh to see the updates");
+                  onError("A problem occurred updating the UI with these changes. Please refresh to see the updates");
                 }
               }
             } else if (typeof(onError) === 'function') {
@@ -638,11 +642,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Update Location Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to update location information');
+          addMessage(Level.Warning, 'An error occurred when attempting to update location information');
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Admin Update Location Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update location information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to update location information');
     }
   }, [addMessage, editingState, locationItems, serverURL, setLocationsModified, settingsToken]);
 
@@ -654,7 +658,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     const adminCompleteUrl = serverURL + '/adminCompleteChanges?t=' + encodeURIComponent(settingsToken);
 
     try {
-      const resp = fetch(adminCompleteUrl, {
+      fetch(adminCompleteUrl, {
         credentials: 'include',
         method: 'PUT',
       }).then(async (resp) => {
@@ -665,7 +669,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update changed settings information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update changed settings information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -675,11 +679,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Save Location/Species Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to complete saving the changed settings information');
+          addMessage(Level.Warning, 'An error occurred when attempting to complete saving the changed settings information');
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Admin Save Location/Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to complete saving the changed settings information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to complete saving the changed settings information');
     }
   }, [addMessage, serverURL, settingsToken])
 
@@ -691,7 +695,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     const adminCompleteUrl = serverURL + '/adminAbandonChanges?t=' + encodeURIComponent(settingsToken);
 
     try {
-      const resp = fetch(adminCompleteUrl, {
+      fetch(adminCompleteUrl, {
         credentials: 'include',
         method: 'PUT',
       }).then(async (resp) => {
@@ -702,7 +706,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to abandon changed settings information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to abandon changed settings information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -712,11 +716,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Abandon Location/Species Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to abandon the changed settings information');
+          addMessage(Level.Warning, 'An error occurred when attempting to abandon the changed settings information');
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Admin Abandon Location/Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to abandon the changed settings information');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to abandon the changed settings information');
     }
   }, [addMessage, serverURL, settingsToken])
 
@@ -753,7 +757,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     formData.append('bucket', collection.bucket);
 
     try {
-      const resp = fetch(adminCollectionUrl, {
+      fetch(adminCollectionUrl, {
         credentials: 'include',
         method: 'POST',
         body: formData,
@@ -765,7 +769,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to get collection details information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get collection details information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -774,11 +778,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Collection Details Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to get collection details');
+          addMessage(Level.Warning, 'An error occurred when attempting to get collection details');
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Admin Collection Details Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to get collection details');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to get collection details');
     }
 
   }, [addMessage, serverURL, setEditingState, settingsToken]);
@@ -816,7 +820,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     formData.append('id', location.idProperty);
 
     try {
-      const resp = fetch(adminLocationnUrl, {
+      fetch(adminLocationnUrl, {
         credentials: 'include',
         method: 'POST',
         body: formData,
@@ -828,7 +832,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to get location details information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get location details information: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -837,11 +841,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         })
         .catch(function(err) {
           console.log('Admin Location Details Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to get location details');
+          addMessage(Level.Warning, 'An error occurred when attempting to get location details');
       });
-    } catch (error) {
+    } catch (err) {
       console.log('Admin Location Details Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknown error ocurred when attempting to get location details');
+      addMessage(Level.Warning, 'An unknown error occurred when attempting to get location details');
     }
 
   }, [addMessage, serverURL, setEditingState, settingsToken]);
@@ -954,7 +958,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         setSelectedCollections(curSortInfo.sort((a, b) => direction === SortDirection.Ascending ? a.email.localeCompare(b.email) : b.email.localeCompare(a.email)));
         break;
     }
-  }, [selectedCollections, setSelectedCollections]);
+  }, [selectedCollections]);
 
   /**
    * Sorts species records by the specified column
@@ -980,7 +984,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                           );
         break;
     }
-  }, [selectedSpecies, setSelectedSpecies]);
+  }, [selectedSpecies]);
 
   /**
    * Sorts Locations records by the specified column
@@ -992,18 +996,18 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     const curSortInfo = selectedLocations || [];
     switch(sortColumn) {
       case 'name':
-        setSelectedSpecies(curSortInfo.sort((a, b) => direction === SortDirection.Ascending ? a.nameProperty.localeCompare(b.nameProperty) : 
+        setSelectedLocations(curSortInfo.sort((a, b) => direction === SortDirection.Ascending ? a.nameProperty.localeCompare(b.nameProperty) : 
                                                                                                                   b.nameProperty.localeCompare(a.nameProperty)));
         break;
       case 'id':
-        setSelectedSpecies(curSortInfo.sort((a, b) => direction === SortDirection.Ascending ? a.idProperty.localeCompare(b.idProperty) :
+        setSelectedLocations(curSortInfo.sort((a, b) => direction === SortDirection.Ascending ? a.idProperty.localeCompare(b.idProperty) :
                                                                                                                 b.idProperty.localeCompare(a.idProperty)));
         break;
       case 'active':
-        setSelectedSpecies(curSortInfo.sort((a, b) => direction === SortDirection.Ascending ? (a.active === b.active ? 0 : 1) : (a.active === b.active ? 1 : 0) ));
+        setSelectedLocations(curSortInfo.sort((a, b) => direction === SortDirection.Ascending ? (a.active === b.active ? 0 : 1) : (a.active === b.active ? 1 : 0) ));
         break;
     }
-  }, [selectedSpecies, setSelectedSpecies]);
+  }, [selectedLocations]);
 
   /**
    * Generates the UI for a column heading
@@ -1021,7 +1025,8 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     titleStyle = titleStyle || {};
 
     return (
-          <Grid container direction="row" justifyContent="space-between" alignItems="start" wrap="nowrap" size={size} sx={{paddingLeft:"2px", borderRight:"1px solid grey"}} 
+          <Grid container direction="row" justifyContent="space-between" alignItems="start" size={size} 
+                sx={{flexWrap:'nowrap', paddingLeft:"2px", borderRight:"1px solid grey"}} 
                 onClick={() => {
                                 const oldSC = sortColumn;
                                 const newSortDirection = oldSC === selectId ? (sortDirection===SortDirection.Ascending?SortDirection.Descending:SortDirection.Ascending) : SortDirection.Ascending;
@@ -1034,7 +1039,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                         }
             >
             <Grid sx={{...titleStyle}} >
-              <Typography nowrap="true" variant="body" sx={{fontWeight:'bold'}}>
+              <Typography noWrap variant="body1" sx={{fontWeight:'bold'}}>
                 {title}
               </Typography>
             </Grid>
@@ -1053,11 +1058,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    */
   function generateUsers(dblClickFunc) {
     let curUserInfo = selectedUsers || [];
-    if (userInfo === null) {
-      getUserInfo();
-      setUserInfo([]);
-      setSelectedUsers([]);
-    }
+
     if (userInfo === null && curUserInfo.length <= 0) {
       return (
         <Grid container justifyContent="center" alignItems="center" sx={{...theme.palette.screen_overlay}} >
@@ -1068,60 +1069,14 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     dblClickFunc = dblClickFunc ? dblClickFunc : () => {};
     return (
-      <Box id='admin-settings-users-details-wrapper' sx={{width:'100%', padding:'0px 5px 0 5px'}} >
-        <Grid id="admin-settings-collection-header" container direction="row" justifyContent="space-between" alignItems="start"
-              sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
-          { generateSettingHeader(1, sortColumn === 1, sortDirection, 2, 'Name', {marginRight:"auto"}, (dir)=>sortUsers('name', dir) )}
-          { generateSettingHeader(2, sortColumn === 2, sortDirection, 3, 'Email', {marginRight:"auto"}, (dir)=>sortUsers('email', dir) )}
-          { generateSettingHeader(3, false,            sortDirection, 5, 'Collections', {marginRight:"auto"})}
-          { generateSettingHeader(4, sortColumn === 4, sortDirection, 1, 'Admin', {marginLeft:"auto"}, (dir)=>sortUsers('admin', dir) )}
-          { generateSettingHeader(5, sortColumn === 5, sortDirection, 1, 'Auto', {marginLeft:"auto", paddingRight:"5px"}, (dir)=>sortUsers('auto', dir) )}
-        </Grid>
-        <Grid id='admin-settings-details' sx={{overflowX:'scroll',width:'100%', maxHeight:detailsHeight+'px' }}>
-        { curUserInfo.map((item,idx) => 
-            <Grid container direction="row" id={"admin-user-"+idx} key={item.name+'-'+idx} direction="row" justifyContent="space-between" alignItems="start"
-                  sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }} onDoubleClick={(event) => dblClickFunc(event,item)} >
-              <Grid size={2}>
-                <Typography nowrap="true" variant="body2">
-                  {item.name}
-                </Typography>
-              </Grid>
-              <Grid size={3}>
-                <Typography nowrap="true" variant="body2">
-                  {item.email}
-                </Typography>
-              </Grid>
-              <Grid size={5}>
-                <Typography nowrap="true" variant="body2">
-                  { item.collections.map((colItem, colIdx) => 
-                      <React.Fragment key={colItem.name+'-'+colIdx}>
-                        {colIdx > 0 && ', '}
-                        {colItem.name}
-                        <span style={{fontWeight:'bold', fontSize:'small'}}>
-                          &nbsp;(
-                          {colItem.owner && 'O'}
-                          {colItem.read && 'R'}
-                          {colItem.write && 'W'}
-                          )
-                        </span>
-                      </React.Fragment>
-                  )}
-                </Typography>
-              </Grid>
-              <Grid size={1}>
-                <Typography nowrap="true" variant="body2" align="center">
-                  {item.admin ? 'Y' : ' '}
-                </Typography>
-              </Grid>
-              <Grid size={1} sx={{paddingRight:"5px"}} >
-                <Typography nowrap="true" variant="body2" align="right">
-                  {item.autoAdded ? 'Y' : 'N'}
-                </Typography>
-              </Grid>
-            </Grid>
-        )}
-          </Grid>
-      </Box>
+      <UserList users={curUserInfo}
+                sortColumn={sortColumn} 
+                sortDirection={sortDirection}
+                maxHeight={detailsHeight}
+                getSettingsHeader={generateSettingHeader} 
+                onSort={sortUsers} 
+                onDblClick={dblClickFunc} 
+      />
     );
   }
 
@@ -1142,36 +1097,14 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     dblClickFunc = dblClickFunc ? dblClickFunc : () => {};
     return (
-      <Box id='admin-settings-collections-details-wrapper' sx={{width:'100%', padding:'0px 5px 0 5px'}} >
-        <Grid id="admin-settings-collection-details-header" container direction="row" justifyContent="space-between" alignItems="start"
-              sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
-          { generateSettingHeader(1, sortColumn === 1, sortDirection, 5, 'Name', {marginRight:"auto"}, (dir)=>sortCollections('name', dir) )}
-          { generateSettingHeader(2, sortColumn === 2, sortDirection, 4, 'ID', {marginRight:"auto"}, (dir)=>sortCollections('id', dir) )}
-          { generateSettingHeader(3, sortColumn === 3, sortDirection, 3, 'email', {marginLeft:"auto", paddingRight:"5px"}, (dir)=>sortCollections('email', dir) )}
-        </Grid>
-        <Grid id='admin-settings-details' sx={{overflowX:'scroll',width:'100%', maxHeight:detailsHeight+'px' }}>
-        { selectedCollections.map((item, idx) => 
-            <Grid container direction="row" id={"admin-species-"+idx} key={item.name+'-'+idx} direction="row" justifyContent="space-between" alignItems="start"
-                  sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }} onDoubleClick={(event) => dblClickFunc(event,item)} >
-              <Grid size={5}>
-                <Typography nowrap="true" variant="body2">
-                  {item.name}
-                </Typography>
-              </Grid>
-              <Grid size={4} sx={{marginRight:'auto'}}>
-                <Typography nowrap="true" variant="body2">
-                  {item.id}
-                </Typography>
-              </Grid>
-              <Grid sizeo={3} sx={{leftMargin:'auto'}}>
-                <Typography nowrap="true" variant="body2">
-                  {item.email}
-                </Typography>
-              </Grid>
-          </Grid>
-        )}
-        </Grid>
-      </Box>
+      <CollectionList collections={selectedCollections} 
+                      sortColumn={sortColumn} 
+                      sortDirection={sortDirection}
+                      maxHeight={detailsHeight}
+                      getSettingsHeader={generateSettingHeader} 
+                      onSort={sortCollections} 
+                      onDblClick={dblClickFunc} 
+      />
     );
   }
 
@@ -1183,11 +1116,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    */
   function generateSpecies(dblClickFunc) {
     let curSpecies = selectedSpecies || [];
-    if (masterSpecies == null) {
-      getMasterSpecies();
-      setMasterSpecies([]);
-      setSelectedSpecies([]);
-    }
+
     if (curSpecies.length <= 0) {
       return (
         <Grid container justifyContent="center" alignItems="center" sx={{...theme.palette.screen_overlay}} >
@@ -1198,36 +1127,14 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     dblClickFunc = dblClickFunc ? dblClickFunc : () => {};
     return (
-      <Box id='admin-settings-species-details-wrapper' sx={{width:'100%', padding:'0px 5px 0 5px'}} >
-        <Grid id="admin-settings-species-header" container direction="row" justifyContent="space-between" alignItems="start"
-              sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
-          { generateSettingHeader(1, sortColumn === 1, sortDirection, 5, 'Name', {marginRight:"auto"}, (dir)=>sortSpecies('name', dir) )}
-          { generateSettingHeader(2, sortColumn === 2, sortDirection, 5, 'Scientific Name', {marginRight:"auto"}, (dir)=>sortSpecies('sciName', dir) )}
-          { generateSettingHeader(3, sortColumn === 3, sortDirection, 2, 'Key Binding', {marginLeft:"auto", paddingRight:"5px"}, (dir)=>sortSpecies('key', dir) )}
-        </Grid>
-        <Grid id='admin-settings-details' sx={{overflowX:'scroll',width:'100%', maxHeight:detailsHeight+'px' }}>
-        { curSpecies.map((item, idx) => 
-              <Grid container direction="row" id={"admin-species-"+idx} key={item.name+'-'+idx} direction="row" justifyContent="space-between" alignItems="start"
-                    sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'}}} onDoubleClick={(event) => dblClickFunc(event,item)} >
-                <Grid size={5}>
-                  <Typography nowrap="true" variant="body2">
-                    {item.name}
-                  </Typography>
-                </Grid>
-                <Grid size={5} sx={{marginRight:'auto'}}>
-                  <Typography nowrap="true" variant="body2">
-                    {item.scientificName}
-                  </Typography>
-                </Grid>
-                <Grid sizeo={2} sx={{leftMargin:'auto'}}>
-                  <Typography nowrap="true" variant="body2">
-                    {item.keyBinding}
-                  </Typography>
-                </Grid>
-              </Grid>
-        )}
-        </Grid>
-      </Box>
+      <SpeciesList species={curSpecies} 
+                    sortColumn={sortColumn} 
+                    sortDirection={sortDirection}
+                    maxHeight={detailsHeight}
+                    getSettingsHeader={generateSettingHeader} 
+                    onSort={sortSpecies} 
+                    onDblClick={dblClickFunc} 
+      />
     );
   }
 
@@ -1248,44 +1155,14 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     dblClickFunc = dblClickFunc ? dblClickFunc : () => {};
     return (
-      <Box id='admin-settings-locations-details-wrapper' sx={{width:'100%', padding:'0px 5px 0 5px'}} >
-        <Grid id="admin-settings-species-header" container direction="row" justifyContent="space-between" alignItems="start"
-              sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
-          { generateSettingHeader(1, sortColumn === 1, sortDirection, 5, 'Name', {marginRight:"auto"}, (dir)=>sortLocations('name', dir) )}
-          { generateSettingHeader(2, sortColumn === 2, sortDirection, 3, 'ID', {marginRight:"auto"}, (dir)=>sortLocations('id', dir) )}
-          { generateSettingHeader(3, sortColumn === 3, sortDirection, 2, 'Active', {marginRight:"auto"}, (dir)=>sortLocations('active', dir) )}
-          { generateSettingHeader(4, false,            sortDirection, 2, 'Location', {marginLeft:"auto", paddingRight:"5px"} )}
-        </Grid>
-        <Grid id='admin-settings-details' sx={{overflowX:'scroll',width:'100%', maxHeight:detailsHeight+'px' }}>
-        { selectedLocations.map((item, idx) => {
-            const extraAttribs = item.activeProperty ? {} : {color:'grey'};
-            return (<Grid container direction="row" id={"admin-species-"+idx} key={item.name+'-'+idx} justifyContent="space-between" alignItems="start"
-                    sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'}, ...extraAttribs }} onDoubleClick={(event) => dblClickFunc(event,item)} >
-                <Grid size={5}>
-                  <Typography nowrap="true" variant="body2" >
-                    {item.nameProperty}
-                  </Typography>
-                </Grid>
-                <Grid size={3} sx={{marginRight:'auto'}}>
-                  <Typography nowrap="true" variant="body2">
-                    {item.idProperty}
-                  </Typography>
-                </Grid>
-                <Grid size={2} sx={{marginRight:'auto'}}>
-                  <Typography nowrap="true" variant="body2" align="center">
-                    {item.activeProperty ? 'Y' : ' '}
-                  </Typography>
-                </Grid>
-                <Grid size={2} sx={{marginLeft:'auto'}} >
-                  <Typography nowrap="true" variant="body2" align="right">
-                    {item.latProperty + ', ' + item.lngProperty}
-                  </Typography>
-                </Grid>
-              </Grid>
-            );}
-        )}
-        </Grid>
-      </Box>
+      <LocationList locations={selectedLocations} 
+                    sortColumn={sortColumn} 
+                    sortDirection={sortDirection}
+                    maxHeight={detailsHeight}
+                    getSettingsHeader={generateSettingHeader} 
+                    onSort={sortLocations} 
+                    onDblClick={dblClickFunc} 
+      />
     );
   }
 
@@ -1356,6 +1233,24 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     );
   }
 
+  // Check on getting user information
+  React.useEffect(() => {
+    if (userInfo === null) {
+      getUserInfo();
+      setUserInfo([]);
+      setSelectedUsers([]);
+    }
+  }, [getUserInfo, setSelectedUsers, setUserInfo, userInfo]);
+
+  // Check on getting species information
+  React.useEffect(() => {
+    if (masterSpecies === null) {
+      getMasterSpecies();
+      setMasterSpecies([]);
+      setSelectedSpecies([]);
+    }
+  }, [getMasterSpecies, masterSpecies, setMasterSpecies, setSelectedSpecies]);
+
   // Setup the tab and page generation
   const adminTabs = [
     {name:'Users', uiFunc:() => generateUsers(handleUserEdit), newName:null, newFunc:null, searchFunc:searchUsers},
@@ -1402,7 +1297,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                               {item.name}
                             </Typography>
                          }
-                   key={idx} {...a11yPropsTabPanel(idx)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }}
+                   {...a11yPropsTabPanel(idx)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }}
                 />
               )
             }
@@ -1493,3 +1388,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     </Grid>
   );
 }
+
+SettingsAdmin.propTypes = {
+  loadingCollections: PropTypes.bool,
+  loadingLocations:   PropTypes.bool,
+  onConfirmPassword:  PropTypes.func.isRequired,
+  onSandboxRefresh:   PropTypes.func.isRequired,
+  onClose:            PropTypes.func.isRequired,
+};

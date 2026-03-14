@@ -63,6 +63,17 @@ class FirstLastSpeciesFormatter:
                 except StopIteration:
                     format_location = None
 
+                # If we can't find the location yet, do it the hard way
+                if not format_location:
+                    try:
+                        upper_cur_loc = cur_location.upper()
+                        format_location = next(iter([one_loc for one_loc in \
+                                            results.get_locations() if \
+                                                one_loc['idProperty'].upper() == upper_cur_loc]))
+                    except StopIteration:
+                        format_location = None
+
+                # Lets go with the results we have
                 if format_location:
                     format_location = format_location['nameProperty']
                 else:
@@ -107,10 +118,21 @@ class FirstLastSpeciesFormatter:
                 cur_location = one_species['last_image']['loc']
                 try:
                     format_location = next(iter([one_loc for one_loc in results.get_locations() if \
-                                        one_loc['idProperty'] == one_species['last_image']['loc']]))
+                                                            one_loc['idProperty'] == cur_location]))
                 except StopIteration:
                     format_location = None
 
+                # If we can't find the location yet, do it the hard way
+                if not format_location:
+                    try:
+                        upper_cur_loc = cur_location.upper()
+                        format_location = next(iter([one_loc for one_loc in \
+                                            results.get_locations() if \
+                                                one_loc['idProperty'].upper() == upper_cur_loc]))
+                    except StopIteration:
+                        format_location = None
+
+                # Work with what we have
                 if format_location:
                     format_location = format_location['nameProperty']
                 else:

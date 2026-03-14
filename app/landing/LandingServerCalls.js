@@ -2,7 +2,7 @@
 
 /** @module landing/LandingServerCalls */
 
-const MAX_FORM_FILE_CHUNK = 5000;  // Maximum number of files to put into a form at one fime
+const LIMIT_FORM_FILE_CHUNK = 5000;  // Maximum number of files to put into a form at one time
 
 /**
  * Returns whether or not this is a new upload or a continuation of a previous one
@@ -26,7 +26,7 @@ export function checkPreviousUpload(serverURL, token, path, onExpiredToken, onSu
   formData.append('path', path);
 
   try {
-    const resp = fetch(sandboxPrevUrl, {
+    fetch(sandboxPrevUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -38,7 +38,7 @@ export function checkPreviousUpload(serverURL, token, path, onExpiredToken, onSu
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to check upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to check previousupload: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -67,7 +67,7 @@ export function checkPreviousUpload(serverURL, token, path, onExpiredToken, onSu
  * @param {string} locId The location ID of the upload
  * @param {string} uploadKey The recovery upload key
  * @param {string} path The path of the upload
- * @param {array} files The list of files to upload
+ * @param {Array} files The list of files to upload
  * @param {function} onExpiredToken Function to call when we get an expired token return
  * @param {function} onSuccess The function to call upon success
  * @param {function} onFailure The function to call upon failure
@@ -86,23 +86,8 @@ export function updateUploadRecovery(serverURL, token, collId, locId, uploadKey,
   formData.append('loc', locId);
   formData.append('path', path);
 
-  // Break the upload into pieces if it's too large
-  if (files.length < MAX_FORM_FILE_CHUNK) {
-    formData.append('files', JSON.stringify(files.map((item) => item.webkitRelativePath)));
-  } else {
-    formData.append('files', JSON.stringify(files.slice(0,MAX_FORM_FILE_CHUNK).map((item) => item.webkitRelativePath)));
-    let index = 1;
-    let start = MAX_FORM_FILE_CHUNK;
-    while (start < files.length) {
-      let end = Math.min(start + MAX_FORM_FILE_CHUNK, files.length);
-      formData.append('files'+index, JSON.stringify(files.slice(start,end).map((item) => item.webkitRelativePath)));
-      start += MAX_FORM_FILE_CHUNK;
-      index += 1;
-    };
-  }
-
   try {
-    const resp = fetch(sandboxRecoveryUrl, {
+    fetch(sandboxRecoveryUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -114,11 +99,12 @@ export function updateUploadRecovery(serverURL, token, collId, locId, uploadKey,
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to check upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to recover upload: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
-        onSuccess(respData);
+        const missingFiles = files.filter((item) => respData.files.filter((name) => item.webkitRelativePath.includes(name))[0]);
+        onSuccess(respData, missingFiles);
       })
       .catch(function(err) {
         console.log('Previous Upload Error: ',err);
@@ -134,7 +120,7 @@ export function updateUploadRecovery(serverURL, token, collId, locId, uploadKey,
 
 
 /**
- * Updates a recovery attempt with the new information
+ * Creates a new sandbox ready for uploaded files
  * @function
  * @param {string} serverURL The URL to the server
  * @param {string} token The authorization token
@@ -142,7 +128,7 @@ export function updateUploadRecovery(serverURL, token, collId, locId, uploadKey,
  * @param {string} locationId The ID of the location
  * @param {string} path The path the upload is loaded from
  * @param {string} comment The upload comment
- * @param {object} files The files being uploaded
+ * @param {Array} files The files being uploaded
  * @param {function} onExpiredToken Function to call when we get an expired token return
  * @param {function} onSuccess The function to call upon success
  * @param {function} onFailure The function to call upon failure
@@ -165,22 +151,22 @@ export function continueNewUpload(serverURL, token, collectionId, locationId, pa
   formData.append('tz', Intl.DateTimeFormat().resolvedOptions().timeZone);
 
   // Break the upload into pieces if it's too large
-  if (files.length < MAX_FORM_FILE_CHUNK) {
+  if (files.length < LIMIT_FORM_FILE_CHUNK) {
     formData.append('files', JSON.stringify(files.map((item) => item.webkitRelativePath)));
   } else {
-    formData.append('files', JSON.stringify(files.slice(0,MAX_FORM_FILE_CHUNK).map((item) => item.webkitRelativePath)));
+    formData.append('files', JSON.stringify(files.slice(0,LIMIT_FORM_FILE_CHUNK).map((item) => item.webkitRelativePath)));
     let index = 1;
-    let start = MAX_FORM_FILE_CHUNK;
+    let start = LIMIT_FORM_FILE_CHUNK;
     while (start < files.length) {
-      let end = Math.min(start + MAX_FORM_FILE_CHUNK, files.length);
+      let end = Math.min(start + LIMIT_FORM_FILE_CHUNK, files.length);
       formData.append('files'+index, JSON.stringify(files.slice(start,end).map((item) => item.webkitRelativePath)));
-      start += MAX_FORM_FILE_CHUNK;
+      start += LIMIT_FORM_FILE_CHUNK;
       index += 1;
     };
   }
 
   try {
-    const resp = fetch(sandboxNewUrl, {
+    fetch(sandboxNewUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -192,7 +178,7 @@ export function continueNewUpload(serverURL, token, collectionId, locationId, pa
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to add new sandbox upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to add new sandbox upload: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -216,7 +202,7 @@ export function continueNewUpload(serverURL, token, collectionId, locationId, pa
  * @param {string} serverURL The URL to the server
  * @param {string} token The authorization token
  * @param {string} uploadId The identifier of the upload
- * @param {object} files Array of files to upload
+ * @param {Array} files Array of files to upload
  * @param {function} onExpiredToken Function to call when we get an expired token return
  * @param {function} onSuccess The function to call upon success
  * @param {function} onFailure The function to call upon failure
@@ -235,7 +221,7 @@ export function prevUploadResetContinue(serverURL, token, uploadId, files, onExp
   formData.append('files', JSON.stringify(files.map((item) => item.webkitRelativePath)));
 
   try {
-    const resp = fetch(sandboxResetUrl, {
+    fetch(sandboxResetUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -247,7 +233,7 @@ export function prevUploadResetContinue(serverURL, token, uploadId, files, onExp
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to reset sandbox upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to reset sandbox upload: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -281,14 +267,14 @@ export function prevUploadAbandonContinue(serverURL, token, uploadId, onExpiredT
   onSuccess ||= () => {};
   onFailure ||= () => {};
 
-  // Reset the upload on the server and then restart the upload
+  // Abandon the upload on the server
   const sandboxAbandonUrl = serverURL + '/sandboxAbandon?t=' + encodeURIComponent(token);
   const formData = new FormData();
 
   formData.append('id', uploadId);
 
   try {
-    const resp = fetch(sandboxAbandonUrl, {
+    fetch(sandboxAbandonUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -300,7 +286,7 @@ export function prevUploadAbandonContinue(serverURL, token, uploadId, onExpiredT
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to abandoning sandbox upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to abandoning sandbox upload: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -324,7 +310,7 @@ export function prevUploadAbandonContinue(serverURL, token, uploadId, onExpiredT
  * @param {string} serverURL The URL to the server
  * @param {string} token The authorization token
  * @param {string} uploadId The ID associated with the upload
- * @param {array} files The list of files to check the upload validity of
+ * @param {Array} files The list of files to check the upload validity of
  * @param {function} onExpiredToken Function to call when we get an expired token return
  * @param {function} onSuccess The function to call if the files check is successful
  * @param {function} onFailure The function to call on failure
@@ -337,8 +323,8 @@ export function checkUploadedFiles(serverURL, token, uploadId, files, onExpiredT
 
   // If we have nothing to check, we are successful
   if (files.length <= 0) {
-    onSuccess();
-    return;
+    onSuccess(null);
+    return true;
   }
 
   const sandboxCheckUrl = serverURL + '/sandboxCheckContinueUpload?t=' + encodeURIComponent(token);
@@ -348,7 +334,7 @@ export function checkUploadedFiles(serverURL, token, uploadId, files, onExpiredT
   formData.append(files[0].name, files[0]);
 
   try {
-    const resp = fetch(sandboxCheckUrl, {
+    fetch(sandboxCheckUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -360,7 +346,7 @@ export function checkUploadedFiles(serverURL, token, uploadId, files, onExpiredT
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to check upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to check upload: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -384,7 +370,7 @@ export function checkUploadedFiles(serverURL, token, uploadId, files, onExpiredT
  * @param {string} serverURL The URL to the server
  * @param {string} token The authorization token
  * @param {string} uploadId The ID of the upload that's in progress
- * @param {object} uploadedFiles The files that were being uploaded
+ * @param {Array} uploadedFiles The files that were being uploaded
  * @param {function} onExpiredToken Function to call when we get an expired token return
  * @param {function} onSuccess The function to call if the files check is successful
  * @param {function} onFailure The function to call on failure
@@ -399,7 +385,7 @@ export function handleFailedUploads (serverURL, token, uploadId, uploadedFiles, 
                                                             '&i=' + encodeURIComponent(uploadId);
 
   try {
-    const resp = fetch(failedUploadsUrl, {
+    fetch(failedUploadsUrl, {
       credentials: 'include',
       method: 'GET'
     }).then(async (resp) => {
@@ -410,7 +396,7 @@ export function handleFailedUploads (serverURL, token, uploadId, uploadedFiles, 
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to get failed files for upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to get failed files for upload: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -434,7 +420,7 @@ export function handleFailedUploads (serverURL, token, uploadId, uploadedFiles, 
  * @param {string} serverURL The URL to the server
  * @param {string} token The authorization token
  * @param {string} uploadId The ID of the upload that's in progress
- * @param {object} uploadFiles The arraay of files that are being uploaded
+ * @param {Array} uploadFiles The array of files that are being uploaded
  * @param {function} onExpiredToken Function to call when we get an expired token return
  * @param {function} onSuccess The function to call if the files check is successful
  * @param {function} onFailure The function to call on failure
@@ -449,7 +435,7 @@ export function getUploadCounts(serverURL, token, uploadId, uploadFiles, onExpir
                                                             '&i=' + encodeURIComponent(uploadId);
 
   try {
-    const resp = fetch(sandboxCountsUrl, {
+    fetch(sandboxCountsUrl, {
       credentials: 'include',
       method: 'GET'
     }).then(async (resp) => {
@@ -460,7 +446,7 @@ export function getUploadCounts(serverURL, token, uploadId, uploadFiles, onExpir
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to get uploaded files count: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to get uploaded files count: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -501,7 +487,7 @@ export function uploadCompleted(serverURL, token, uploadId, onExpiredToken, onSu
   formData.append('id', uploadId);
 
   try {
-    const resp = fetch(sandboxCompleteUrl, {
+    fetch(sandboxCompleteUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -513,7 +499,7 @@ export function uploadCompleted(serverURL, token, uploadId, onExpiredToken, onSu
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to mark upload as completed: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to mark upload as completed: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -524,7 +510,7 @@ export function uploadCompleted(serverURL, token, uploadId, onExpiredToken, onSu
         console.log('Upload Images Completed Error: ', err);
         onFailure(err);
     });
-  } catch (error) {
+  } catch (err) {
     console.log('Upload Images Completed Unknown Error: ',err);
     return false;
   }
@@ -538,7 +524,7 @@ export function uploadCompleted(serverURL, token, uploadId, onExpiredToken, onSu
  * @function
  * @param {string} serverURL The URL to the server
  * @param {string} token The authorization token
- * @param {object} fileChunk The array of files to upload
+ * @param {Array} fileChunk The array of files to upload
  * @param {string} uploadId The ID of the upload
  * @param {number} numFiles The number of images to send
  * @param {object} tzInfo The timezone information
@@ -563,7 +549,7 @@ export function uploadChunk(serverURL, token, fileChunk, uploadId, numFiles, tzI
   }
 
   try {
-    const resp = fetch(sandboxFileUrl, {
+    fetch(sandboxFileUrl, {
       credentials: 'include',
       method: 'POST',
       body: formData
@@ -575,7 +561,7 @@ export function uploadChunk(serverURL, token, fileChunk, uploadId, numFiles, tzI
               // User needs to log in again
               onExpiredToken();
             }
-            throw new Error(`Failed to check upload: ${resp.status}`, {cause:resp});
+            throw new Error(`Failed to upload files: ${resp.status}: ${await resp.text()}`);
           }
         })
       .then((respData) => {
@@ -585,7 +571,7 @@ export function uploadChunk(serverURL, token, fileChunk, uploadId, numFiles, tzI
         console.log('Upload File Error: ',err);
         onFailure(err);
     });
-  } catch (error) {
+  } catch (err) {
     console.log('Upload Images Unknown Error: ',err);
     return false;
   }

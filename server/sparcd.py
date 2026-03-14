@@ -85,6 +85,9 @@ QUERY_RESULTS_TIMEOUT_SEC = 24 * 60 * 60
 DEFAULT_SETTINGS_PATH = os.environ.get(ENV_DEFAULT_SETTINGS_PATH,
                                                         os.path.join(os.getcwd(),"defaultSettings"))
 
+# Timeout for login page cache
+LOGIN_PAGE_BROWSER_CACHE_TIMEOUT_SEC = 10800
+
 # Timeout for image browser cache
 IMAGE_BROWSER_CACHE_TIMEOUT_SEC = 10800
 
@@ -248,7 +251,10 @@ def index():
     client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
     if not client_ip or client_ip is None or not client_user_agent or client_user_agent == '-':
         return 'Resource not found', 404
-    return render_template(DEFAULT_TEMPLATE_PAGE)
+
+    response = make_response(render_template(DEFAULT_TEMPLATE_PAGE))
+    response.headers.set('Cache-Control', f'public, max-age={LOGIN_PAGE_BROWSER_CACHE_TIMEOUT_SEC}')
+    return response
 
 
 @app.route('/favicon.ico', methods = ['GET'])
@@ -336,6 +342,10 @@ def sendnextimage():
     w_param = request.args.get('w')
     q_param = request.args.get('q')
     print("RETURN _next IMAGE:",image_path,flush=True)
+
+    # Make sure we have a good query
+    if not image_path:
+        return 'Resource not found', 404
 
     # Normalize parameters
     if w_param:
@@ -962,7 +972,7 @@ def image():
                        allow_redirects=False)
 
     response = make_response(res.content)
-    response.headers.set('Cache-Control', IMAGE_BROWSER_CACHE_TIMEOUT_SEC)
+    response.headers.set('Cache-Control', f'public, max-age={IMAGE_BROWSER_CACHE_TIMEOUT_SEC}')
     return response
 
 
@@ -1095,6 +1105,8 @@ def query():
                                             s3_url,user_info.name, lambda: get_password(token, db))
     cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db),
                                             hash2str(s3_url))
+
+    # TODO: 
 
     results = Results(all_results, cur_species, cur_locations,
                         s3_url, user_info.name, get_password(token, db),
@@ -1470,9 +1482,8 @@ def sandbox_recovery_update():
     upload_key = request.form.get('key', None)
     loc_id = request.form.get('loc', None)
     source_path = request.form.get('path', None)
-    all_files = request.form.get('files', None)
 
-    if not all(item for item in [token, source_path, upload_key, coll_id, all_files]):
+    if not all(item for item in [token, source_path, upload_key, coll_id]):
         return "Not Found", 406
 
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
@@ -1513,22 +1524,21 @@ def sandbox_recovery_update():
         return "Not Found", 404
 
     # Update the upload in the database
-    upload_id = db.sandbox_upload_recovery_update(hash2str(s3_url),
+    result = db.sandbox_upload_recovery_update(hash2str(s3_url),
                                                 user_info.name,
                                                 coll['bucket'],
                                                 upload['key'],
                                                 source_path,
-                                                json.loads(all_files),
                                                 our_location['idProperty'],
                                                 our_location['nameProperty'],
                                                 our_location['latProperty'],
                                                 our_location['lngProperty'],
                                                 our_location['elevationProperty'])
-    if upload_id is None:
+    if result is None:
         return jsonify({'success': False,
                             'message': 'Unable to update the upload to receive the files'})
 
-    return jsonify({'success': True, 'id': upload_id,
+    return jsonify({'success': True, 'id': result[0], 'files': result[1],
                         'message': 'Successfully updated for the file upload'})
 
 
@@ -1605,7 +1615,7 @@ def sandbox_check_continue_upload():
                     print(ex, flush=True)
                     all_match = 'Missing'
                     message = 'The uploaded file is not found on the server ' \
-                                                                f'{request.files[one_file].filename}'
+                                                            f'{request.files[one_file].filename}'
                 else:
                     print('ERROR: Unexpected exception while comparing continue upload files ' \
                                     f'against already uploaded files: {s3_bucket} {s3_comp_path} ',
@@ -1836,7 +1846,7 @@ def sandbox_file():
         # Upload the file to S3
         S3Connection.upload_file(s3_url, user_info.name,
                                         get_password(token, db), s3_bucket,
-                                        s3_path + '/' + remote_name,
+                                        make_s3_path((s3_path, remote_name)),
                                         upload_file)
 
         # Update the database entry to show the file is uploaded
@@ -2206,7 +2216,7 @@ def image_location():
         for one_obs in obs_info[one_file]:
             one_obs[camtrap.CAMTRAP_OBSERVATION_DEPLOYMENT_ID_IDX] = deployment_id
 
-    row_groups = [obs_info[one_key] for one_key in obs_info.keys()]
+    row_groups = [obs_info[one_key] for one_key in obs_info]
     S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                 get_password(token, db),
                                 bucket, make_s3_path((upload_path, OBSERVATIONS_CSV_FILE_NAME)),
@@ -2474,16 +2484,29 @@ def images_all_edited():
             image_with_species += 1
 
     # Update the upload metadata with an editing comment
-    S3Connection.update_upload_metadata(s3_url, user_info.name,
+    updated, _ = S3Connection.update_upload_metadata(s3_url, user_info.name,
                                         get_password(token, db),
-                                        s3_bucket,s3_path,
+                                        s3_bucket, s3_path,
                                         f'Edited by {user_info.name} on ' + \
                                                 datetime.datetime.fromisoformat(timestamp).\
                                                         strftime("%Y.%m.%d.%H.%M.%S"),
                                         image_with_species)
 
-    return {'success': True, 'message': "The images have been successfully updated", \
-                                                                    'imagesReloaded': not kept_urls}
+    if updated:
+        # Update the collection to reflect the changes
+        updated_collection = S3Connection.get_collection_info(s3_url, user_info.name,
+                                                get_password(token, db), s3_bucket)
+        if updated_collection:
+            updated_collection = sdu.normalize_collection(updated_collection)
+
+            # Update the collection entry in the database
+            sdc.collection_update(db, hash2str(s3_url), updated_collection)
+
+    return {'success': True,
+            'message': "The images have been successfully updated", \
+            'updatedUpload': bool(updated),
+            'imagesReloaded': not kept_urls,
+            }
 
 
 @app.route('/speciesKeybind', methods = ['POST'])
@@ -3887,9 +3910,12 @@ def message_add():
     priority = request.form.get('priority', None)
 
     # Check what we have from the requestor
-    if not all(item for item in [receiver, subject, message]):
+    if not all(item for item in [receiver, subject]):
         return "Not Found", 406
 
+    # Check the parameters
+    if not message:
+        message = ""
     if priority is None:
         priority = "normal"
 

@@ -34,9 +34,10 @@ import styles from './page.module.css'
  * @param {function} onCancel Call when finished with the the upload edit
  * @param {function} searchSetup Call when settting up or clearing search elements
  * @param {function} uploadReload Call when the current upload information needs to be reloaded
+ * @param {function} uploadUpdateMetadata The function to refresh the upload metadata
  * @returns {object} The UI to render
  */
-export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploadReload}) {
+export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploadReload, uploadUpdateMetadata}) {
   const theme = useTheme();
   const imageEditRef = React.useRef(null); // Used to signal the ImageEdit child control about a keypress
   const navigationIndicatorTimerId = React.useRef(null); // Used to manage navigation indicator timeout IDs
@@ -176,7 +177,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update image species: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update image species: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -185,11 +186,11 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
         })
         .catch(function(err) {
           console.log('Update Species Count Error: ',err);
-          addMessage(Level.Error, 'A problem ocurred while updating the image species');
+          addMessage(Level.Error, 'A problem occurred while updating the image species');
       });
     } catch (err) {
       console.log('Update Species Count Unknown Error: ',err);
-      addMessage(Level.Error, 'An unknown problem ocurred while updating the image species');
+      addMessage(Level.Error, 'An unknown problem occurred while updating the image species');
     }
   }, [addMessage, curUpload, editToken, serverURL, speciesItems, setCurImageModified]);
 
@@ -471,7 +472,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to check for update server changes: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to check for update server changes: ${resp.status}: ${await resp.text()}`);
             }
         })
         .then((respData) => {
@@ -481,11 +482,11 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
         })
         .catch(function(err) {
           console.log('Check Changes Error: ', err);
-          addMessage(Level.Error, 'A problem ocurred while checking for server upload changes');
+          addMessage(Level.Error, 'A problem occurred while checking for server upload changes');
         });
       } catch (error) {
         console.log('Check Changes Unknown Error: ', err);
-        addMessage(Level.Error, 'An unknown problem ocurred checking for server upload changes');
+        addMessage(Level.Error, 'An unknown problem occurred checking for server upload changes');
       }
     }
   }, [addMessage, changesMade, checkedServerChanges, curUpload, editToken, serverURL, setChangesMade, setCheckedServerChanges]);
@@ -568,7 +569,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                   // User needs to log in again
                   setTokenExpired();
                 }
-                throw new Error(`Failed to upload location: ${resp.status}`, {cause:resp});
+                throw new Error(`Failed to upload location: ${resp.status}: ${await resp.text()}`);
               }
             })
           .then((respData) => {
@@ -579,12 +580,12 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
           })
           .catch(function(err) {
             console.log('Update Location Error: ',err);
-            addMessage(Level.Error, 'A problem ocurred while updating the collection location');
+            addMessage(Level.Error, 'A problem occurred while updating the collection location');
             setPendingMessage(null);
         });
       } catch (error) {
         console.log('Update Location Unknown Error: ',err);
-        addMessage(Level.Error, 'An unknown problem ocurred while updating the collection location');
+        addMessage(Level.Error, 'An unknown problem occurred while updating the collection location');
         setPendingMessage(null);
       }
     }
@@ -693,7 +694,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update species keybind: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update species keybind: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -701,12 +702,12 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
         })
         .catch(function(err) {
           console.log('Update Location Error: ',err);
-          addMessage(Level.Error, 'A problem ocurred while updating the keybinding');
+          addMessage(Level.Error, 'A problem occurred while updating the keybinding');
       });
     } catch (error) {
       console.log('Update Location Unknown Error: ',err);
-      addMessage(Level.Error, 'An unknown problem ocurred while updating the keybinding');
-      return('An error ocurred while setting keybinding');
+      addMessage(Level.Error, 'An unknown problem occurred while updating the keybinding');
+      return('An error occurred while setting keybinding');
     }
 
     speciesItems[newKeySpeciesIdx].keyBinding = newKey;
@@ -781,7 +782,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to finish all image editing changes: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to finish all image editing changes: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -792,6 +793,9 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                 setPendingMessage(null);
                 setChangesMade(false);
                 setCurImageModified(false);
+                if (respData.updatedUpload) {
+                  uploadUpdateMetadata();
+                }
                 if (respData.imagesReloaded !== undefined && respData.imagesReloaded) {
                   // Cause the images to be reloaded
                   uploadReload();
@@ -813,12 +817,12 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
         .catch(function(err) {
           setPendingMessage(null);
           console.log('Finish Images Edit Error: ',err);
-          addMessage(Level.Error, 'A problem ocurred while finishing the edited images changes');
+          addMessage(Level.Error, 'A problem occurred while finishing the edited images changes');
       });
     } catch (err) {
       setPendingMessage(null);
       console.log('Finish Images Edit Commit Unknown Error: ',err);
-      addMessage(Level.Error, 'An unknown problem ocurred while finishing the edited image changes');
+      addMessage(Level.Error, 'An unknown problem occurred while finishing the edited image changes');
     }
   }, [addMessage, editToken, serverURL]);
 
@@ -838,9 +842,10 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                 } else {
                   setPendingMessage(null);
                 }
-              }
+              },
+        (err) => {addMessage(Level.Error, err);setPendingMessage(null);}
     );
-  }, [curImageModified, curUpload, editingStates, finishImageEdits, handleImageSearch, lastSpeciesRequestId, searchSetup,
+  }, [addMessage, curImageModified, curUpload, editingStates, finishImageEdits, handleImageSearch, lastSpeciesRequestId, searchSetup,
       setCurEditState, setPendingMessage, submitAllImageEdited]);
 
   /**
@@ -880,7 +885,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                 // User needs to log in again
                 setTokenExpired();
               }
-              throw new Error(`Failed to update image with editing changes: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update image with editing changes: ${resp.status}: ${await resp.text()}`);
             }
           })
         .then((respData) => {
@@ -911,11 +916,11 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
         })
         .catch(function(err) {
           console.log('Update Image Edit Complete Error: ',err);
-          failureFunc('A problem ocurred while updating the stored image with these changes');
+          failureFunc('A problem occurred while updating the stored image with these changes');
       });
     } catch (err) {
       console.log('Update Image Edit Commit Complete Error: ',err);
-      failureFunc('An unknown problem ocurred while updating the stored image with these changes');
+      failureFunc('An unknown problem occurred while updating the stored image with these changes');
     }
   }, [addMessage, editToken, lastSpeciesRequestId, serverURL]);
 
@@ -950,7 +955,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                   // User needs to log in again
                   setTokenExpired();
                 }
-                throw new Error(`Failed to get location information: ${resp.status}`, {cause:resp});
+                throw new Error(`Failed to get location information: ${resp.status}: ${await resp.text()}`);
               }
             })
           .then((respData) => {

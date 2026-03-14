@@ -1,7 +1,6 @@
 /** @module components/EditLocation */
 
 import * as React from 'react';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
@@ -22,13 +21,16 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { AddMessageContext, DefaultImageIconURL, geographicCoordinates, LocationsInfoContext, UserSettingsContext } from '../serverInfo';
+import PropTypes from 'prop-types';
+
+import { AddMessageContext, geographicCoordinates, LocationsInfoContext, UserSettingsContext } from '../serverInfo';
 import { Level } from '../components/Messages';
+import { meters2feet } from '../utils';
 
 /**
  * Handles editing a location's entry
  * @function
- * @param {object} {data} The location data. If falsy a new location is assumed
+ * @param {object} [data] The location data. If falsy a new location is assumed
  * @param {function} onUpdate Called to update the location information when changes made
  * @param {function} onClose Called when the editing is completed
  * @return {object} The UI for editing locations
@@ -38,10 +40,21 @@ export default function EditLocation({data, onUpdate, onClose}) {
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const locationItems = React.useContext(LocationsInfoContext);
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
+  const locationActiveRef = React.useRef(null);
+  const locationDescRef = React.useRef(null);
+  const locationEleRef = React.useRef(null);
+  const locationIdRef = React.useRef(null);
+  const locationLatRef = React.useRef(null);
+  const locationLonRef = React.useRef(null);
+  const locationNameRef = React.useRef(null);
+  const locationUTMZoneRef = React.useRef(null);
+  const locationUTMLetterRef = React.useRef(null);
+  const locationUTMXRef = React.useRef(null);
+  const locationUTMYRef = React.useRef(null);
   const [canEditId, setCanEditId] = React.useState(false);        // Used to allow editing of location ID
   const [isModified, setIsModified] = React.useState(false);
-  const [selectedCoordinate, setSelectedCoordinate] = React.useState(userSettings['coordinatesDisplay']);
-  const [selectedMeasure, setSelectedMeasure] = React.useState(userSettings['measurementFormat']);
+  const [selectedCoordinate, setSelectedCoordinate] = React.useState(userSettings['coordinatesDisplay'] ?? 'LATLON');
+  const [selectedMeasure, setSelectedMeasure] = React.useState(userSettings['measurementFormat'] ?? 'meters');
   const [curData, setCurData] = React.useState(data || {
                                                         elevationProperty: 0,
                                                         idProperty: '',
@@ -52,6 +65,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
                                                         utm_x: 0,
                                                         utm_y: 0
                                                       });
+  const [displayElevation, setDisplayElevation] = React.useState(selectedMeasure === 'feet' ? meters2feet(curData.elevationProperty) : curData.elevationProperty);
 
   /**
    * Handles a change in the user's measurement selection
@@ -60,6 +74,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
    */
   function handleMeasureChange(event) {
     setSelectedMeasure(event.target.value);
+    setDisplayElevation(event.target.value === 'feet' ? Math.round(meters2feet(curData.elevationProperty)) : curData.elevationProperty);
   }
 
   /**
@@ -81,62 +96,57 @@ export default function EditLocation({data, onUpdate, onClose}) {
     }
 
     // Save the edited location data
-    let updatedData = curData ? JSON.parse(JSON.stringify(curData)) : {};
+    let updatedData = JSON.parse(JSON.stringify(curData));
 
-    let el = document.getElementById('edit-location-name');
-    if (el) {
-      updatedData.nameProperty = el.value;
+    if (locationNameRef.current) {
+      updatedData.nameProperty = locationNameRef.current.value;
       if (updatedData.nameProperty.length <= 2) {
         addMessage(Level.Warning, "Please enter a longer name for the location");
-        el.focus();
+        locationNameRef.current.focus();
         return;
       }
     }
 
-    el = document.getElementById('edit-location-id');
-    if (el) {
-      updatedData.idProperty = el.value;
+    if (locationIdRef.current) {
+      updatedData.idProperty = locationIdRef.current.value;
       if (updatedData.idProperty.length <= 2) {
         addMessage(Level.Warning, "Please enter a longer location identifier");
-        el.focus();
+        locationIdRef.current.focus();
         return;
       }
       const foundId = locationItems.filter((item) => item.idProperty === updatedData.idProperty);
-      if (foundId && !curData) {
+      if (foundId.length > 0 && !data) {
         addMessage(Level.Warning, "The ID is already taken. Please enter an unused ID")
-        el.focus();
+        locationIdRef.current.focus();
         return;
       }
     }
 
-    el = document.getElementById('edit-location-description');
-    if (el) {
-      updatedData.descriptionProperty = el.value;
+    if (locationDescRef.current) {
+      updatedData.descriptionProperty = locationDescRef.current.value;
       if (updatedData.descriptionProperty.length > 0 && updatedData.descriptionProperty.length <= 4) {
         addMessage(Level.Warning, "Please enter a longer geographic area identifier");
-        el.focus();
+        locationDescRef.current.focus();
         return;
       }
     }
 
 
-    el = document.getElementById('edit-location-active');
-    if (el) {
-      updatedData.activeProperty = el.checked;
+    if (locationActiveRef.current) {
+      updatedData.activeProperty = locationActiveRef.current.checked;
     }
 
     updatedData.measure = selectedMeasure;
 
-    el = document.getElementById('edit-location-elevation');
-    if (el) {
-      updatedData.elevationProperty = el.value;
+    if (locationEleRef.current) {
+      updatedData.elevationProperty = locationEleRef.current.value;
       if (updatedData.elevationProperty.length <= 0) {
         addMessage(Level.Warning, "Please enter an elevation");
-        el.focus();
+        locationEleRef.current.focus();
         return;
-      } else if (parseFloat(updatedData.elevationProperty) === NaN) {
+      } else if (isNaN(parseFloat(updatedData.elevationProperty))) {
         addMessage(Level.Warning, "Please enter a valid elevation");
-        el.focus();
+        locationEleRef.current.focus();
         return;
       }
     }
@@ -144,82 +154,76 @@ export default function EditLocation({data, onUpdate, onClose}) {
     updatedData.coordinate = selectedCoordinate;
 
     if (selectedCoordinate === 'LATLON') {
-      el = document.getElementById('edit-location-lat');
-      if (el) {
-        updatedData.latProperty = el.value;
+      if (locationLatRef.current) {
+        updatedData.latProperty = locationLatRef.current.value;
         if (updatedData.latProperty.length <= 1) {
           addMessage(Level.Warning, "Please enter a latitude");
-          el.focus();
+          locationLatRef.current.focus();
           return;
-        } else if (parseFloat(updatedData.latProperty) === NaN) {
+        } else if (isNaN(parseFloat(updatedData.latProperty))) {
           addMessage(Level.Warning, "Please enter a valid latitude");
-          el.focus();
+          locationLatRef.current.focus();
           return;
         }
       }
 
-      el = document.getElementById('edit-location-lon');
-      if (el) {
-        updatedData.lngProperty = el.value;
+      if (locationLonRef.current) {
+        updatedData.lngProperty = locationLonRef.current.value;
         if (updatedData.lngProperty.length <= 1) {
           addMessage(Level.Warning, "Please enter a valid longitude");
-          el.focus();
+          locationLonRef.current.focus();
           return;
-        } else if (parseFloat(updatedData.lngProperty) === NaN) {
+        } else if (isNaN(parseFloat(updatedData.lngProperty))) {
           addMessage(Level.Warning, "Please enter a valid longitude");
-          el.focus();
+          locationLonRef.current.focus();
           return;
         }
       }
     } else {
-      el = document.getElementById('edit-location-utm-zone');
-      if (el) {
-        updatedData.utm_zone = el.value;
+      if (locationUTMZoneRef.current) {
+        updatedData.utm_zone = locationUTMZoneRef.current.value;
         if (updatedData.utm_zone.length <= 0) {
           addMessage(Level.Warning, "Please enter a UTM zone");
-          el.focus();
+          locationUTMZoneRef.current.focus();
           return;
-        } else if (parseInt(updatedData.utm_zone) === NaN) {
+        } else if (isNaN(parseInt(updatedData.utm_zone))) {
           addMessage(Level.Warning, "Please enter a valid UTM zone");
-          el.focus();
+          locationUTMZoneRef.current.focus();
           return;
         }
       }
 
-      el = document.getElementById('edit-location-utm-letter');
-      if (el) {
-        updatedData.utm_letter = el.value;
+      if (locationUTMLetterRef.current) {
+        updatedData.utm_letter = locationUTMLetterRef.current.value;
         if (updatedData.utm_letter.length <= 0) {
           addMessage(Level.Warning, "Please enter a UTM letter");
-          el.focus();
+          locationUTMLetterRef.current.focus();
           return;
         }
       }
 
-      el = document.getElementById('edit-location-utm-x');
-      if (el) {
-        updatedData.utm_x = el.value;
+      if (locationUTMXRef.current) {
+        updatedData.utm_x = locationUTMXRef.current.value;
         if (updatedData.utm_x.length <= 0) {
           addMessage(Level.Warning, "Please enter a UTM X value");
-          el.focus();
+          locationUTMXRef.current.focus();
           return;
-        } else if (parseFloat(updatedData.utm_x) === NaN) {
+        } else if (isNaN(parseFloat(updatedData.utm_x))) {
           addMessage(Level.Warning, "Please enter a valid UTM X value");
-          el.focus();
+          locationUTMXRef.current.focus();
           return;
         }
       }
 
-      el = document.getElementById('edit-location-utm-y');
-      if (el) {
-        updatedData.utm_y = el.value;
+      if (locationUTMYRef.current) {
+        updatedData.utm_y = locationUTMYRef.current.value;
         if (updatedData.utm_y.length <= 0) {
           addMessage(Level.Warning, "Please enter a UTM Y value");
-          el.focus();
+          locationUTMYRef.current.focus();
           return;
-        } else if (parseFloat(updatedData.utm_y) === NaN) {
+        } else if (isNaN(parseFloat(updatedData.utm_y))) {
           addMessage(Level.Warning, "Please enter a valid UTM Y value");
-          el.focus();
+          locationUTMYRef.current.focus();
           return;
         }
       }
@@ -233,8 +237,8 @@ export default function EditLocation({data, onUpdate, onClose}) {
    * @function
    */
   const handleUnlockEditingId = React.useCallback(() => {
-    setCanEditId(!canEditId);
-  }, [canEditId, setCanEditId]);
+    setCanEditId(prev => !prev);
+  }, []);
 
   /**
    * Supresses the default handling of a mouse down event on the ID field icon
@@ -257,25 +261,29 @@ export default function EditLocation({data, onUpdate, onClose}) {
   /*
    * Check if we need to break the UTM code into zone and letter
    */
-  if (curData && curData.utm_code && (!curData.utm_zone || !curData.utm_letter)) {
-    curData.utm_zone = parseInt(curData.utm_code);
-    curData.utm_letter = curData.utm_code[curData.utm_code.length - 1];
-  }
+  React.useEffect(() => {
+    if (curData && curData.utm_code && (!curData.utm_zone || !curData.utm_letter)) {
+      setCurData({...curData, 
+                    utm_zone:parseInt(curData.utm_code), 
+                    utm_letter:curData.utm_code[curData.utm_code.length - 1]
+                });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
    <Grid sx={{minWidth:'50vw'}} > 
     <Card id="edit-species" sx={{backgroundColor:'#EFEFEF', border:"none", boxShadow:"none"}} >
       <CardHeader id='edit-species-header' title={
-                    <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
+                    <Grid container direction="row" alignItems="start" justifyContent="start" sx={{flexWrap:'nowrap'}}>
                       <Grid>
-                        <Typography gutterBottom variant="h6" component="h4" noWrap="true">
+                        <Typography gutterBottom variant="h6" component="h4" noWrap>
                           Edit Location
                         </Typography>
                       </Grid>
                       <Grid sx={{marginLeft:'auto'}} >
                         <div onClick={onClose}>
                           <Tooltip title="Close without saving">
-                            <Typography gutterBottom variant="body2" noWrap="true"
+                            <Typography gutterBottom variant="body2" noWrap
                                         sx={{textTransform:'uppercase',
                                         color:'grey',
                                         cursor:'pointer',
@@ -301,15 +309,14 @@ export default function EditLocation({data, onUpdate, onClose}) {
           <TextField required
                 id='edit-location-name'
                 label="Name"
-                defaultValue={curData ? curData.nameProperty : null}
+                defaultValue={curData.nameProperty}
                 size='small'
                 sx={{margin:'10px'}}
                 onChange={() => setIsModified(true)}
-                inputProps={{style: {fontSize: 12}}}
                 slotProps={{
-                  inputLabel: {
-                    shrink: true,
-                  },
+                  input: {inputRef:locationNameRef},
+                  htmlInput: {style:{fontSize:12}},
+                  inputLabel: {shrink: true},
                 }}
                 />
           <TextField disabled={curData && curData.idProperty && !canEditId}
@@ -319,12 +326,11 @@ export default function EditLocation({data, onUpdate, onClose}) {
                 size='small'
                 sx={{margin:'10px'}}
                 onChange={() => setIsModified(true)}
-                inputProps={{style: {fontSize: 12}}}
                 slotProps={{
-                  inputLabel: {
-                    shrink: true,
-                  },
+                  htmlInput: {style:{fontSize:12}},
+                  inputLabel: {shrink: true},
                   input: {
+                    inputRef:locationIdRef,
                     endAdornment: 
                       <InputAdornment position='end'>
                         <IconButton
@@ -344,45 +350,43 @@ export default function EditLocation({data, onUpdate, onClose}) {
                 id='edit-location-description'
                 label="Geographic Area"
                 placeholder="e.g. Mountain range"
-                defaultValue={curData ? curData.descriptionProperty : null}
+                defaultValue={curData.descriptionProperty}
                 size='small'
                 sx={{margin:'10px'}}
                 onChange={() => setIsModified(true)}
-                inputProps={{style: {fontSize: 12}}}
                 slotProps={{
-                  inputLabel: {
-                    shrink: true,
-                  },
+                  input:{inputRef:locationDescRef},
+                  htmlInput: {style:{fontSize:12}},
+                  inputLabel: {shrink: true},
                 }}
                 />
           <RadioGroup
-            id='edit-location-measure'
+            id='edit-location-measure1'
             value={selectedMeasure}
             onChange={handleMeasureChange}              
           >
             <Grid container direction="row" spacing={2} justifyContent="stretch" alignItems="center">
-              <FormControlLabel value="feet" control={<Radio size="small"/>} label=<Typography gutterBottom variant="body2" noWrap="true">Feet</Typography>
+              <FormControlLabel value="feet" control={<Radio size="small"/>} label=<Typography gutterBottom variant="body2" noWrap>Feet</Typography>
                                                  sx={{paddingLeft:'10px'}}/>
-              <FormControlLabel value="meters" control={<Radio size="small"/>} label=<Typography gutterBottom variant="body2" noWrap="true">Meters</Typography>
+              <FormControlLabel value="meters" control={<Radio size="small"/>} label=<Typography gutterBottom variant="body2" noWrap>Meters</Typography>
                                                  />
             </Grid>
           </RadioGroup>
           <TextField 
                 id='edit-location-elevation'
                 label={"Elevation" + (selectedMeasure === 'feet' ? ' (feet)' : ' (meters)')}
-                defaultValue={curData ? curData.elevationProperty : null}
+                value={displayElevation}
                 size='small'
                 sx={{margin:'10px'}}
                 onChange={() => setIsModified(true)}
-                inputProps={{minLength:1, style: {fontSize: 12}}}
                 slotProps={{
-                  inputLabel: {
-                    shrink: true,
-                  },
+                  input: {inputRef:locationEleRef},
+                  htmlInput: {style:{fontSize:12}, minLength:1},
+                  inputLabel: {shrink: true},
                 }}
                 />
           <RadioGroup
-            id='edit-location-measure'
+            id='edit-location-measure2'
             value={selectedCoordinate}
             onChange={handleCoordinateChange}              
           >
@@ -390,7 +394,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
             { geographicCoordinates.map((item, idx) => 
                 <FormControlLabel value={item.value} key={item.value} 
                                   control={<Radio size="small"/>}
-                                                label=<Typography gutterBottom variant="body2" noWrap="true">{item.label}</Typography>
+                                                label=<Typography gutterBottom variant="body2" noWrap>{item.label}</Typography>
                                                 sx={{paddingLeft:idx === 0 ? '10px' : 'revert'}}/>
               )
             }
@@ -401,29 +405,27 @@ export default function EditLocation({data, onUpdate, onClose}) {
             <TextField 
                   id='edit-location-lat'
                   label="Latitude"
-                  defaultValue={curData ? curData.latProperty : null}
+                  defaultValue={curData.latProperty}
                   size='small'
                   sx={{margin:'10px'}}
                   onChange={() => setIsModified(true)}
-                  inputProps={{style: {fontSize: 12}}}
                   slotProps={{
-                    inputLabel: {
-                      shrink: true,
-                    },
+                    input:{inputRef:locationLatRef},
+                    htmlInput: {style:{fontSize:12}},
+                    inputLabel: {shrink: true},
                   }}
                   />
             <TextField 
                   id='edit-location-lon'
                   label="Longitude"
-                  defaultValue={curData ? curData.lngProperty : null}
+                  defaultValue={curData.lngProperty}
                   size='small'
                   sx={{margin:'10px'}}
                   onChange={() => setIsModified(true)}
-                  inputProps={{style: {fontSize: 12}}}
                   slotProps={{
-                    inputLabel: {
-                      shrink: true,
-                    },
+                    input:{inputRef:locationLonRef},
+                    htmlInput: {style:{fontSize:12}},
+                    inputLabel: {shrink: true},
                   }}
                   />
             </React.Fragment>
@@ -437,11 +439,10 @@ export default function EditLocation({data, onUpdate, onClose}) {
                   size='small'
                   sx={{margin:'10px'}}
                   onChange={() => setIsModified(true)}
-                  inputProps={{style: {fontSize: 12}}}
                   slotProps={{
-                    inputLabel: {
-                      shrink: true,
-                    },
+                    input:{inputRef:locationUTMZoneRef},
+                    htmlInput: {style:{fontSize:12}},
+                    inputLabel: {shrink: true},
                   }}
                   />
             <TextField 
@@ -451,57 +452,78 @@ export default function EditLocation({data, onUpdate, onClose}) {
                   size='small'
                   sx={{margin:'10px'}}
                   onChange={() => setIsModified(true)}
-                  inputProps={{style: {fontSize: 12}}}
                   slotProps={{
-                    inputLabel: {
-                      shrink: true,
-                    },
+                    input:{inputRef:locationUTMLetterRef},
+                    htmlInput: {style:{fontSize:12}},
+                    inputLabel: {shrink: true},
                   }}
                   />
             <TextField 
                   id='edit-location-utm-x'
                   label="X"
-                  defaultValue={curData ? curData.utm_x : null}
+                  defaultValue={curData.utm_x}
                   size='small'
                   sx={{margin:'10px'}}
                   onChange={() => setIsModified(true)}
-                  inputProps={{style: {fontSize: 12}}}
                   slotProps={{
-                    inputLabel: {
-                      shrink: true,
-                    },
+                    input:{inputRef:locationUTMXRef},
+                    htmlInput: {style:{fontSize:12}},
+                    inputLabel: {shrink: true},
                   }}
                   />
             <TextField 
                   id='edit-location-utm-y'
                   label="Y"
-                  defaultValue={curData ? curData.utm_y : null}
+                  defaultValue={curData.utm_y}
                   size='small'
                   sx={{margin:'10px'}}
                   onChange={() => setIsModified(true)}
-                  inputProps={{style: {fontSize: 12}}}
                   slotProps={{
-                    inputLabel: {
-                      shrink: true,
-                    },
+                    input:{inputRef:locationUTMYRef},
+                    htmlInput: {style:{fontSize:12}},
+                    inputLabel: {shrink: true},
                   }}
                   />
             </React.Fragment>
           }
-          <FormControlLabel key={'edit-location-active'} sx={{paddingLeft:'10px'}}
+          <FormControlLabel sx={{paddingLeft:'10px'}}
                             control={<Checkbox id="edit-location-active"
                                                size="small" 
-                                               checked={curData ? curData.activeProperty : false}
+                                               defaultChecked={curData.activeProperty}
                                                onChange={() => setIsModified(true)}
+                                               inputRef={locationActiveRef}
                                       />} 
                             label={<Typography variant="body2">Active location entry</Typography>} />
         </Grid>          
         </CardContent>
         <CardActions id='filter-content-actions'>
-          <Button sx={{flex:'1', disabled:isModified === false }} onClick={onSaveChanges}>Save</Button>
-          <Button sx={{flex:'1'}} onClick={onClose} >Cancel</Button>
+          <Button sx={{flex:1}} disabled={!isModified} onClick={onSaveChanges}>Save</Button>
+          <Button sx={{flex:1}} onClick={onClose} >Cancel</Button>
         </CardActions>
     </Card>
   </Grid>
   );
 }
+
+EditLocation.propTypes = {
+  data:     PropTypes.shape({
+    nameProperty:        PropTypes.string,
+    idProperty:          PropTypes.string,
+    descriptionProperty: PropTypes.string,
+    elevationProperty:   PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    latProperty:         PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    lngProperty:         PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    activeProperty:      PropTypes.bool,
+    utm_code:            PropTypes.string,
+    utm_zone:            PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    utm_letter:          PropTypes.string,
+    utm_x:               PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    utm_y:               PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  }),
+  onUpdate: PropTypes.func.isRequired,
+  onClose:  PropTypes.func.isRequired,
+};
+
+EditLocation.defaultProps = {
+  data: null,
+};

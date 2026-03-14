@@ -1,8 +1,7 @@
-'use client'
-
 /** @module Messages */
 
 import * as React from 'react';
+import Button from '@mui/material/Button';
 import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import Grid from '@mui/material/Grid';
@@ -49,7 +48,7 @@ export const Level = {
 export function makeMessage(level, message, title) {
 	// Check the level to see if it's a valid value
 	let levelLower = level.toLowerCase();
-	if (!LevelValues.find((item) => item === levelLower)) {
+	if (LevelValues.find((item) => item === levelLower) < 0) {
 		levelLower = undefined;
 	}
 
@@ -63,8 +62,8 @@ export function makeMessage(level, message, title) {
   }
 
 	// Return the message object
-	return {level: level ? levelLower : Level.Information,
-			message: message + '',
+	return {level: levelLower ? levelLower : Level.Information,
+			message: String(message),
       title: title,
 			messageId: ++messageId,
       closed: false
@@ -77,69 +76,123 @@ export function makeMessage(level, message, title) {
  * @param {object} messages The array of message objects to display
  * @param {number} [messagesMax] The maximum number of messages to display at one time (default is 3)
  * @param {number} [messagesTimeout] The number of seconds before a message times out
- * @param {function} [close_cb] Function to call upon the message closing
+ * @param {function} [closeCb] Function to call upon the message closing
  * @returns {object} The UI for messages
  */
-export function Messages({messages, messagesMax, messagesTimeout, close_cb}) {
+export function Messages({messages, messagesMax, messagesTimeout, closeCb}) {
  	const theme = useTheme();
+  const timeoutIds = React.useRef({});
 
-	if (!messages) {
-		return null;
-	}
+  /**
+   * Handles closing the message's timeouts
+   * @function
+   */
+  const closeMessageTimeouts = React.useCallback(() => {
+    for (const msgId in timeoutIds.current) {
+      window.clearTimeout(timeoutIds.current[msgId]);
+    }
+    timeoutIds.current = {};
+  }, []);
 
-  close_cb ||= (msgId) => { const el = document.getElementById(`sparcd-message-${msgId}`); if (el) el.style.display = 'none'; };
+  // Check for needing to clear all messages
+  React.useEffect(() => {
+  	if (!messages) {
+      closeMessageTimeouts();
+  	}
+    return undefined;
+  }, [messages]);
+
+  /**
+   * Handles closing the message
+   * @function
+   * @param msgId The ID of the message to close
+   */
+  const handleCloseMessage = React.useCallback((msgId) => {
+    if (timeoutIds.current[msgId] != null) {
+      window.clearTimeout(timeoutIds.current[msgId]);
+      delete timeoutIds.current[msgId];
+    }
+
+    // Let the caller know it's been closed
+    if (typeof closeCb === 'function') {
+      closeCb(msgId);
+    } else {
+      const el = document.getElementById(`sparcd-message-${msgId}`);
+      if (el) {
+        el.style.display = 'none';
+      }
+    }
+  }, [closeCb]);
 
 	// Figure out the maximum number of messages
   const curMax = (!messagesMax || typeof messagesMax !== 'number' || messagesMax < 1) ? MAX_DISPLAY_MESSAGES : Math.min(messages.length, messagesMax);
 
 	// Figure out the timeout
-  const curTimeout = (!messagesTimeout || typeof messagesTimeout !== 'number') ? 6 : messagesTimeout;
+  const curTimeout = (messagesTimeout && typeof messagesTimeout === 'number') ? messagesTimeout : 6;
 
-	// If we have a callback, make sure it's a function otherwise we force the message to disppear
-	if (!close_cb || typeof close_cb !== 'function') {
-		close_cb = (msgId) => {const el=document.getElementById("sparcd-message-"+msgId); if (el) el.style.display='none';};
-	}
+  /**
+   * Handles generating the UI of a message as well as setting the timeout
+   * @function
+   * @param {object} curMessage The message to return the UI for
+   * @param {number} count The count of displayed messages before this one
+   * @returns {object} The rendered message UI
+   */
+  function generateMessage(curMessage, count) {
 
+    // Setup the auto-removal of the message we're about to return
+    if (typeof window !== "undefined" && !(curMessage.messageId in timeoutIds.current)) {
+      timeoutIds.current[curMessage.messageId] = window.setTimeout(
+        () => handleCloseMessage(curMessage.messageId),
+        curMessage.level !== Level.Error ? curTimeout * 1000 : 30 * 60 * 1000   // 30 minutes if an error is displayed
+      );
+    }
+
+    return (
+      <Grid id={"sparcd-message-" + curMessage.messageId} key={"message" + curMessage.messageId} container direction="column" 
+            sx={{position:'absolute', marginTop:((15*count)+5)+'px', marginLeft:((15*count))+'px', 
+                 color:LevelColors[curMessage.level].color, backgroundColor:LevelColors[curMessage.level].background, 
+                 padding:'10px', minWidth:'50vw', maxWidth:'90vw',
+                 border:'1px solid black', borderRadius:'10px', zIndex:999999
+                }}>
+        <Grid id={"sparcd-message-titlebar-" + curMessage.messageId} container direction="row" alignItems="flex-start" justifyContent="space-between">
+          {curMessage.level === Level.Error && <ErrorOutlineOutlinedIcon />}
+          {curMessage.level === Level.Warning && <WarningAmberOutlinedIcon />}
+          {curMessage.level === Level.Information && <InfoOutlinedIcon />}
+          <Typography gutterBottom variant="h4" sx={{fontWeight:'bold'}} >
+            {curMessage.title}
+          </Typography>
+          <IconButton onClick={()=>handleCloseMessage(curMessage.messageId)} aria-label="close message" sx={{marginBotton:'25px', cursor:'pointer'}}>
+              <CloseIcon />
+          </IconButton>
+        </Grid>
+        <Grid container direction="row" alignItems="center" justifyContent="space-between">
+          <Typography gutterBottom variant="body1" sx={{paddingTop:'20px'}} >
+            {curMessage.message}
+          </Typography>
+        </Grid>
+        { curMessage.level === Level.Error && 
+              <Grid container direction="row" alignItems="center" justifyContent="center" sx={{paddingTop:'10px'}}>
+                <Button variant="contained" onClick={()=>handleCloseMessage(curMessage.messageId)}>
+                  OK
+                </Button>
+              </Grid>
+        }
+      </Grid>
+    );
+  }
+
+  let messageCount = 0;
 	return ( 
 		<React.Fragment>
 		{
-			messages.slice(0, curMax).reverse().map((item, idx) => {
+			messages.slice(0, curMax).map((item) => {
         // Check for messages that are closed
         if (item.closed) {
           return null;
         }
 
-        // Setup the auto-removal of the message
-        if (typeof window !== "undefined") {
-          window.setTimeout(() => close_cb(item.messageId), curTimeout * 1000);
-        }
-
-				return (
-          <Grid id={"sparcd-message-" + item.messageId} key={"message" + item.messageId} container direction="column" 
-                sx={{position:'absolute', marginTop:((15*idx)+5)+'px', marginLeft:((15*idx))+'px', 
-                     color:LevelColors[item.level].color, backgroundColor:LevelColors[item.level].background, 
-                     padding:'10px', minWidth:'50vw', maxWidth:'90vw',
-                     border:'1px solid black', borderRadius:'10px', zIndex:999999
-                    }}>
-            <Grid id={"sparcd-message-titlebar-" + item.messageId} container direction="row" alignItems="flex-start" justifyContent="space-between">
-              {item.level === Level.Error && <ErrorOutlineOutlinedIcon />}
-              {item.level === Level.Warning && <WarningAmberOutlinedIcon />}
-              {item.level === Level.Information && <InfoOutlinedIcon />}
-              <Typography gutterBottom variant="h4" sx={{fontWeight:'bold'}} >
-                {item.title}
-              </Typography>
-              <IconButton onClick={()=>close_cb(item.messageId)} aria-label="close message" sx={{marginBotton:'25px', cursor:'pointer'}}>
-                  <CloseIcon />
-              </IconButton>
-            </Grid>
-            <Grid container direction="row" alignItems="center" justifyContent="space-between">
-              <Typography gutterBottom variant="body1" sx={{paddingTop:'20px'}} >
-                {item.message}
-              </Typography>
-            </Grid>
-					</Grid>
-				);
-			})
+        return generateMessage(item, messageCount++);
+      })
 		}
 		</React.Fragment>
 	);
@@ -164,5 +217,5 @@ Messages.propTypes = {
   messagesTimeout: PropTypes.number,
 
   // Called with messageId when a message is closed
-  close_cb: PropTypes.func,
+  closeCb: PropTypes.func,
 };
