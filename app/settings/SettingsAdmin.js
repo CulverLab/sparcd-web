@@ -573,8 +573,12 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     formData.append('coordinate', newInfo.coordinate);
     formData.append('new_lat', newInfo.latProperty);
     formData.append('new_lon', newInfo.lngProperty);
-    formData.append('old_lat', editingState.data !== null ? editingState.data.latProperty : null);
-    formData.append('old_lon', editingState.data !== null ? editingState.data.lngProperty : null)
+    if (editingState.data !== null && editingState.data.latProperty) {
+      formData.append('old_lat', editingState.data.latProperty);
+    }
+    if (editingState.data !== null && editingState.data.lngProperty) {
+      formData.append('old_lon', editingState.data.lngProperty);
+    }
     formData.append('utm_zone', newInfo.utm_zone);
     formData.append('utm_letter', newInfo.utm_letter);
     formData.append('utm_x', newInfo.utm_x);

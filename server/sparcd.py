@@ -3153,7 +3153,6 @@ def admin_location_update():
     else:
         loc_active = False
 
-
     # Make sure this user is an admin
     if not bool(user_info.admin):
         return "Not Found", 404

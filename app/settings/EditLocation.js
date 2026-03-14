@@ -378,7 +378,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
                 value={displayElevation}
                 size='small'
                 sx={{margin:'10px'}}
-                onChange={() => setIsModified(true)}
+                onChange={(event) => {setDisplayElevation(event.target.value);setIsModified(true);}}
                 slotProps={{
                   input: {inputRef:locationEleRef},
                   htmlInput: {style:{fontSize:12}, minLength:1},
