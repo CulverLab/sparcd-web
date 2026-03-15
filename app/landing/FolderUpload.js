@@ -825,7 +825,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     disableIdleCheckFunc(true);    // Disable the checks for idle until we're done
 
     setUploadState(uploadingState.retryingFailed);
-    handleFailedUploads(uploadId, uploadFiles, 
+    handleFailedUploads(WorkingUploadId, newUploadFiles, 
         () => {   // Success function
               setUploadState(uploadingState.none);
               disableIdleCheckFunc(false);    // Enable checking for idle
@@ -838,9 +838,9 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
               }
       );
     // Start checking the upload counts
-    window.setTimeout(() => internalGetUploadCounts(uploadId, uploadFiles), 2000);
+    window.setTimeout(() => internalGetUploadCounts(workingUploadId, newUploadFiles), 2000);
 
-  }, [disableIdleCheckFunc, handleFailedUploads, uploadFiles, uploadId]);
+  }, [disableIdleCheckFunc, handleFailedUploads, newUploadFiles, workingUploadId]);
 
   /**
    * Mark the failed upload as completed
@@ -1234,7 +1234,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
         return (
           <React.Fragment>
             <Button id="folder_upload_continue" sx={{flex:1}} size="small" onClick={doneUpload}>Done</Button>
-            <Button id="folder_upload_another" sx={{flex:1}} size="small" onClick={anotherUpload}>Upload Another</Button>
+            <Button id="folder_upload_another" sx={{flex:1,whiteSpace:'nowrap'}} size="small" onClick={anotherUpload}>Upload Another</Button>
           </React.Fragment>
         );
       }
