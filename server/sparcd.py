@@ -1825,7 +1825,7 @@ def sandbox_file():
 
         # Check if we need to convert the file to another format
         remote_name = request.files[one_file].filename
-        if file_ext.lower() == '.mov':
+        if file_ext.lower() == '.mov' or file_ext.lower() == '.avi':
             mp4_filename = os.path.splitext(temp_file[1])[0] + '.mp4'
             remote_name = os.path.splitext(remote_name)[0] + '.mp4'
             try:

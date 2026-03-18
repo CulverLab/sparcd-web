@@ -186,7 +186,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       (err) => {      // Failure
           if (numRetries >= 6) {
             const msg = `A problem occurred getting failed files for the upload. Upload ID: ${uploadId}`;
-            console.log('ERROR', msg);
+            console.log('ERROR: handleFailedUploads: ', msg);
             addMessage(Level.Error, msg);
             setUploadState(uploadingState.error);
           } else {
@@ -199,7 +199,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     // Check for a problem
     if (!success) {
       const msg = `An unknown problem occurred while getting failed files for the upload. Upload ID: ${uploadId}`;
-      console.log('ERROR', msg);
+      console.log('ERROR: handleFailedUploads: ', msg);
       addMessage(Level.Error, msg);
       setUploadState(uploadingState.error);
     }
@@ -288,7 +288,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       (err) => {      // Failure
         if (numRetries >= 6) {
           const msg = `A problem occurred while checking upload image counts. Upload ID: ${uploadId}`;
-          console.log('ERROR', msg);
+          console.log('ERROR: internalGetUploadCounts: ', msg);
           addMessage(Level.Error, msg);
           setUploadState(uploadingState.error);
           disableIdleCheckFunc(false);    // Enable checking for idle
@@ -303,7 +303,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     // Check for an error
     if (!success) {
       const msg = `An unknown problem occurred while checking upload image counts. Upload ID: ${uploadId}`;
-      console.log('ERROR', msg);
+      console.log('ERROR: internalGetUploadCounts: ', msg);
       addMessage(Level.Error, msg);
       setUploadState(uploadingState.error);
       disableIdleCheckFunc(false);    // Enable checking for idle
@@ -683,7 +683,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                             folderCancelRef.current.disabled = false;
                           }
                           const msg = `A problem occurred while preparing for upload. Upload ID: ${uploadId}`;
-                          console.log('ERROR', msg);
+                          console.log('ERROR: filesUpload: ', msg);
                           addMessage(Level.Error, msg);
                           setUploadState(uploadingState.error);
                         }
@@ -692,7 +692,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       // Check for an error
       if (!success) {
         const msg = `An unknown problem occurred while preparing for upload. Upload ID: ${uploadId}`;
-        console.log('ERROR', msg);
+        console.log('ERROR: filesUpload: ', msg);
         addMessage(Level.Error, msg);
         setUploadState(uploadingState.error);
       }
@@ -718,7 +718,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                                       folderCancelRef.current.disabled = false;
                                     }
                                     const msg = `A problem occurred while preparing for upload recovery. Upload ID: ${uploadId}`;
-                                    console.log('ERROR', msg);
+                                    console.log('ERROR: filesUpload: ', msg);
                                     addMessage(Level.Error, msg);
                                     setUploadState(uploadingState.error);
                                     cancelUpload();
@@ -726,7 +726,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
               // Check for an error
               if (!success) {
                 const msg = `An unknown problem occurred while preparing for recovery of an upload. Upload ID: ${uploadId}`;
-                console.log('ERROR', msg);
+                console.log('ERROR: filesUpload: ', msg);
                 addMessage(Level.Error, msg);
                 setUploadState(uploadingState.error);
                 cancelUpload();
