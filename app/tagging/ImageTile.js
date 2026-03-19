@@ -10,6 +10,8 @@ import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 /**
  * Returns the UI for one image tile
  * @function
@@ -69,13 +71,13 @@ export default function ImageTile({name, type, species, onClick}) {
         <CardContent>
           <Grid container spacing={1} alignItems="center" sx={{width:'100%'}}>
             <Grid container direction="row" alignItems="center" justifyContent="space-between">
-              <Typography variant="body" sx={{textTransform:'uppercase'}}>
+              <Typography variant="body1" sx={{textTransform:'uppercase'}}>
                 {name}
               </Typography>
-              {haveSpecies ? <CheckCircleOutlinedIcon fontSize="small" sx={{color:"#68AB68", leftMargin:'auto'}}/> : null}
+              {haveSpecies ? <CheckCircleOutlinedIcon fontSize="small" sx={{color:"#68AB68", marginLeft:'auto'}}/> : null}
             </Grid>
             {generateImageSvg(haveSpecies ? 'grey':undefined, haveSpecies ? '#68AB68':undefined)}
-            <Typography variant="body" sx={{marginLeft:'auto', border:'1px solid black', borderRadius:'7px', backgroundColor:haveSpecies ? 'dimgrey' : 'silver', padding:'2px 5px' }}>
+            <Typography variant="body1" sx={{marginLeft:'auto', border:'1px solid black', borderRadius:'7px', backgroundColor:haveSpecies ? 'dimgrey' : 'silver', padding:'2px 5px' }}>
               {type}
             </Typography>
             <Grid container id={`species-list-${name}-info`} spacing={0} direction="column" alignItems="center" justifyContent="flex-start"
@@ -83,7 +85,7 @@ export default function ImageTile({name, type, species, onClick}) {
               <Grid container direction="row" alignItems="center" justifyContent="space-between"
                     sx={{width:'100%'}}>
               { species.map((curSpecies,idxSpecies) => 
-                      <Box key={name+curSpecies.name+idxSpecies} sx={{width:'50%', rightMargin:'auto'}} >
+                      <Box key={name+curSpecies.name+idxSpecies} sx={{width:'50%', marginRight:'auto'}} >
                         <Typography variant="body3" sx={{textTransform:'capitalize'}}>
                           {curSpecies.name + ': ' + curSpecies.count}
                         </Typography>
@@ -98,3 +100,17 @@ export default function ImageTile({name, type, species, onClick}) {
     </Card>
   );
 }
+
+ImageTile.propTypes = {
+  name:    PropTypes.string.isRequired,
+  type:    PropTypes.string.isRequired,
+  species: PropTypes.arrayOf(PropTypes.shape({
+             name:  PropTypes.string.isRequired,
+             count: PropTypes.number.isRequired,
+           })),
+  onClick: PropTypes.func.isRequired,
+};
+
+ImageTile.defaultProps = {
+  species: [],
+};

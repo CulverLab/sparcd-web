@@ -15,6 +15,7 @@ import Typography from '@mui/material/Typography';
 
 import PropTypes from 'prop-types';
 
+import * as Server from './LandingServerCalls';
 import { Level } from '../components/Messages';
 import { AddMessageContext, TokenExpiredFuncContext, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
@@ -42,50 +43,25 @@ export default function UploadRepair({collectionInfo, uploadInfo, onUploadImages
    * @function
    */
   const handleSelUploadComplete = React.useCallback(() => {
-    const uploadCompleteUrl = serverURL + '/setUploadComplete?t=' + encodeURIComponent(uploadToken);
 
-    const formData = new FormData();
-    formData.append('collectionId', collectionInfo.id);
-    formData.append('uploadKey', uploadInfo.key);
+    const success = Server.handleSelUploadComplete(serverURL, uploadToken, collectionInfo.id, uploadInfo.key, tokenExpiredFunc, 
+                                  () =>{  // Success
+                                          addMessage(Level.Information, "Successfully marked upload as complete");
+                                          window.setTimeout(onClose, 1000);
+                                        },
+                                  () => {   // Failure
+                                          addMessage(Level.Warning, respData.message);
+                                          setFailureMessage(respData.message);
+                                        }
+    );
 
-    try {
-      fetch(uploadCompleteUrl, {
-        credentials: 'include',
-        method: 'POST',
-        body: formData,
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                tokenExpiredFunc();
-              }
-              throw new Error(`Failed to mark upload complete: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Handle the result
-            if (respData.success) {
-              addMessage(Level.Information, "Successfully marked upload as complete");
-              window.setTimeout(onClose, 1000);
-            } else {
-              addMessage(Level.Warning, respData.message);
-              setFailureMessage(respData.message);
-            }
-        })
-        .catch(function(err) {
-          console.log('Mark Upload Complete Error: ',err);
-          const message = "An error occurred while trying to mark upload as complete";
-          addMessage(Level.Error, message);
-          setFailureMessage(message)
-      });
-    } catch (err) {
-      console.log('Mark Upload Complete Unknown Error: ',err);
+    // Make sure the call got off alright
+    if (!success) {
       const message = "An unknown error occurred while trying to mark upload as complete";
       addMessage(Level.Error, message);
       setFailureMessage(message)
     }
+    
   }, [addMessage, serverURL, tokenExpiredFunc, uploadToken]);
 
   /**

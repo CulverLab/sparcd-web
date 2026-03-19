@@ -17,6 +17,7 @@ import { allTimezones, useTimezoneSelect } from "react-timezone-select";
 import PropTypes from 'prop-types';
 
 import LocationItem from '../components/LocationItem'
+import * as Server from './LandingServerCalls';
 import { meters2feet } from '../utils';
 import { BaseURLContext, TokenExpiredFuncContext, TokenContext } from '../serverInfo';
 
@@ -39,11 +40,10 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
   const tokenExpiredFunc = React.useContext(TokenExpiredFuncContext);
   const serverURL = React.useContext(BaseURLContext);
   const uploadToken = React.useContext(TokenContext);
+  const curLocationFetchIdx = React.useRef(-1); // Working index of location data to fetch
   const { options, parseTimezone } = useTimezoneSelect({ labelStyle:'altName', allTimezones });
   const [selectedTimezone, setSelectedTimezone] = React.useState(options.filter((item) => item.offset === -(new Date().getTimezoneOffset() / 60))[0]?.value ?? options[0]?.value ?? '');
   const [tooltipData, setTooltipData] = React.useState(null);       // Data for tooltip
-
-  let curLocationFetchIdx = -1; // Working index of location data to fetch
 
   /**
    * Calls the server to get location details for tooltips
@@ -51,50 +51,28 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
    * @param {int} locIdx The index of the location to get the details for
    */
   const getTooltipInfo = React.useCallback((locIdx) => {
-    if (curLocationFetchIdx !== locIdx) {
-      curLocationFetchIdx = locIdx;
-      const cur_loc = locationItems[curLocationFetchIdx];
-      const locationInfoUrl = serverURL + '/locationInfo?t=' + encodeURIComponent(uploadToken);
+    if (curLocationFetchIdx.current !== locIdx) {
+      curLocationFetchIdx.current = locIdx;
+      const curLoc = locationItems[locIdx];
 
-      const formData = new FormData();
+      const success = Server.getTooltipInfo(serverURL, uploadToken, curLoc, tokenExpiredFunc,
+                            (respData) => {     // Success
+                                // Save tooltip information
+                                const locInfo = Object.assign({}, respData, {'index':locIdx});
 
-      formData.append('id', cur_loc.idProperty);
-      formData.append('name', cur_loc.nameProperty);
-      formData.append('lat', cur_loc.latProperty);
-      formData.append('lon', cur_loc.lngProperty);
-      formData.append('ele', cur_loc.elevationProperty);
-      try {
-        fetch(locationInfoUrl, {
-          credentials: 'include',
-          method: 'POST',
-          body: formData
-        }).then(async (resp) => {
-              if (resp.ok) {
-                return resp.json();
-              } else {
-                if (resp.status === 401) {
-                  // User needs to log in again
-                  tokenExpiredFunc();
-                }
-                throw new Error(`Failed to get location information: ${resp.status}: ${await resp.text()}`);
-              }
-            })
-          .then((respData) => {
-              // Save tooltip information
-              const locInfo = Object.assign({}, respData, {'index':curLocationFetchIdx});
+                                if (curLocationFetchIdx.current === locIdx) {
+                                  setTooltipData(locInfo);
+                                }
+                            },
+                            (err) => {     // Failure - do nothing
+                            }
+                        );
 
-              if (locIdx === curLocationFetchIdx) {
-                setTooltipData(locInfo);
-              }
-                })
-          .catch(function(err) {
-            console.log('Location tooltip Error: ',err);
-        });
-      } catch (err) {
+      if (!success) {
         console.log('Location tooltip Unknown Error: ',err);
       }
     }
-  }, [curLocationFetchIdx, locationItems, serverURL, setTooltipData, uploadToken]);
+  }, [locationItems, serverURL, tokenExpiredFunc, uploadToken]);
 
   /**
    * Clears tooltip information when no longer needed. Ensures only the working tooltip is cleared
@@ -103,10 +81,10 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
    */
   const clearTooltipInfo = React.useCallback((locIdx) => {
     // Only clear the information if we're the active tooltip
-    if (locIdx === curLocationFetchIdx) {
+    if (locIdx === curLocationFetchIdx.current) {
       setTooltipData(null);
     }
-  }, [curLocationFetchIdx, setTooltipData]);
+  }, []);
 
   /**
    * Handles when the user changes the timezone
@@ -117,7 +95,7 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
     const parsedTz = parseTimezone(event.target.value);
     setSelectedTimezone(parsedTz.value);
     onTimezoneChange(parsedTz.value);
-  }, [setSelectedTimezone, onTimezoneChange]);
+  }, [onTimezoneChange, parseTimezone]);
 
   return (
     <Grid id='folder-upload-details-wrapper' container direction="column" alignItems="center" justifyContent="start" gap={2}>
@@ -142,7 +120,7 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
             <TextField
               {...params}
               label="Collection"
-              required={true}
+              required
               slotProps={{
                 htmlInput: {
                   ...params.inputProps,
@@ -186,7 +164,7 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
             <TextField
               {...params}
               label="Location"
-              required={true}
+              required
               slotProps={{
                 htmlInput: {
                   ...params.inputProps,
@@ -209,7 +187,7 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
           <TextField required fullWidth id="folder-upload-comment" label="Comment" onChange={onCommentChange} />
         </Grid>
       </FormControl>
-      <FormControl fullWidth={true}>
+      <FormControl fullWidth>
         <Grid container direction="row" alignItems="center" justifyContent="space-between" sx={{paddingTop:"10px"}} >
           <Typography gutterBottom variant="body1">
             Timezone of images
@@ -218,7 +196,6 @@ export default function FolderUploadForm({displayCoordSystem, measurementFormat,
             {options.map((option) => 
               <MenuItem key={option.value}
                         value={option.value}
-                        selected={selectedTimezone === option.value}
               >
                 <Typography gutterBottom variant="body2">
                   {option.label}

@@ -4,6 +4,8 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 import SpeciesSidebarItem from './SpeciesSidebarItem';
 
 /**
@@ -13,12 +15,11 @@ import SpeciesSidebarItem from './SpeciesSidebarItem';
  * @param {string} position One of "left" or "top"
  * @param {object} speciesSidebarRef React reference for the sidebar
  * @param {string} workingDim The working height ("left") or width ("top") of the control
- * @param {int} topX The top X pixel position
  * @param {function} onKeybind Handler for changing keybinding
  * @param {function} onZoom Handler for zooming in on species image
  * @returns {object} The rendered UI
  */
-export default function SpeciesSidebar({species, position, speciesSidebarRef, workingDim, topX, onKeybind, onZoom}) {
+export default function SpeciesSidebar({species, position, speciesSidebarRef, workingDim, onKeybind, onZoom}) {
   const theme = useTheme();
   let sidebarPositionalAttributes = {direction:'column'};
   let sidebarStyleAttributes = Object.assign({},
@@ -47,3 +48,18 @@ export default function SpeciesSidebar({species, position, speciesSidebarRef, wo
     </Box>
   );
 }
+
+SpeciesSidebar.propTypes = {
+  species:            PropTypes.array.isRequired,
+  position:           PropTypes.oneOf(['left', 'top']),
+  speciesSidebarRef:  PropTypes.object,
+  workingDim:         PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  onKeybind:          PropTypes.func.isRequired,
+  onZoom:             PropTypes.func.isRequired,
+};
+
+SpeciesSidebar.defaultProps = {
+  position:          'left',
+  speciesSidebarRef: null,
+  workingDim:        '100%',
+};

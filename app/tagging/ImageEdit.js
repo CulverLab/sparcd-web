@@ -7,28 +7,23 @@ import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import ArrowBackIosOutlinedIcon from '@mui/icons-material/ArrowBackIosOutlined';
 import ArrowForwardIosOutlinedIcon from '@mui/icons-material/ArrowForwardIosOutlined';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import CardMedia from '@mui/material/CardMedia';
 import Grid from '@mui/material/Grid';
-import HighlightOffOutlinedIcon from '@mui/icons-material/HighlightOffOutlined';
-import MuiInput from '@mui/material/Input';
 import RemoveOutlinedIcon from '@mui/icons-material/RemoveOutlined';
-import { styled } from '@mui/material/styles';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { v4 as uuidv4 } from 'uuid';
 
+import PropTypes from 'prop-types';
+
 import { SpeciesInfoContext, UserSettingsContext } from '../serverInfo';
 import ImageAdjustments from './ImageAdjustments';
 import ImageEditSpecies from './ImageEditSpecies';
-import InputSlider from '../components/InputSlider';
 
-// Width of the input field
-const Input = styled(MuiInput)`
-  width: 42px;
-`;
+const NAVIGATION_MASK_TIMEOUT = 500; // The timeout value for showing a navigation mask
+const NAVIGATION_MASK_CLEAR_TIMEOUT = 300; // The timeout value for ensuring the navigation mask is cleared
 
 // Default image dimensions for when an image is not loaded (in pixels)
 const DEF_IMG_WIDTH = 300;
@@ -53,10 +48,12 @@ const DEF_IMG_HEIGHT = 300;
  * @param {object} ref Our reference
  * @returns {object} The UI to render
  */
-export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeight, onClose, adjustments, dropable,
-                                   navigation, species, onSpeciesChange, ref}) {
+const ImageEdit = React.forwardRef(({url, type, name, parentId, maxWidth, maxHeight, onClose, adjustments, dropable,
+                                   navigation, species, onSpeciesChange}, ref) => {
+  const curSpecies = React.useRef(!!species ? species : []); // Working species
   const imageTransformWrapperRef = React.useRef(null);
-  const navigationMaskTimeoutId = React.useRef(null);         // Holds the timeout ID for removing the navigation mask
+  const navigationLockedRef = React.useRef(false);        // Used to prevent multiple clicks during navigation
+  const navigationMaskTimeoutIdRef = React.useRef(null);         // Holds the timeout ID for removing the navigation mask
   const speciesItems = React.useContext(SpeciesInfoContext);  // All the species
   const userSettings = React.useContext(UserSettingsContext); // User display settings
   const [brightness, setBrightness] = React.useState(50);    // Image brightness
@@ -66,7 +63,6 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
   const [imageSize, setImageSize] = React.useState({width:DEF_IMG_WIDTH,height:DEF_IMG_HEIGHT,top:0,left:0,right:DEF_IMG_WIDTH}); // Adjusted when loaded
   const [lastUrl, setLastUrl] = React.useState(null);  // Used to ensure bightness, et al are reset on a new image
   const [movieSize, setMovieSize] = React.useState({width:'auto', height:'auto', heightRatio:430/640});
-  const [showAdjustments, setShowAdjustments] = React.useState(false);  // Show image brightness, etc
   const [saturation, setSaturation] = React.useState(50);              // Image saturation
   const [speciesRedraw, setSpeciesRedraw] = React.useState(null);       // Forces redraw due to species change
   const [imageId, setImageId] = React.useState('image-edit-image-'+uuidv4()); // Unique image ID
@@ -75,16 +71,7 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
   const contrastRange = {'min':0, 'max':200};
   const hueRange = {'min':-180, 'max':180};
   const saturationRange = {'min':0, 'max':200};
-
-  const NAVIGATION_MASK_TIMEOUT = 500; // The timeout value for showing a navigation mask
-  const NAVIGATION_MASK_CLEAR_TIMEOUT = 300; // The timeout value for ensuring the navigation mask is cleared
-
-  // Working species
-  let curSpecies = species != undefined ? species : [];
-
-  // Used to prevent multiple clicks during navigation
-  let navigationLocked = false;
-
+  
   // Special handling from our parent
   React.useImperativeHandle(ref, () => ({
     resetZoom: () => {
@@ -93,7 +80,7 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
         imageTransformWrapperRef.current.resetTransform();
       }
     }
-  }), [imageTransformWrapperRef]);
+  }), []);
 
   // Check if the URL is new to us and reset the image manipulations
   React.useLayoutEffect(() => {
@@ -106,7 +93,7 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
 
       setLastUrl(url);
     }
-  }, [imageTransformWrapperRef, lastUrl, setBrightness, setContrast, setHue, setLastUrl, setSaturation, url]);
+  }, [lastUrl, setBrightness, setContrast, setHue, setLastUrl, setSaturation, url]);
 
   /**
    * Sets the image size based upon the rendered image
@@ -177,16 +164,16 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
    * @param {object} speciesAdd The species being added
    */
   function handleSpeciesAdd(speciesAdd) {
-    const haveSpeciesIdx = curSpecies.findIndex((item) => item.name === speciesAdd.name);
+    const haveSpeciesIdx = curSpecies.current.findIndex((item) => item.name === speciesAdd.name);
     if (haveSpeciesIdx > -1) {
-      curSpecies[haveSpeciesIdx].count = parseInt(curSpecies[haveSpeciesIdx].count) + 1;
+      curSpecies.current[haveSpeciesIdx].count = parseInt(curSpecies.current[haveSpeciesIdx].count) + 1;
       window.setTimeout(() => {
-        setSpeciesRedraw(name+curSpecies[haveSpeciesIdx].name+curSpecies[haveSpeciesIdx].count);
+        setSpeciesRedraw(name+curSpecies.current[haveSpeciesIdx].name+curSpecies.current[haveSpeciesIdx].count);
       }, 100);
       setImageModified(true);
-      onSpeciesChange(speciesAdd.name, curSpecies[haveSpeciesIdx].count);
+      onSpeciesChange(speciesAdd.name, curSpecies.current[haveSpeciesIdx].count);
     } else {
-      curSpecies.push({name:speciesAdd.name,scientificName:speciesAdd.scientificName,count:1});
+      curSpecies.current.push({name:speciesAdd.name,scientificName:speciesAdd.scientificName,count:1});
       window.setTimeout(() => {
         setSpeciesRedraw(name+speciesAdd.name+'1');
       }, 100);
@@ -203,15 +190,15 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
    */
   const handleInputChange = React.useCallback((event, speciesName) => {
     const newValue = event.target.value === '' ? 0 : Number(event.target.value);
-    let workingSpecies = curSpecies;
+    let workingSpecies = curSpecies.current;
     const speciesIdx = workingSpecies.findIndex((item) => item.name === speciesName);
-    if (speciesIdx == -1) {
+    if (speciesIdx === -1) {
       console.log('Error: unable to find species for updating count', speciesName);
       return;
     }
 
     // Do nothing if the value hasn't changed
-    if (workingSpecies[speciesIdx].count == newValue) {
+    if (workingSpecies[speciesIdx].count === newValue) {
       return;
     }
 
@@ -219,9 +206,9 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
     setImageModified(true);
     onSpeciesChange(speciesName, newValue);
     workingSpecies[speciesIdx].count = newValue;
-    curSpecies = workingSpecies;
+    curSpecies.current = workingSpecies;
     setSpeciesRedraw(workingSpecies[speciesIdx].name+workingSpecies[speciesIdx].count);
-  }, [curSpecies, onSpeciesChange, setSpeciesRedraw]);
+  }, [onSpeciesChange]);
 
   /**
    * Handler for when a species input field no longer has focus
@@ -230,9 +217,9 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
    * @param {string} speciesName The name of the species associated with the event
    */
   const handleBlur = React.useCallback((event, speciesName) => {
-    let workingSpecies = curSpecies;
+    let workingSpecies = curSpecies.current;
     const speciesIdx = workingSpecies.findIndex((item) => item.name === speciesName);
-    if (speciesIdx == -1) {
+    if (speciesIdx === -1) {
       console.log('Error: unable to find species for final checks', speciesName);
       return;
     }
@@ -245,9 +232,9 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
     setImageModified(true);
     onSpeciesChange(speciesName, newValue);
     workingSpecies[speciesIdx].count = newValue;
-    curSpecies = workingSpecies;
+    curSpecies.current = workingSpecies;
     setSpeciesRedraw(workingSpecies[speciesIdx].name+workingSpecies[speciesIdx].count);
-  }, [curSpecies, onSpeciesChange, setSpeciesRedraw]);
+  }, [onSpeciesChange]);
 
   /**
    * Handles deleting a species from the image
@@ -255,9 +242,9 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
    * @param {string} speciesName The name of the species to delete
    */
   function handleSpeciesDelete(speciesName) {
-    let workingSpecies = curSpecies;
+    let workingSpecies = curSpecies.current;
     const speciesIdx = workingSpecies.findIndex((item) => item.name === speciesName);
-    if (speciesIdx == -1) {
+    if (speciesIdx === -1) {
       console.log('Error: unable to find species for deletion', speciesName);
       return;
     }
@@ -265,7 +252,7 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
     setImageModified(true);
     onSpeciesChange(speciesName, 0);
     workingSpecies.splice(speciesIdx, 1);
-    curSpecies = workingSpecies;
+    curSpecies.current = workingSpecies;
     setSpeciesRedraw(removedSpecies.name+'-deleted');
   }
 
@@ -301,10 +288,10 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
    */
   const handleNavigationNext = React.useCallback(() => {
     // Prevent multiple navigation attempts through fast clicking before the control is reloaded
-    if (navigationLocked === true) {
+    if (navigationLockedRef.current === true) {
       return;
     }
-    navigationLocked = true;
+    navigationLockedRef.current = true;
 
     // Reset the image zoom/pan control
     if (imageTransformWrapperRef.current) {
@@ -314,18 +301,18 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
     // Set a timer to allow the pan/zoom control to reset
     window.setTimeout( () => {
       // Check if we have a pending timeout and cancel it
-      const curNavMaskTimeoutId = navigationMaskTimeoutId.current;
+      const curNavMaskTimeoutId = navigationMaskTimeoutIdRef.current;
       if (curNavMaskTimeoutId) {
-        navigationMaskTimeoutId.current = null;
+        navigationMaskTimeoutIdRef.current = null;
         window.clearTimeout(curNavMaskTimeoutId);
       }
 
       // Perform the navigation
       if (navigation.onNext(imageModified)) {
         // Show the mask after a timeout if we have navigation
-        navigationMaskTimeoutId.current = window.setTimeout(() => {
+        navigationMaskTimeoutIdRef.current = window.setTimeout(() => {
               // Clear our timer ID and show the mask
-              navigationMaskTimeoutId.current = null;
+              navigationMaskTimeoutIdRef.current = null;
               showNavigationMask();
           }, NAVIGATION_MASK_TIMEOUT);
       }
@@ -333,9 +320,9 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
       setImageModified(false);
     }, 100);
 
-    navigationLocked = false;
+    navigationLockedRef.current = false;
 
-  }, [imageTransformWrapperRef, navigation, navigationLocked, NAVIGATION_MASK_TIMEOUT, navigationMaskTimeoutId]);
+  }, [imageModified, navigation]);
 
   /**
    * Handles the click of the prev image button
@@ -343,10 +330,10 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
    */
   const handleNavigationPrev = React.useCallback(() => {
     // Prevent multiple navigation attempts through fast clicking before the control is reloaded
-    if (navigationLocked === true) {
+    if (navigationLockedRef.current === true) {
       return;
     }
-    navigationLocked = true;
+    navigationLockedRef.current = true;
 
     // Reset the image zoom/pan control
     if (imageTransformWrapperRef.current) {
@@ -356,18 +343,18 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
     // Set a timer to allow the pan/zoom control to reset
     window.setTimeout( () => {
       // Check if we have a pending timeout and cancel it
-      const curNavMaskTimeoutId = navigationMaskTimeoutId.current;
+      const curNavMaskTimeoutId = navigationMaskTimeoutIdRef.current;
       if (curNavMaskTimeoutId) {
-        navigationMaskTimeoutId.current = null;
+        navigationMaskTimeoutIdRef.current = null;
         window.clearTimeout(curNavMaskTimeoutId);
       }
 
       // Perform the navigation
       if (navigation.onPrev(imageModified)) {
         // Show the mask after a timeout if we have navigation
-        navigationMaskTimeoutId.current = window.setTimeout(() => {
+        navigationMaskTimeoutIdRef.current = window.setTimeout(() => {
               // Clear our timer ID and show the mask
-              navigationMaskTimeoutId.current = null;
+              navigationMaskTimeoutIdRef.current = null;
               showNavigationMask();
           }, NAVIGATION_MASK_TIMEOUT);
       }
@@ -375,9 +362,9 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
       setImageModified(false);
     }, 100);
 
-    navigationLocked = false;
+    navigationLockedRef.current = false;
 
-  }, [imageTransformWrapperRef, navigation, navigationLocked, NAVIGATION_MASK_TIMEOUT, navigationMaskTimeoutId]);
+  }, [imageModified, navigation]);
 
   /**
    * Adjusts the movie size after loading
@@ -416,7 +403,7 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
         getImageSize();
         }, 200);
     }
-  }, [getImageSize, setMovieSize])
+  }, [getImageSize, imageId, maxWidth, maxHeight, setMovieSize])
 
   /**
    * Handles when the image loads
@@ -424,9 +411,9 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
    */
   const onImageLoad = React.useCallback(() => {
     // Hide the navigation mask
-    const curNavMaskTimeoutId = navigationMaskTimeoutId.current;
+    const curNavMaskTimeoutId = navigationMaskTimeoutIdRef.current;
     if (curNavMaskTimeoutId) {
-      navigationMaskTimeoutId.current = null;
+      navigationMaskTimeoutIdRef.current = null;
       window.clearTimeout(curNavMaskTimeoutId);
 
       // Clear the mask and set a timer to ensure the mask is cleared in case there's timeout overlaps
@@ -443,16 +430,16 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
       adjustMovieSize();
     }
 
-  }, [adjustMovieSize, hideNavigationMask, navigationMaskTimeoutId]);
+  }, [adjustMovieSize, getImageSize]);
 
   /**
    * Handles when the image failes to load
    * @function
    */
   const onImageError = React.useCallback(() => {
-    const curNavMaskTimeoutId = navigationMaskTimeoutId.current;
+    const curNavMaskTimeoutId = navigationMaskTimeoutIdRef.current;
     if (curNavMaskTimeoutId) {
-      navigationMaskTimeoutId.current = null;
+      navigationMaskTimeoutIdRef.current = null;
       window.clearTimeout(curNavMaskTimeoutId);
 
       // Clear the mask and set a timer to ensure the mask is cleared in case there's timeout overlaps
@@ -544,7 +531,7 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
     }
     else {
       return (
-          <Typography variant="body">
+          <Typography variant="body1">
             Unsupported image type "{type}" not displayed
           </Typography>
       );
@@ -576,7 +563,7 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
                                 onContrastChange={setContrast} onHueChange={setHue} onSaturationChange={setSaturation} />
             </Grid>
             <Grid container size={{ xs: 4, sm: 4}} alignItems="center" justifyContent="center" sx={{cursor:'default', pointerEvents:"auto"}}>
-              <Typography variant="body" sx={{textTransform:'uppercase',color:'grey',textShadow:'1px 1px black','&:hover':{color:'white'} }}>
+              <Typography variant="body1" sx={{textTransform:'uppercase',color:'grey',textShadow:'1px 1px black','&:hover':{color:'white'} }}>
                 {name}
               </Typography>
             </Grid>
@@ -614,8 +601,8 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
           <Grid id='edit-image-top-row' container direction="row" alignItems="end" justifyContent="end"
                 sx={{minHeight:rowHeight,maxHeight:rowHeight}}
           >
-            <Grid id="image-edit-species" size={{ xs:6, sm:6, md:6 }} sx={{position:'relative', marginRight:'auto', visibility:(curSpecies ? 'visible' : 'hidden'), pointerEvents:"auto"}}>
-              {curSpecies.map((curItem) =>
+            <Grid id="image-edit-species" size={{ xs:6, sm:6, md:6 }} sx={{position:'relative', marginRight:'auto', visibility:(curSpecies.current ? 'visible' : 'hidden'), pointerEvents:"auto"}}>
+              {curSpecies.current.map((curItem) =>
                 <ImageEditSpecies key={name+curItem.name} name={curItem.name?curItem.name:curItem.scientificName} count={curItem.count} onDelete={handleSpeciesDelete}
                                   onChange={handleInputChange} onBlur={handleBlur} />
               )}
@@ -630,4 +617,24 @@ export default function ImageEdit({url, type, name, parentId, maxWidth, maxHeigh
       </Box>
     </React.Fragment>
   );
-}
+});
+
+ImageEdit.propTypes = {
+  url:             PropTypes.string.isRequired,
+  type:            PropTypes.oneOf(['image', 'movie']).isRequired,
+  name:            PropTypes.string,
+  parentId:        PropTypes.string,
+  maxWidth:        PropTypes.number,
+  maxHeight:       PropTypes.number,
+  onClose:         PropTypes.func.isRequired,
+  adjustments:     PropTypes.bool,
+  dropable:        PropTypes.bool,
+  navigation:      PropTypes.shape({
+                     onNext: PropTypes.func.isRequired,
+                     onPrev: PropTypes.func.isRequired,
+                   }),
+  species:         PropTypes.array,
+  onSpeciesChange: PropTypes.func.isRequired,
+};
+
+export default ImageEdit

@@ -3,14 +3,13 @@
 /** @module components/SpeciesKeybind */
 
 import * as React from 'react';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
-import CardMedia from '@mui/material/CardMedia';
-import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
+
+import PropTypes from 'prop-types';
 
 /**
  * Returns the UI for setting a binding key for a species
@@ -43,6 +42,16 @@ export default function SpeciesKeybind({keybind, name, parentId, onClose, onChan
       }
   }, [parentId]);
 
+  // If we don't have a parent X position, try and get one
+  React.useLayoutEffect(() => {
+    if (parentX === 0) {
+      const el = document.getElementById(parentId);
+      if (el) {
+        setParentX(el.getBoundingClientRect().x);
+      }
+    }
+  }, [parentId]);
+
   // Captures the keypresses
   React.useEffect(() => {
     function onKeypress(event) {
@@ -57,15 +66,6 @@ export default function SpeciesKeybind({keybind, name, parentId, onClose, onChan
       document.removeEventListener("keydown", onKeypress);
     }
   }, []);
-
-
-  // If we don't have a parent X position, try and get one
-  if (parentX === 0) {
-    const el = document.getElementById(parentId);
-    if (el) {
-      setParentX(el.getBoundingClientRect().x);
-    }
-  }
 
   /**
    * Handles the user setting the keybinding to a key
@@ -82,7 +82,7 @@ export default function SpeciesKeybind({keybind, name, parentId, onClose, onChan
     } else {
       onClose();
     }
-  }, [curKeybind]);
+  }, [curKeybind, onChange, onClose]);
 
   // Return the UI
   return (
@@ -107,10 +107,22 @@ export default function SpeciesKeybind({keybind, name, parentId, onClose, onChan
         </Typography>
       </CardContent>
       <CardActions>
-        <Button sx={{flex:'1'}} onClick={() => {setErrorMessage(null);setCurKeybind(null);}}>Clear</Button>
-        <Button sx={{flex:'1'}} onClick={() => {handleBindChange();}}>Update</Button>
-        <Button sx={{flex:'1'}} onClick={onClose}>Cancel</Button>
+        <Button sx={{flex:1}} onClick={() => {setErrorMessage(null);setCurKeybind(null);}}>Clear</Button>
+        <Button sx={{flex:1}} onClick={() => {handleBindChange();}}>Update</Button>
+        <Button sx={{flex:1}} onClick={onClose}>Cancel</Button>
     </CardActions>
     </Card>
   );
 }
+SpeciesKeybind.propTypes = {
+  keybind:  PropTypes.string,
+  name:     PropTypes.string.isRequired,
+  parentId: PropTypes.string,
+  onClose:  PropTypes.func.isRequired,
+  onChange: PropTypes.func.isRequired,
+};
+
+SpeciesKeybind.defaultProps = {
+  keybind:  null,
+  parentId: null,
+};

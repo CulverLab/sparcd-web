@@ -7,6 +7,7 @@ import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import { useTheme } from '@mui/material/styles';
 
+import * as Server from './LandingServerCalls';
 import LandingInfoTile from './LandingInfoTile';
 import { BaseURLContext, TokenExpiredFuncContext, TokenContext } from '../serverInfo';
 
@@ -27,34 +28,22 @@ export default function LandingQuery() {
    * @function
    */
   const getSpeciesStats = React.useCallback(() => {
-    const speciesStatsUrl = serverURL + '/speciesStats?t=' + encodeURIComponent(queryToken);
 
-    try {
-      fetch(speciesStatsUrl, {
-          credentials: 'include',
-          method: 'GET',
-        }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                tokenExpiredFunc();
-              }
-              throw new Error(`Failed to get species statistics: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Process the results
-          setAnimalsNums(respData);
-        })
-        .catch(function(err) {
-          console.log('Species Statistics Error: ',err);
-        });
-    } catch (err) {
-      console.log('Species Statistics Unknown Error: ',err);
+    const success = Server.getSpeciesStats(serverURL, queryToken, tokenExpiredFunc,
+          (respData) => {   // Success
+              // Process the results
+            setAnimalsNums(respData);
+          },
+          (err) => {        // Failure - Do nothing
+
+          }
+    );
+
+    if (!success) {
+      // Do nothing
     }
-  }, [serverURL, queryToken]);
+
+  }, [serverURL, queryToken, tokenExpiredFunc]);
 
   // Get the statistics to show
   React.useLayoutEffect(() => {

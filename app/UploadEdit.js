@@ -1070,7 +1070,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                       position={narrowWindow?'top':'left'}
                       speciesSidebarRef={sidebarSpeciesRef}
                       workingDim={narrowWindow?'100vw':curHeight+'px'}
-                      topX={narrowWindow ? curStart + sidebarHeightTop : curStart} 
                       onKeybind={(event, speciesItem) => {onKeybindClick(event, speciesItem.name, speciesItem.keyBinding);event.preventDefault();}}
                       onZoom={(event, speciesItem) => {setSpeciesZoomName(speciesItem.name);setSpeciesKeybindName(null);event.preventDefault();}}
       />

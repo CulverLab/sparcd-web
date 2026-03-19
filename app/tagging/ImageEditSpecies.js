@@ -1,19 +1,13 @@
 /** @module components/ImageEditSpecies */
 
 import * as React from 'react';
-import ArrowBackIosOutlinedIcon from '@mui/icons-material/ArrowBackIosOutlined';
-import ArrowForwardIosOutlinedIcon from '@mui/icons-material/ArrowForwardIosOutlined';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Grid from '@mui/material/Grid';
 import HighlightOffOutlinedIcon from '@mui/icons-material/HighlightOffOutlined';
 import MuiInput from '@mui/material/Input';
 import { styled } from '@mui/material/styles';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-import { SpeciesInfoContext } from '../serverInfo';
-import InputSlider from '../components/InputSlider';
+import PropTypes from 'prop-types';
 
 // Width of the input field
 const Input = styled(MuiInput)`
@@ -41,7 +35,7 @@ export default function ImageEditSpecies({name, count, onDelete, onChange, onBlu
           style={{height:'2em'}}
     >
           <Grid size={8}>
-              <Typography id={"species-name-"+name} variant="body" sx={{textTransform:'Capitalize',color:'inherit'}}>
+              <Typography id={"species-name-"+name} variant="body1" sx={{textTransform:'Capitalize',color:'inherit'}}>
                 {name}
               </Typography>
           </Grid>
@@ -51,14 +45,16 @@ export default function ImageEditSpecies({name, count, onDelete, onChange, onBlu
                 size="small"
                 onChange={(event) => onChange(event, name)}
                 onBlur={(event) => onBlur(event, name)}
-                inputProps={{
-                  step: 1,
-                  min: 0,
-                  max: 100,
-                  type: 'number',
-                  'aria-labelledby':"species-name-"+name,
+                slotProps={{
+                  htmlInput: {
+                    step: 1,
+                    min: 0,
+                    max: 100,
+                    type: 'number',
+                    'aria-labelledby':"species-name-"+name,
+                  }
                 }}
-                sx={{flex:'6', position:'relative', marginLeft:'auto', color:'inherit'}}
+                sx={{flex:6, position:'relative', marginLeft:'auto', color:'inherit'}}
               />
           </Grid>
       <Grid sx={{marginLeft:'auto'}} size={1}>
@@ -67,3 +63,11 @@ export default function ImageEditSpecies({name, count, onDelete, onChange, onBlu
     </Grid>
   );
 }
+
+ImageEditSpecies.propTypes = {
+  name:     PropTypes.string.isRequired,
+  count:    PropTypes.number.isRequired,
+  onDelete: PropTypes.func.isRequired,
+  onChange: PropTypes.func.isRequired,
+  onBlur:   PropTypes.func.isRequired,
+};

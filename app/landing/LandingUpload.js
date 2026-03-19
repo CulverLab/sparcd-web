@@ -13,6 +13,7 @@ import PropTypes from 'prop-types';
 
 import IncompleteUploadItem from './IncompleteUploadItem';
 import LandingInfoTile from './LandingInfoTile';
+import * as Server from './LandingServerCalls';
 import { BaseURLContext, TokenExpiredFuncContext, MobileDeviceContext, 
          SandboxInfoContext, TokenContext } from '../serverInfo';
 
@@ -32,46 +33,15 @@ export default function LandingUpload({loadingSandbox, onChange}) {
   const uploadToken = React.useContext(TokenContext);
   const [numPrevUploads, setNumPrevUploads] = React.useState(null);
 
-  /**
-   * Retrieves the upload stats from the server
-   * @function
-   */
-  const getUploadStats = React.useCallback(() => {
-    const uploadStatsUrl = serverURL + '/sandboxStats?t=' + encodeURIComponent(uploadToken);
-
-    try {
-      fetch(uploadStatsUrl, {
-          credentials: 'include',
-          method: 'GET',
-        }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                tokenExpiredFunc();
-              }
-              throw new Error(`Failed to get upload statistics: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Process the results
-          setNumPrevUploads(respData);
-        })
-        .catch(function(err) {
-          console.log('Upload Statistics Error: ',err);
-        });
-    } catch (err) {
-      console.log('Upload Statistics Unknown Error: ',err);
-    }
-  }, [serverURL, uploadToken]);
-
   // Get the statistics to show
   React.useLayoutEffect(() => {
     if (numPrevUploads === null) {
-      getUploadStats();
+      Server.getUploadStats(serverURL, uploadToken, tokenExpiredFunc,
+                            (respData) => setNumPrevUploads(respData), // Success
+                            (err) => {}     // Fail silently
+      );
     }
-  }, [getUploadStats, numPrevUploads]);
+  }, [numPrevUploads]);
 
   // Determine if we have unfinished uploads
   const unfinished = React.useMemo(() => {

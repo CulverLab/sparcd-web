@@ -11,6 +11,8 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 import LocationItem from '../components/LocationItem'
 import { UserSettingsContext } from '../serverInfo';
 import { meters2feet } from '../utils';
@@ -31,33 +33,18 @@ import { meters2feet } from '../utils';
 export default function LocationSelection({title, locations, defaultLocation, onTTOpen, onTTClose, dataTT, onContinue, onCancel}) {
   const theme = useTheme();
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
+  const [selectedLocation, setSelectedLocation] = React.useState(defaultLocation);
 
   /**
    * Handles the user selecting a new location
    * @function
    */
   const handleContinue = React.useCallback(() => {
-    const locEl = document.getElementById('upload-edit-location');
-    if (!locEl) {
-      console.log('ERROR: Unable to find edited location ID for updating');
-      return;
-    }
+    onContinue(selectedLocation);
 
-    // Find the new location entry
-    const newLoc = locations.find((item) => item.idProperty == locEl.value);
-    if (!newLoc) {
-      console.log('ERROR: Unable to find full location for updating');
-      return;
-    }
+  }, [onContinue, selectedLocation])
 
-    onContinue(newLoc);
-
-  }, [locations, onContinue])
-
-  let displayCoordSystem = 'LATLON';
-  if (userSettings['coordinatesDisplay']) {
-    displayCoordSystem = userSettings['coordinatesDisplay'];
-  }
+  const displayCoordSystem = userSettings['coordinatesDisplay'] ?? 'LATLON';
 
   return (
     <Card id='change-location' variant='outlined' sx={{...theme.palette.upload_edit_locations_card}}>
@@ -69,8 +56,9 @@ export default function LocationSelection({title, locations, defaultLocation, on
           <Autocomplete
             options={locations}
             id="upload-edit-location"
+            onChange={(event, newValue) => setSelectedLocation(newValue)}
             autoHighlight
-            defaultValue={defaultLocation}
+            value={selectedLocation}
             getOptionLabel={(option) => option.idProperty}
             getOptionKey={(option) => option.idProperty+option.latProperty+option.lngProperty}
             renderOption={(props, loc) => {
@@ -105,9 +93,20 @@ export default function LocationSelection({title, locations, defaultLocation, on
         </FormControl>
       </CardContent>
       <CardActions>
-        <Button sx={{'flex':'1'}} size="small" onClick={handleContinue} >Continue</Button>
-        <Button sx={{'flex':'1'}} size="small" onClick={onCancel} >Cancel</Button>
+        <Button sx={{flex:1}} size="small" onClick={handleContinue} >Continue</Button>
+        <Button sx={{flex:1}} size="small" onClick={onCancel} >Cancel</Button>
       </CardActions>
     </Card>
   );
 }
+
+LocationSelection.propTypes = {
+  title:           PropTypes.string.isRequired,
+  locations:       PropTypes.array.isRequired,
+  defaultLocation: PropTypes.object,
+  onTTOpen:        PropTypes.func,
+  onTTClose:       PropTypes.func,
+  dataTT:          PropTypes.object,
+  onContinue:      PropTypes.func.isRequired,
+  onCancel:        PropTypes.func.isRequired,
+};

@@ -103,12 +103,11 @@ export function updateUploadRecovery(serverURL, token, collId, locId, uploadKey,
           }
         })
       .then((respData) => {
-        const missingFiles = files.filter((item) => respData.files.filter((name) => item.webkitRelativePath.includes(name))[0]);
-        onSuccess(respData, missingFiles);
+        onSuccess(respData);
       })
       .catch(function(err) {
         console.log('Previous Upload Error: ',err);
-        onFailure(err)
+        onFailure(err);
     });
   } catch (err) {
     console.log('Prev Upload Unknown Error: ',err);
@@ -573,6 +572,220 @@ export function uploadChunk(serverURL, token, fileChunk, uploadId, numFiles, tzI
     });
   } catch (err) {
     console.log('Upload Images Unknown Error: ',err);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Retrieves the upload stats from the server
+ * @function
+ * @param {string} serverURL The URL to the server
+ * @param {string} token The authorization token
+ * @param {function} onExpiredToken Function to call when we get an expired token return
+ * @param {function} onSuccess The function to call if the files check is successful
+ * @param {function} onFailure The function to call on failure
+ * @return {boolean} Returns true if the call was successfullly made, false if not
+ */
+export function getUploadStats(serverURL, token, onExpiredToken, onSuccess, onFailure) {
+  onExpiredToken ||= () => {};
+  onSuccess ||= () => {};
+  onFailure ||= () => {};
+
+  const uploadStatsUrl = serverURL + '/sandboxStats?t=' + encodeURIComponent(token);
+
+  try {
+    fetch(uploadStatsUrl, {
+        credentials: 'include',
+        method: 'GET',
+      }).then(async (resp) => {
+          if (resp.ok) {
+            return resp.json();
+          } else {
+            if (resp.status === 401) {
+              // User needs to log in again
+              onExpiredToken();
+            }
+            throw new Error(`Failed to get upload statistics: ${resp.status}: ${await resp.text()}`);
+          }
+        })
+      .then((respData) => {
+          // Process the results
+        onSuccess(respData);
+      })
+      .catch(function(err) {
+        console.log('Upload Statistics Error: ',err);
+        onFailure('Unable to get the upload statistics from the server');
+      });
+  } catch (err) {
+    console.log('Upload Statistics Unknown Error: ',err);
+    return false;
+  }
+
+  return true;
+}
+
+
+  /**
+   * Function to mark the currently selected upload as completed
+ * @function
+ * @param {string} serverURL The URL to the server
+ * @param {string} token The authorization token
+ * @param {string} collectionId The ID of the collection with the complete upload
+ * @param {string} uploadKey The key of the upload that's completing
+ * @param {function} onExpiredToken Function to call when we get an expired token return
+ * @param {function} onSuccess The function to call if the files check is successful
+ * @param {function} onFailure The function to call on failure
+ * @return {boolean} Returns true if the call was successfullly made, false if not
+   */
+export function handleSelUploadComplete(serverURL, token, collectionId, uploadKey, onExpiredToken, onSuccess, onFailure) {
+  onExpiredToken ||= () => {};
+  onSuccess ||= () => {};
+  onFailure ||= () => {};
+
+  const uploadCompleteUrl = serverURL + '/setUploadComplete?t=' + encodeURIComponent(token);
+
+  const formData = new FormData();
+  formData.append('collectionId', collectionId);
+  formData.append('uploadKey', uploadKey);
+
+  try {
+    fetch(uploadCompleteUrl, {
+      credentials: 'include',
+      method: 'POST',
+      body: formData,
+    }).then(async (resp) => {
+          if (resp.ok) {
+            return resp.json();
+          } else {
+            if (resp.status === 401) {
+              // User needs to log in again
+              onExpiredToken();
+            }
+            throw new Error(`Failed to mark upload complete: ${resp.status}: ${await resp.text()}`);
+          }
+        })
+      .then((respData) => {
+          // Handle the result
+          if (respData.success) {
+            onSuccess(respData);
+          } else {
+            onFailure(respData.message);
+          }
+      })
+      .catch(function(err) {
+        const message = "An error occurred while trying to mark upload as complete";
+        console.log(message,err);
+        onFailure(message);
+    });
+  } catch (err) {
+    console.log('Mark Upload Complete Unknown Error: ',err);
+    return false;
+  }
+
+  return true;
+}
+
+
+/**
+ * Calls the server to get location details for tooltips
+ * @function
+ * @param {string} serverURL The URL to the server
+ * @param {string} token The authorization token
+ * @param {object} curLoc The location to get the details for
+ * @param {function} onExpiredToken Function to call when we get an expired token return
+ * @param {function} onSuccess The function to call if the files check is successful
+ * @param {function} onFailure The function to call on failure
+ * @return {boolean} Returns true if the call was successfullly made, false if not
+ */
+export function getTooltipInfo (serverURL, token, curLoc, onExpiredToken, onSuccess, onFailure) {
+  onExpiredToken ||= () => {};
+  onSuccess ||= () => {};
+  onFailure ||= () => {};
+
+  const locationInfoUrl = serverURL + '/locationInfo?t=' + encodeURIComponent(token);
+
+  const formData = new FormData();
+
+  formData.append('id', curLoc.idProperty);
+  formData.append('name', curLoc.nameProperty);
+  formData.append('lat', curLoc.latProperty);
+  formData.append('lon', curLoc.lngProperty);
+  formData.append('ele', curLoc.elevationProperty);
+  try {
+    fetch(locationInfoUrl, {
+      credentials: 'include',
+      method: 'POST',
+      body: formData
+    }).then(async (resp) => {
+          if (resp.ok) {
+            return resp.json();
+          } else {
+            if (resp.status === 401) {
+              // User needs to log in again
+              onExpiredToken();
+            }
+            throw new Error(`Failed to get location information: ${resp.status}: ${await resp.text()}`);
+          }
+        })
+      .then((respData) => {
+        onSuccess(respData);
+      })
+      .catch(function(err) {
+        console.log('Location tooltip Error: ',err);
+        onFailure('Unable to get tooltip information')
+    });
+  } catch (err) {
+    console.log('Location tooltip Unknown Error: ',err);
+    return false;
+  }
+
+  return true;
+}
+
+
+/**
+ * Retrieves the species stats from the server
+ * @function
+ * @param {string} serverURL The URL to the server
+ * @param {string} token The authorization token
+ * @param {function} onExpiredToken Function to call when we get an expired token return
+ * @param {function} onSuccess The function to call if the files check is successful
+ * @param {function} onFailure The function to call on failure
+ * @return {boolean} Returns true if the call was successfullly made, false if not
+ */
+export function getSpeciesStats(serverURL, token, onExpiredToken, onSuccess, onFailure) {
+  onExpiredToken ||= () => {};
+  onSuccess ||= () => {};
+  onFailure ||= () => {};
+
+  const speciesStatsUrl = serverURL + '/speciesStats?t=' + encodeURIComponent(token);
+
+  try {
+    fetch(speciesStatsUrl, {
+        credentials: 'include',
+        method: 'GET',
+      }).then(async (resp) => {
+          if (resp.ok) {
+            return resp.json();
+          } else {
+            if (resp.status === 401) {
+              // User needs to log in again
+              onExpiredToken();
+            }
+            throw new Error(`Failed to get species statistics: ${resp.status}: ${await resp.text()}`);
+          }
+        })
+      .then((respData) => {
+        onSuccess(respData);
+      })
+      .catch(function(err) {
+        console.log('Species Statistics Error: ',err);
+        onFailure('Unable to get specied statistics');
+      });
+  } catch (err) {
+    console.log('Species Statistics Unknown Error: ',err);
     return false;
   }
 

@@ -17,6 +17,7 @@ import { useTheme } from '@mui/material/styles';
 
 import PropTypes from 'prop-types';
 
+import * as Server from './SettingsServerCalls';
 import { Level } from '../components/Messages';
 import { AddMessageContext, CollectionsInfoContext, TokenExpiredFuncContext, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
@@ -99,55 +100,36 @@ export default function CheckIncompleteUploads({onSandboxRefresh, onCancel}) {
       return;
     }
 
-    // Get the server to check for incomplete uploads
-    const checkIncompleteUrl = serverURL + '/adminCheckIncomplete?t=' + encodeURIComponent(checkToken);
-
-    const formData = new FormData();
-    formData.append('collections', JSON.stringify(selectedCollections));
-
     setCheckingForIncomplete(true);
     setCheckingFailed(false);
 
-    try {
-      fetch(checkIncompleteUrl, {
-        credentials: 'include',
-        method: 'POST',
-        body: formData,
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
+    // Get the server to check for incomplete uploads
+    const success = Server.continueCheckIncomplete(serverURL, checkToken, selectedCollections, setTokenExpired,
+          (respData) => {     // Success
+              // Handle the result
+              setCheckingForIncomplete(false);
+              if (respData.success) {
+                addMessage(Level.Information, `Successfully checked for ${respData.count ? parseInt(respData.count) : 0} incomplete uploads`);
+                window.setTimeout(() => {onSandboxRefresh();onCancel();}, 1000);
+              } else {
+                addMessage(Level.Warning, 'Failed the check for incomplete uploads');
+                setCheckingFailed(true);
               }
-              throw new Error(`Failed to update changed settings information: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Handle the result
-            setCheckingForIncomplete(false);
-            if (respData.success) {
-              addMessage(Level.Info, `Successfully checked for ${respData.count ? parseInt(respData.count) : 0} incomplete uploads`);
-              window.setTimeout(() => {onSandboxRefresh();onCancel();}, 1000);
-            } else {
-              addMessage(Level.Warning, 'Failed the check for incomplete uploads');
+          },
+          (err) => {          // Failure
+              addMessage(Level.Warning, err);
+              setCheckingForIncomplete(false);
               setCheckingFailed(true);
-            }
-        })
-        .catch(function(err) {
-          console.log('Admin Save Location/Species Error: ',err);
-          addMessage(Level.Warning, 'An error occurred when attempting to complete saving the changed settings information');
-          setCheckingForIncomplete(false);
-          setCheckingFailed(true);
-      });
-    } catch (err) {
-      console.log('Admin Save Location/Species Unknown Error: ',err);
+          }
+    );
+
+    if (!success) {
       addMessage(Level.Warning, 'An unknown error occurred when attempting to complete saving the changed settings information');
       setCheckingForIncomplete(false);
       setCheckingFailed(true);
     }
-  }, [addMessage, checkToken, selectedCollections, serverURL, setTokenExpired])
+
+  }, [addMessage, checkToken, onSandboxRefresh, selectedCollections, serverURL, setTokenExpired])
 
   // Return the UI
   return (
