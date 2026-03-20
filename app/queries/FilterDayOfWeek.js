@@ -1,3 +1,5 @@
+'use client'
+
 /** @module components/FilterDayOfWeek */
 
 import * as React from 'react';

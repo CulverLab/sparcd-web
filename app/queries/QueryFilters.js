@@ -1,3 +1,5 @@
+'use client'
+
 /** @module QueryFilters */
 
 import * as React from 'react';
@@ -58,38 +60,41 @@ const filterNames = [
  */
 export default function QueryFilters({workingWidth, workingHeight, filters, filterChanged, filterRemove, filterAdd,
                                       queryInterval, intervalChanged, onQuery}) {
-  const filterWaitingRef = React.useRef(null);
-  const filterWrapperRef = React.useRef(null);
   const [filterSelected, setFilterSelected] = React.useState(null); // Indicates a new filter is selected
+  const [showSelections, setShowSelections] = React.useState(false);
+  const [showFilterWaiting, setShowFilterWaiting] = React.useState(false);
 
   /**
-   * Adds a new filter to the list of filters
+   * Handles addings a new filter
+   * @function
+   * @param {string} filter The filter to add
+   */
+  const handleFilterAdd = React.useCallback((filter) => {
+    // Show the spinner
+    setShowFilterWaiting(true);
+
+    filterAdd(filter,
+                    () => setShowFilterWaiting(false),  // On accepted
+                    () => {           // On completed
+                      setShowFilterWaiting(false);setShowSelections(false);
+                    }
+    );
+  }, [filterAdd]);
+
+  /**
+   * Adds the selected filter to the list of filters
    * @function
    */
   const filterAddSelected = React.useCallback(() => {
-    // Get the filter elements we need to access
-    if (!filterWrapperRef.current) {
-      return;
-    }
-    // Show the spinner until the new filter is added
-    if (filterWaitingRef.current) {
-      if (filterWrapperRef.current.style.visibility === 'visible') {
-        filterWaitingRef.current.style.visibility = 'visible';
-      }
-    }
-
-    filterAdd(filterSelected);
-  }, [filterAdd, filterSelected]);
+    handleFilterAdd(filterSelected);
+  }, [handleFilterAdd, filterSelected]);
 
   /**
    * Handles displaying a filter type selection when the user wants to add a new filter
    * @function
    */
   const handleNewFilter = React.useCallback(() => {
-    if (!filterWrapperRef.current) {
-      return;
-    }
-    filterWrapperRef.current.style.visibility = 'visible';
+    setShowSelections(true);
   }, []);
 
   /**
@@ -97,10 +102,7 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
    * @function
    */
   const cancelNewFilter = React.useCallback(() => {
-    if (!filterWrapperRef.current) {
-      return;
-    }
-    filterWrapperRef.current.style.visibility = 'hidden';
+    setShowSelections(false);
   }, []);
 
   /**
@@ -232,9 +234,9 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
           </Grid>
         </Grid>
       </div>
-      <Grid id="query-filter-selection-wrapper" ref={filterWrapperRef} container direction="column"  alignItems="center" justifyContent="center"
+      <Grid id="query-filter-selection-wrapper" container direction="column"  alignItems="center" justifyContent="center"
             sx={{position:'absolute', top:'0px', width:workingWidth, minHeight:workingHeight, maxHeight:workingHeight,
-                 background:'rgb(0,0,0,0.75)', overflow:'clip', visibility:'hidden'}}
+                 background:'rgb(0,0,0,0.75)', overflow:'clip', visibility: showSelections ? 'visible' : 'hidden'}}
       >
         <Card variant="outlined" >
           <React.Fragment>
@@ -251,15 +253,15 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
                         <ListItemButton selected={item === filterSelected}
                                         sx={{padding:'0 8px'}}
                                         onClick={() => setFilterSelected(item)}
-                                        onDoubleClick={() => filterAdd(item)}
+                                        onDoubleClick={() => handleFilterAdd(item)}
                         >
                           <ListItemText primary={item} />
                         </ListItemButton>
                     </ListItem>
                 )}
               </List>
-              <Grid id="query-filter-selection-waiting-wrapper" ref={filterWaitingRef} container direction="column"  alignItems="center" justifyContent="center"
-                    sx={{position:'absolute', top:'0px', width:'100%', height:'100%', visibility:'hidden'}}
+              <Grid id="query-filter-selection-waiting-wrapper" container direction="column"  alignItems="center" justifyContent="center"
+                    sx={{position:'absolute', top:'0px', width:'100%', height:'100%', visibility:showFilterWaiting ? 'visible' : 'hidden'}}
               >
                 <CircularProgress id="query-filter-selection-waiting" />
               </Grid>

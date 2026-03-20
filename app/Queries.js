@@ -16,6 +16,7 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import { v4 as uuidv4 } from 'uuid';
+
 import PropTypes from 'prop-types';
 
 import QueryFilters from './queries/QueryFilters';
@@ -28,11 +29,14 @@ import { FilterLocationsFormData } from './queries/FilterLocations';
 import { FilterMonthFormData } from './queries/FilterMonth';
 import { FilterSpeciesFormData } from './queries/FilterSpecies';
 import { FilterYearFormData } from './queries/FilterYear';
+import QueryResults from './queries/QueryResults';
 import * as utils from './utils';
 
 import { Level } from './components/Messages';
 import { AddMessageContext, TokenExpiredFuncContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, 
          SpeciesOtherNamesContext, TokenContext, UserSettingsContext } from './serverInfo';
+
+const QUERY_RESULTS_SHOW_DELAY_SEC = 5;   // Minimum delay before showing the results
 
 /**
  * Provides the UI for queries
@@ -41,7 +45,6 @@ import { AddMessageContext, TokenExpiredFuncContext, LocationsInfoContext, SizeC
  * @returns {object} The UI for generating queries
  */
 export default function Queries({loadingCollections}) {
-  const QUERY_RESULTS_SHOW_DELAY_SEC = 5
   const theme = useTheme();
   const apiRef = useGridApiRef(); // TODO: Auto size columns of grids using this api
   const dividerRef = React.useRef();   // Used for sizeing
@@ -55,7 +58,7 @@ export default function Queries({loadingCollections}) {
   const speciesOtherItems = React.useContext(SpeciesOtherNamesContext); // Unofficial species
   const uiSizes = React.useContext(SizeContext);  // UI Dimensions
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
-  const [activeTab, setActiveTab] = React.useState(0);
+  const actionScrollTimeoutRef = React.useRef(null);    // Used to make sure the add filter is alawys in view
   const [dividerHeight, setDividerHeight] = React.useState(20); // Used to size controls
   const [expandCollapseWidth, setExpandCollapseWidth] = React.useState(24);
   const [filters, setFilters] = React.useState([]); // Stores filter information
@@ -71,19 +74,9 @@ export default function Queries({loadingCollections}) {
   const [workingTop, setWorkingTop] = React.useState(null);    // Default value is recalculated at display time
   const [workspaceWidth, setWorkspaceWidth] = React.useState(640);  // Default value is recalculated at display time
 
-  let activeQuery = null;
+  const activeQueryRef = React.useRef(null);
 
   let mergedSpecies = React.useMemo(() => [].concat(speciesItems).concat(speciesOtherItems ? speciesOtherItems : []), [speciesItems,speciesOtherItems]);
-
-  /**
-   * Updates fields when a new tab is selected for display
-   * @function
-   * @param {object} event The triggering event object
-   * @param {object} newValue The new tab value
-   */
-  function handleTabChange(event, newValue) {
-    setActiveTab(newValue);
-  }
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {
@@ -106,37 +99,22 @@ export default function Queries({loadingCollections}) {
   /**
    * Adds a new filter to the list of filters
    * @function
+   * @param {string} filterChoice The choice of filter to add
+   * @param {function} [onComplete] Function to call upon completions of the filter add
    */
-  function addFilter(filterChoice) {
-    // Get the filter elements we need to access
-    let elFilter = document.getElementById('query-filter-selection-wrapper');
-    if (!elFilter) {
-      return;
-    }
-    // Show the spinner until the new filter is added
-    let elFilterWait = document.getElementById("query-filter-selection-waiting");
-    if (elFilterWait) {
-      if (elFilter.style.visibility === 'visible') {
-        elFilterWait.style.visibility = 'visible';
-      }
-    }
+  const addFilter = React.useCallback((filterChoice, onComplete) => {
 
     // Add the new filter to the array of filters
     const newFilter = {type:filterChoice, id:uuidv4(), data:null}
-    const allFilters = filters;
-    allFilters.push(newFilter);
+    const allFilters = [...filters, newFilter];
 
     // Set the timeout to remove the spinner and update the UI
     window.setTimeout(() => {
-                  elFilter.style.visibility = 'hidden';
-                  if (elFilterWait) {
-                    elFilterWait.style.visibility = 'hidden';
-                  }
-
                   setFilters(allFilters);
                   setQueryRedraw(newFilter.id);
+                  onComplete?.();
                 });
-  }
+  }, [filters]);
 
   /**
    * Removes a filter from the list
@@ -169,21 +147,14 @@ export default function Queries({loadingCollections}) {
    * Handles adding a new filter when a filter is double-clicked
    * @function
    * @param {string} filterChoice The filter name that is to be added
+   * @param {function} [onAccepted] Function to call once the filter is accepted
+   * @param {function} [onComplete] Function to call upon completions of the filter add
    */
-  const handleFilterAccepted = React.useCallback((filterChoice) => {
-    let elFilter = document.getElementById('query-filter-selection-wrapper');
-    // Show the wait spinner
-    let elFilterWait = document.getElementById("query-filter-selection-waiting");
-    if (elFilter && elFilterWait) {
-      if (elFilter.style.visibility === 'visible') {
-        elFilterWait.style.visibility = 'visible';
-      }
-    }
+  const handleFilterAccepted = React.useCallback((filterChoice, onAccepted, onComplete) => {
+
     // Set the timeout to add the filter and update the UI
-    window.setTimeout(() => { addFilter(filterChoice);
-                              if (elFilterWait) {
-                                elFilterWait.style.visibility = 'hidden';
-                              }
+    window.setTimeout(() => { addFilter(filterChoice, onComplete);
+                              onAccepted?.();
                             }, 100);
   }, [addFilter]);
 
@@ -201,7 +172,7 @@ export default function Queries({loadingCollections}) {
    * @param {array} queryFilters The array of filter information to use to fill in the FormData
    * @returns {object} Returns a new FormData with the filters added
    */
-  function getQueryFormData(queryFilters) {
+  const getQueryFormData = React.useCallback((queryFilters) => {
     let formData = new FormData();
 
     for (const filterIdx in queryFilters) {
@@ -241,7 +212,7 @@ export default function Queries({loadingCollections}) {
     }
 
     return formData;
-  }
+  }, [mergedSpecies, locationItems, userSettings]);
 
   /**
    * Makes the call to get the query data and saves the results
@@ -257,11 +228,11 @@ export default function Queries({loadingCollections}) {
     // Setup the UI for the query 
     setWaitingOnQuery(queryId);
     setQueryRedraw(queryId);
-    activeQuery = queryId;
+    activeQueryRef.current = queryId;
 
     // Make the query
     try {
-      const resp = fetch(queryUrl, {
+      fetch(queryUrl, {
         credentials: 'include',
         method: 'POST',
         body: formData
@@ -278,44 +249,48 @@ export default function Queries({loadingCollections}) {
           }
       })
       .then((respData) => {
+        // Check if this has been cancelled
+        if (queryCancelled === true) {
+          setQueryCancelled(false);
+          return;
+        }
         // TODO: handle no results
         console.log('QUERY:',respData);
-        if (activeQuery === queryId && Object.keys(respData).length > 0) {
-          const time_diff_sec = (waitingOnQuery - Date.now()) / 1000.0;
-          if (Math.round(time_diff_sec) < QUERY_RESULTS_SHOW_DELAY_SEC) {
+        if (activeQueryRef.current === queryId && Object.keys(respData).length > 0) {
+          const time_diff_sec = (Date.now() - queryId) / 1000.0;
+          if (Math.round(time_diff_sec) >= QUERY_RESULTS_SHOW_DELAY_SEC) {
             setQueryResults(respData);
             setIsExpanded(false);
+            setWaitingOnQuery(null);
           } else  {
-            window.setTimeout(() => setQueryResults(respData), time_diff_sec * 1000);
+            window.setTimeout(() => {setQueryResults(respData);setIsExpanded(false);setWaitingOnQuery(null);}, time_diff_sec * 1000);
           }
-          activeQuery = null;
-          setWaitingOnQuery(null);
+          activeQueryRef.current = null;
         } else {
           if (Object.keys(respData).length <= 0) {
             addMessage(Level.Information, 'The query returned no results. Please adjust your query and try again');
           }
-          activeQuery = null;
+          activeQueryRef.current = null;
           setWaitingOnQuery(null);
         }
       })
       .catch(function(err) {
         console.log('CATCH ERROR: ',err);
-        if (activeQuery === queryId) {
-          activeQuery = null;
+        if (activeQueryRef.current === queryId) {
+          activeQueryRef.current = null;
           setWaitingOnQuery(null);
           addMessage(Level.Error, 'An error was detected while executing the query', 'Query Error Detected');
         }
       });
     } catch (error) {
       console.log('HAVE ERROR:', error);
-      if (activeQuery === queryId) {
-        activeQuery = null;
+      if (activeQueryRef.current === queryId) {
+        activeQueryRef.current = null;
         setWaitingOnQuery(null);
         addMessage(Level.Error, 'An error occurred while executing the query', 'Query Error');
       }
     }
-  }, [activeQuery, addMessage, getQueryFormData, queryToken, serverURL, setIsExpanded, setQueryRedraw, setQueryResults,
-                                                                    setWaitingOnQuery, waitingOnQuery, QUERY_RESULTS_SHOW_DELAY_SEC]);
+  }, [addMessage, filters, getQueryFormData, queryToken, queryCancelled, serverURL]);
 
   /**
    * Handles cancelling a query
@@ -325,52 +300,6 @@ export default function Queries({loadingCollections}) {
     setWaitingOnQuery(null);
     setQueryCancelled(true);
   }, [setQueryCancelled, setWaitingOnQuery]);
-
-  /**
-   * Internal TabPanel element type
-   * @function
-   * @param {object} props The properties of the TabPanel element
-   * @returns {object} Returns the UI for the TabPanel
-   */
-  function TabPanel(props) {
-    const { children, value, index, ...other } = props;
-
-    return (
-      <div
-        role="tabpanel"
-        hidden={value !== index}
-        id={`query-results-tabpanel-${index}`}
-        aria-labelledby={`query-results-${index}`}
-        {...other}
-      >
-      {value === index && (
-        <Box id='tabpanel-box'>
-          {children}
-        </Box>
-      )}
-      </div>
-    );
-  }
-
-  // Define the types of the properties accepted by the TabPanel
-  TabPanel.propTypes = {
-    children: PropTypes.node,
-    index: PropTypes.number.isRequired,
-    value: PropTypes.number.isRequired,
-  };
-
-  /**
-   * Returns the a11y properties for a tab control
-   * @function
-   * @param {integer} index The index of the tab
-   * @returns {object} The properties to use for the tab
-   */
-  function a11yPropsTabPanel(index) {
-    return {
-      id: `query-results-${index}`,
-      'aria-controls': `query-results-${index}`,
-    };
-  }
 
   /**
    * Handles the user downloading information
@@ -394,268 +323,31 @@ export default function Queries({loadingCollections}) {
     document.body.removeChild(element);
   }, [queryResults, queryToken, serverURL]);
 
-  /**
-   * Generates a panel for displaying the query results based upon different tabs
-   * @function
-   * @param {object} queryResults The results of the performed query
-   * @param {string} tabName The unique identifier of the tab to generate the panel for
-   * @param {integer} tabIndex The relative index of the tab
-   * @returns {object} The panel UI to render
-   */ 
-  function generateResultPanel(queryResults, tabName, tabIndex) {
-
-      // Generate a textarea to display the results if we aren't generating a data grid
-    if (queryResults.columns[tabName] == undefined) {
-      return (
-          <textarea id={'query-results-'+tabName} readOnly wrap="off"
-            style={{resize:"none", fontFamily:'monospace', fontSize:'small', fontWeight:'lighter', 
-                    position:'absolute', left:0, top:0, right:0, bottom:0, padding:'5px 5px 10px 5px'}}
-            value={queryResults[tabName]}
-          />
-      );
+  // Set a timer to have new panels scroll into view
+  React.useLayoutEffect(() => {
+    const elActions = document.getElementById('queries-actions');
+    if (elActions && filters && actionScrollTimeoutRef.current === null) {
+      actionScrollTimeoutRef.current = window.setTimeout(() => {
+                                          actionScrollTimeoutRef.current = null;
+                                          elActions.scrollIntoView({ behavior:'smooth', inline:'nearest'})
+                                        }, 10);
     }
-
-    // Generate a DataGrid to display the results
-    let colTitles = queryResults.columns[tabName];
-    let colData = queryResults[tabName];
-    let curData = colData;
-    let columnGroupings = undefined;
-
-    // Check for column modifications
-    if (queryResults.columsMods[tabName] !== undefined) {
-      const colModInfo = queryResults.columsMods[tabName];
-
-      // Create a copy so that the original is unmodified
-      colTitles = JSON.parse(JSON.stringify(colTitles));
-
-      // First level of processing modifiers
-      for (const oneMod of colModInfo) {
-        // Location information display specifics.
-        switch (oneMod['type']) {
-          case 'hasLocations':
-              {
-                let displayCoordSystem = 'LATLON';
-                if (userSettings['coordinatesDisplay']) {
-                  displayCoordSystem = userSettings['coordinatesDisplay'];
-                }
-                const sourceKey = oneMod[displayCoordSystem];
-                const targetKey = oneMod['target'];
-
-                // Remove all other possible column targets from the tiles
-                for (const oneKey of Object.keys(oneMod)) {
-                  const unwanted = oneMod[oneKey]
-                  if (colTitles[unwanted] !== undefined && unwanted !== sourceKey) {
-                    delete colTitles[unwanted];
-                  }
-                }
-
-                // Get the information from the source and rename it to the target
-                const oldInfo = colTitles[sourceKey];
-                delete colTitles[sourceKey];
-                if (targetKey !== null) {
-                  colTitles[targetKey] = oldInfo;
-                } else {
-                  for (const oneKey of Object.keys(oldInfo)) {
-                    colTitles[oneKey] = oldInfo[oneKey];
-                  }
-                }
-              }
-              break;
-        }
-      }
-
-      // Second level of processing modifiers
-      for (const oneMod of colModInfo) {
-        switch (oneMod['type']) {
-          case 'hasElevation':
-              {
-                let displayMeasure = 'meters';
-                if (userSettings['measurementFormat']) {
-                  displayMeasure = userSettings['measurementFormat'];
-                }
-                const newKey = oneMod[displayMeasure];
-                const targetKey = oneMod['target'];
-                const parentKey = oneMod['parent'];
-
-                let modData = colTitles;
-                if (parentKey) {
-                  modData = colTitles[parentKey];
-                }
-
-                // Get the information from the source and rename it to the target
-                if (newKey !== targetKey) {
-                  const oldInfo = modData[targetKey];
-                  delete modData[targetKey];
-                  modData[newKey] = oldInfo;
-                }
-              }
-              break;
-
-            case 'date':
-              {
-                let dateFormat = 'ISO';
-                let timeFormat = '24s'
-                if (userSettings['dateFormat']) {
-                  dateFormat = userSettings['dateFormat'];
-                }
-                if (userSettings['timeFormat']) {
-                  timeFormat = userSettings['timeFormat'];
-                }
-
-                // If the date format is ISO we don't have anything to do
-                if (dateFormat === 'ISO') {
-                  break;
-                }
-
-                // Update the titles
-                const sourceKey = oneMod['source'];
-                const targetKey = oneMod['target'];
-                const parentKey = oneMod['parent'];
-
-                let modData = colTitles;
-                if (parentKey) {
-                  modData = colTitles[parentKey];
-                }
-
-                // If the time and date haven't changed from when the query was generated,
-                // use what was returned
-                if (dateFormat === oneMod['settingsDate'] && timeFormat === oneMod['settingsTime']) {
-                  const oldInfo = modData[sourceKey];
-                  delete modData[sourceKey];
-                  modData['dateDefault'] = oldInfo;
-                } else {
-                  // We need to synthesize the date and time
-                  if (sourceKey !== targetKey) {
-                    const oldInfo = modData[sourceKey];
-                    delete modData[sourceKey];
-                    modData[targetKey] = oldInfo;
-                  }
-
-                  const dateKey = 'date' + dateFormat;
-                  const timeKey = 'time' + timeFormat;
-
-                  curData = curData.map((row, rowIdx) => {let rowAdd = {}; rowAdd[targetKey] = row[dateKey] + ' ' + row[timeKey];return {...rowAdd, ...row};});
-                }
-              }
-              break;
-        }
-      }
-    }
-
-    let keys = Object.keys(colTitles);
-    let curTitles = keys.map((name, idx) => {return {field:name, headerName:colTitles[name]}});
-
-    if (keys.find((item) => item === 'id') == undefined) {
-      curData = curData.map((row, rowIdx) => {return {id:rowIdx, ...row}});
-    }
-
-    // Check if we have column groupings and regenerate/update variables if we do
-    if (keys.find((item) => typeof(colTitles[item]) === 'object' && !Array.isArray(colTitles[item])) != undefined) {
-      let newKeys = [];
-      let newTitles = [];
-      columnGroupings = [];
-      for (const curKey in colTitles) {
-        if (typeof(colTitles[curKey]) === 'object' && !Array.isArray(colTitles[curKey])) {
-          const curGroup = colTitles[curKey];
-          const curKeys = Object.keys(curGroup);
-          columnGroupings.push({groupId:curGroup['title'],
-                                children:curKeys.map((curKey) => curKey !== 'title' && {field:curKey})
-                                          .filter((child) => child !== false)
-                               });
-          newKeys = [...newKeys, ...(curKeys.map((curKey) => curKey !== 'title' && curGroup[curKey])
-                                            .filter((item) => item !== false))
-                    ];
-          newTitles = [...newTitles, ...(curKeys.map((curKey) => curKey !== 'title' && {field:curKey, headerName:curGroup[curKey]})
-                                                .filter((item) => item !== false))
-                      ];
-        } else {
-          // Don't add to groupings
-          //columnGroupings.push({groupId:colTitles[curKey],children:[{field:curKey}]});
-          newKeys.push(curKey);
-          newTitles.push({field:curKey, headerName:colTitles[curKey]});
-        }
-      }
-
-      keys = newKeys;
-      curTitles = newTitles;
-    }
-
-    return (
-      <DataGrid columns={curTitles} rows={curData} disableRowSelectionOnClick 
-                autosizeOptions={{
-                    columns: keys,
-                    includeOutliers: true,
-                    includeHeaders: true,
-                    outliersFactor: 1,
-                    expand: true,
-                  }}
-                columnGroupingModel={columnGroupings}
-      />
-    );
-  }
-
-  /**
-   * Generates the UI for displaying query results
-   * @param {object} queryResults The results of a query to display
-   * @returns {object} The UI of the query results
-   */
-  function generateQueryResults(queryResults, maxHeight) {
-    const tabsOrder = userSettings.sandersonOutput ? queryResults.tabs.order : queryResults.tabs.order.filter((item) => !item.includes('DrSanderson'));
-    return (
-      <Grid id="query-results-panel-wrapper" container size="grow" alignItems="start" justifyContent="start">
-        <Grid size={2}  sx={{backgroundColor:"#EAEAEA", height:maxHeight}}>
-          <Tabs id='query-results-tabs' value={activeTab} onChange={handleTabChange} aria-label="Query results" orientation="vertical" variant="scrollable"
-                scrollButtons={false} style={{overflow:'clip', maxHeight:'100%'}}>
-          { tabsOrder.map((item, idx) => {
-              return (
-                <Tab label={
-                          <Grid container direction="row" alignItems="center" justifyContent="center" sx={{width:'100%'}} >
-                            <Typography gutterBottom variant="body2" >
-                              {queryResults.tabs[item]}
-                            </Typography>
-                            <Tooltip title={'Download '+queryResults.tabs[item]}>
-                                <Grid onClick={() => handleDownload(item)} style={{marginLeft:'auto', borderRadius:'5px','&:hover':{backgroundColor:'rgba(0,0,255,0.05)'} }}>
-                                  <DownloadForOfflineOutlinedIcon sx={{fontSize:'30px', padding:'5px'}} />
-                                </Grid>
-                            </Tooltip>
-                          </Grid>
-                         }
-                   key={item} {...a11yPropsTabPanel(idx)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }}
-                />
-                )
-            })
-          }
-          </Tabs>
-        </Grid>
-        <Grid size={10} sx={{overflowX:'auto',display:'flex'}}>
-          { tabsOrder.map((item, idx) => {
-              return (
-                <TabPanel id={'query-result-panel-'+item} value={activeTab} index={idx} key={item+'-'+idx} 
-                          style={{overflowX:'auto', overflowY:'auto', width:'100%', position:'relative',margin:'0', height:(maxHeight-10)}}>
-                  {generateResultPanel(queryResults, item, idx)}
-                </TabPanel>
-              )}
-            )
-          }
-        </Grid>
-      </Grid>
-    );
-  }
-
-  // Set a time to have new panels scroll into view
-  const elActions = document.getElementById('queries-actions');
-  if (elActions && filters) {
-    window.setTimeout(() => elActions.scrollIntoView({ behavior:'smooth', inline:'nearest'}), 10);
-  }
+  }, [filters]);
 
   // Return the UI
   const curHeight = queryResults && isExpanded === false ? 100 : Math.max(320, uiSizes.workspace.height * 0.80);//((totalHeight || 480) / 2.0) + 'px';
   return (
     <Box id='queries-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative'}} >
-      <QueryFilters workingWidth={workspaceWidth} workingHeight={curHeight} filters={filters}
-                    filterChanged={handleFilterChange} filterRemove={removeFilter} filterAdd={handleFilterAccepted}
-                    queryInterval={queryInterval.current} intervalChanged={(val) => queryInterval.current = val}
-                    onQuery={handleQuery} />
+      <QueryFilters workingWidth={workspaceWidth}
+                    workingHeight={curHeight}
+                    filters={filters}
+                    filterChanged={handleFilterChange}
+                    filterRemove={removeFilter} 
+                    filterAdd={handleFilterAccepted}
+                    queryInterval={queryInterval.current}
+                    intervalChanged={(val) => queryInterval.current = val}
+                    onQuery={handleQuery}
+      />
       <Grid id="queries-workspace-divider" ref={dividerRef} container direction="row" sx={{justifyContent:'start', alignItems:'center', spacing:2, paddingLeft:'10px'}} >
         <span style={{border:'1px solid lightgrey',height:'0px',minWidth:'40px',width:((workspaceWidth - expandCollapseWidth) / 2.0) - 10 + 'px'}} />
         <Typography ref={expandCollapseRef} variant="body" onClick={handleExpandCollapse} sx={{ color:queryResults ? 'grey' : 'lightgrey', fontSize:'1.5em', 
@@ -669,7 +361,12 @@ export default function Queries({loadingCollections}) {
             sx={{minHeight:(uiSizes.workspace.height-curHeight-dividerHeight-10), maxHeight:(uiSizes.workspace.height-curHeight-dividerHeight-10),
                  backgroundColor:'white', margin:0, overflow:'clip', padding:'5px'}}
       >
-      { queryResults ? generateQueryResults(queryResults, uiSizes.workspace.height-curHeight-dividerHeight-10)  : null }
+      { queryResults && 
+        <QueryResults results={queryResults}
+                      maxHeight={uiSizes.workspace.height-curHeight-dividerHeight-10}
+                      onDownload={handleDownload}
+        />
+      }
       </Grid>
       { loadingCollections && 
           <Grid id="query-loading-collections-wrapper" container direction="row" alignItems="center" justifyContent="center" 

@@ -1,3 +1,5 @@
+'use client'
+
 /** @module components/FilterSpecies */
 
 import * as React from 'react';
@@ -27,7 +29,8 @@ import { SpeciesOtherNamesContext, SpeciesInfoContext } from '../serverInfo';
  * @param {array} speciesItems The complete list of species for mapping
  */
 export function FilterSpeciesFormData(data, formData, speciesItems) {
-  formData.append('species', JSON.stringify(data.map((item) => speciesItems.find((species) => species.name === item)?.scientificName).filter(Boolean)));
+  const foundSpecies = data.map((item) => speciesItems.find((species) => species.name === item)?.scientificName);
+  formData.append('species', JSON.stringify(foundSpecies));
 }
 
 /**

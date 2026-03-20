@@ -92,7 +92,7 @@ export function useChunkUpload(selectedTimezone) {
    * @function
    * @param {number} newState The new state to set
    */
-  const uploadStateUpdate = React.useCallback((newState) {
+  const uploadStateUpdate = React.useCallback((newState) => {
     uploadStateRef.current = newState;
     setUploadState(newState);
   }, []);

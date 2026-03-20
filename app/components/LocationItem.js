@@ -7,10 +7,11 @@ import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Grid from '@mui/material/Grid';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import PropTypes from 'prop-types';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
+
+import PropTypes from 'prop-types';
 
 /**
  * Returns the UI for a single location with tooltip. The tooltip information

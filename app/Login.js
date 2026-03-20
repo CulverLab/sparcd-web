@@ -1,8 +1,8 @@
 /** @module Login */
 
+import * as React from 'react';
 import Image from 'next/image'
 import styles from './page.module.css'
-import { useContext, useState, useLayoutEffect } from 'react';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import Checkbox from '@mui/material/Checkbox';
@@ -16,47 +16,54 @@ import { useTheme } from '@mui/material/styles';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
+import PropTypes from 'prop-types';
+
 import wildcatResearch from '../public/wildcatResearch.png'
-import {urlValid, userValid, passwordValid} from './checkLogin'
-import {LoginValidContext} from './checkLogin'
+import { LoginValidContext } from './checkLogin'
 import { SizeContext } from './serverInfo';
 
 /** Returns the Login dialog
   * @function
-  * @param {string} [prev_url] URL that was previously used to log in
-  * @param {string} [prev_user] Username that was previously used to log in
-  * @param {boolean} [prev_remember] Flag indicating the remember-me flag was set
+  * @param {string} [prevUrl] URL that was previously used to log in
+  * @param {string} [prevUser] Username that was previously used to log in
+  * @param {boolean} [prevRemember] Flag indicating the remember-me flag was set
   * @param {function} onLogin The login function to call when the user clicks the login button
   * @param {function} onRememberChange Called when the remember checkbox changes
   * @returns {object} The rendered UI
   */
-export default function Login({prev_url, prev_user, prev_remember, onLogin, onRememberChange}) {
+export default function Login({prevUrl, prevUser, prevRemember, onLogin, onRememberChange}) {
   const theme = useTheme();
-  const uiSizes = useContext(SizeContext);
-  const valuesValid = useContext(LoginValidContext);
-  const [rememberChecked, setRememberChecked] = useState(prev_remember);
-  const [showPassword, setShowPassword] = useState(false);
-  const [workspaceTop, setWorkspaceTop] = useState(0);
-  const [workspaceHeight, setWorkspaceHeight] = useState(480);
+  const uiSizes = React.useContext(SizeContext);
+  const valuesValid = React.useContext(LoginValidContext);
+  const loginWrapperRef = React.useRef(null);   // The login wrapper control reference
+  const passwordRef = React.useRef(null);   // The password control reference
+  const urlRef = React.useRef(null);        // The URL control reference
+  const usernameRef = React.useRef(null);   // The username control reference
+  const [rememberChecked, setRememberChecked] = React.useState(prevRemember);
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [workspaceHeight, setWorkspaceHeight] = React.useState(480);
 
-  useLayoutEffect(() => {
-    const focusId = !prev_url ? 'url-entry' : (!prev_user ? 'username-entry' : 'password-entry')
-    const el = document.getElementById(focusId);
-    if (el) {
-      el.focus();
+  // Focus management
+  React.useLayoutEffect(() => {
+    const focusRef = !prevUrl ? urlRef : (!prevUser ? usernameRef : passwordRef);
+    if (focusRef.current) {
+      focusRef.current.focus();
     }
-    if (prev_remember !== rememberChecked) {
-      setRememberChecked(prev_remember);
-    }
+  }, [prevUrl, prevUser]);
 
+  // Sync remember checkbox
+  React.useLayoutEffect(() => {
+    if (prevRemember !== rememberChecked) {
+      setRememberChecked(prevRemember);
+    }
+  }, [prevRemember, rememberChecked]);
+
+  // Workspace sizing
+  React.useLayoutEffect(() => {
     if (uiSizes !== null) {
-      let workspaceEl = document.getElementById('login-wrapper');
-      if (workspaceEl) {
-        setWorkspaceTop(uiSizes.workspace.top);
-        setWorkspaceHeight(uiSizes.workspace.height);
-      }
+      setWorkspaceHeight(uiSizes.workspace.height);
     }
-  }, [prev_url, prev_user, prev_remember, rememberChecked, uiSizes]);
+  }, [uiSizes]);
 
   /**
    * Handler that toggles the show password state
@@ -65,7 +72,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
   const handleClickShowPassword = () => setShowPassword((show) => !show);
 
   /**
-   * Supresses the default handling of a mouse down event on the password field
+   * Suppresses the default handling of a mouse down event on the password field
    * @function
    * @param {object} event The event object
    */
@@ -74,7 +81,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
   };
 
   /**
-   * Supresses the default handliong of a mouse up event on the password field
+   * Suppresses the default handling of a mouse up event on the password field
    * @function
    * @param {object} event The event object
    */
@@ -97,23 +104,18 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
    * @function
    */
   function callLoginFunc() {
-    let ctrl = document.getElementById('url-entry');
-    const url = ctrl.value;
-    ctrl = document.getElementById('username-entry');
-    const user = ctrl.value;
-    ctrl = document.getElementById('password-entry');
-    const password = ctrl.value;
-    ctrl = document.getElementById('remember-login-fields');
-    const remember = ctrl.checked;
+    const url = urlRef.current?.value;
+    const user = usernameRef.current?.value;
+    const password = passwordRef.current?.value;
+    const remember = rememberChecked;
 
     onLogin(url, user, password, remember);
   }
 
   // Return the UI
   let curWorkspaceHeight = workspaceHeight ? workspaceHeight : 650;
-  let curWorkspaceTop = workspaceTop ? workspaceTop : 63;
   return (
-    <div id="login-wrapper" className={styles.login_background}
+    <div id="login-wrapper" ref={loginWrapperRef} className={styles.login_background}
            style={{height:curWorkspaceHeight+'px'}} >
     <div style={{...theme.palette.login_wrapper}}>
       <div style={{...theme.palette.login_dialog_wrapper}}>
@@ -128,10 +130,11 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
             >
               <TextField required 
                     id='url-entry'
+                    inputRef={urlRef}
                     label="Database URL"
-                    defaultValue={prev_url}
+                    defaultValue={prevUrl}
                     size='small'
-                    error={!valuesValid.url}
+                    error={valuesValid.url === false}
                     sx={{m:5}}
                     type={'url'}
                     inputProps={{style: {fontSize:12}}}
@@ -143,10 +146,11 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
                     />
               <TextField required 
                     id='username-entry'
+                    inputRef={usernameRef}
                     label="Username"
-                    defaultValue={prev_user}
+                    defaultValue={prevUser}
                     size='small'
-                    error={!valuesValid.user}
+                    error={valuesValid.user === false}
                     sx={{m:5}}
                     inputProps={{style: {fontSize:12}}}
                     slotProps={{
@@ -157,13 +161,14 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
                     />
               <TextField required 
                     id='password-entry'
+                    inputRef={passwordRef}
                     label="Password"
                     type={showPassword ? 'text' : 'password'}
                     size='small'
-                    error={!valuesValid.password}
+                    error={valuesValid.password === false}
                     sx={{m:5}}
                     inputProps={{style: {fontSize:12}}}
-                    onKeyPress={((ev) => {if (ev.key === 'Enter') { ev.preventDefault(); callLoginFunc(ev); } })}
+                    onKeyDown={((ev) => {if (ev.key === 'Enter') { ev.preventDefault(); callLoginFunc(ev); } })}
                     slotProps={{
                       inputLabel: {
                         shrink: true,
@@ -210,3 +215,17 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
     </div>
   );
 }
+
+Login.propTypes = {
+  prevUrl: PropTypes.string,
+  prevUser: PropTypes.string,
+  prevRemember: PropTypes.bool,
+  onLogin: PropTypes.func.isRequired,
+  onRememberChange: PropTypes.func.isRequired,
+};
+
+Login.defaultProps = {
+  prevUrl: '',
+  prevUser: '',
+  prevRemember: false,
+};

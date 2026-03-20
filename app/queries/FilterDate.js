@@ -1,3 +1,5 @@
+'use client'
+
 /** @module components/FilterDate */
 
 import * as React from 'react';

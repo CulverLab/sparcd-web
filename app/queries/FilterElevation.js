@@ -1,3 +1,5 @@
+'use client'
+
 /** @module components/FilterElevation */
 
 import * as React from 'react';

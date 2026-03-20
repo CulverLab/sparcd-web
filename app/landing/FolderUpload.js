@@ -395,9 +395,9 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
               const success = Server.updateUploadRecovery(
                                   serverURL,
                                   uploadToken,
-                                  recovery.coll_info.id,
-                                  recovery.upload_info.location,
-                                  recovery.upload_info.key,
+                                  recovery.collInfo.id,
+                                  recovery.uploadInfo.location,
+                                  recovery.uploadInfo.key,
                                   relativePath,
                                   allowedFiles,
                                   tokenExpiredFunc,

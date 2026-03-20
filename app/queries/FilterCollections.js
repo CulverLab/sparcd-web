@@ -1,3 +1,5 @@
+'use client'
+
 /** @module components/FilterCollections */
 
 import * as React from 'react';

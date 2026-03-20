@@ -1,3 +1,5 @@
+'use client'
+
 /** @module components/FilterCard */
 
 import * as React from 'react';

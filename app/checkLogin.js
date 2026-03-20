@@ -4,8 +4,10 @@
 
 import { createContext } from 'react';
 
+const URL_REGEX = /[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)?/i;
+
 // Default login values state
-export const DefaultLoginValid = {'url': true, 'user': true, 'password': true, 'valid': false};
+export const DefaultLoginValid = {url: null, user: null, password: null, valid: false};
 // Context for login validity
 export const LoginValidContext = createContext(DefaultLoginValid);
 
@@ -16,9 +18,12 @@ export const LoginValidContext = createContext(DefaultLoginValid);
  * @return {boolean} Returns true if the URL matches the valid format
  */
 export function LoginCheckURL(url) {
-  const url_expression = /[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)?/gi;
-  const url_regex = new RegExp(url_expression);
-  return url.match(url_regex) != null;
+  if (!url || typeof url !== 'string') {
+    return false;
+  }
+
+  const urlRegex = /[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)?/gi;
+  return URL_REGEX.test(url);
 }
 
 /**
@@ -28,7 +33,7 @@ export function LoginCheckURL(url) {
  * @returns {boolean} Returns true if the user name appears to be valid
  */
 export function LoginCheckUser(user) {
-  return user != '';
+  return typeof user === 'string' && user.trim() !== '';
 }
 
 /**
@@ -38,7 +43,7 @@ export function LoginCheckUser(user) {
  * @returns {boolean} Returns true if the password appears to be valid
  */
 export function LoginCheckPassword(password) {
-  return password != '';
+  return typeof password === 'string' && password.trim() !== '';
 }
 
 /**
@@ -55,9 +60,9 @@ export function LoginCheck(url, user, password) {
   const passwordValid = LoginCheckPassword(password);
 
   return {
-    'url': urlValid,
-    'user': userValid,
-    'password': passwordValid,
-    'valid': urlValid && userValid && passwordValid
+    url: urlValid,
+    user: userValid,
+    password: passwordValid,
+    valid: urlValid && userValid && passwordValid
   };
 }
