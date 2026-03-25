@@ -944,6 +944,32 @@ class SPDSQLite:
         self._conn.commit()
         cursor.close()
 
+    def sandbox_set_recovered(self, s3_id: str, bucket: str, username: str, s3_path: str, \
+                                                                timestamp: datetime) -> bool:
+        """ Sets a sandbox entry as recovered in the database
+        Arguments:
+            s3_id: the ID of the s3 instance
+            bucket: the bucket to match
+            username: the user that uploaded images
+            s3_path: the path to the upload folder
+            timestamp: the timestamp of the upload
+        Return:
+            Returns True if an active upload matches the parameter. Fals if the upload is
+            not found
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to add a recovered sandbox entry to the database ' \
+                                                                                'before connecting')
+
+        # Add the upload
+        cursor = self._conn.cursor()
+        cursor.execute('UPDATE sandbox SET recovered=1,timestamp=?,upload_id=? WHERE ' \
+                                            's3_id=? AND bucket=? AND name=? AND s3_base_path=?',
+                        (timestamp.isoformat(), uuid.uuid4().hex, s3_id, bucket, username, s3_path))
+
+        self._conn.commit()
+        cursor.close()
+
     def sandbox_get_upload(self, s3_id: str, username: str, path: str) -> Optional[tuple]:
         """ Gets the upload associated with the url , user, and upload path
         Arguments:
