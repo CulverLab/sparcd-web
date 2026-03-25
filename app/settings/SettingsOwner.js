@@ -20,6 +20,7 @@ import { useTheme } from '@mui/material/styles';
 import PropTypes from 'prop-types';
 
 import EditCollection from './EditCollection';
+import * as Server from './SettingsServerCalls';
 import { Level } from '../components/Messages';
 import { AddMessageContext, CollectionsInfoContext, TokenExpiredFuncContext, SizeContext, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
@@ -34,6 +35,7 @@ const EditingStates = {
  * @function
  * @param {boolean} loadingCollections Flag indicating collections are being loaded
  * @param {function} onClose Function for when the user wants to close this
+ * @returns {object} The UI that is rendered
  */
 export default function SettingsOwner({loadingCollections, onClose}) {
   const theme = useTheme();
@@ -74,7 +76,7 @@ export default function SettingsOwner({loadingCollections, onClose}) {
 
       setDetailsHeight(panelsWrapperRef.current.offsetHeight - footerHeight - headingsHeight);
     }
-  }, [activeTab,panelsWrapperRef,setDetailsHeight]);
+  }, [activeTab, panelsWrapperRef]);
 
   /**
    * Internal TabPanel element type
@@ -130,60 +132,32 @@ export default function SettingsOwner({loadingCollections, onClose}) {
    * @param {function} onError The callable upon an issue ocurring
    */
   const updateCollection = React.useCallback((collectionNewInfo, onSuccess, onError) => {
-    const userUpdateCollUrl = serverURL + '/ownerCollectionUpdate?t=' + encodeURIComponent(settingsToken);
+    onSuccess ||= () => {};
+    onError ||= () => {};
 
-    const formData = new FormData();
-
-    formData.append('id', editingState.data.id);
-    formData.append('name', collectionNewInfo.name);
-    formData.append('description', collectionNewInfo.description);
-    formData.append('email', collectionNewInfo.email);
-    formData.append('organization', collectionNewInfo.organization);
-    formData.append('allPermissions', JSON.stringify(collectionNewInfo.allPermissions));
-
-    try {
-      fetch(userUpdateCollUrl, {
-        credentials: 'include',
-        method: 'POST',
-        body: formData
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                tokenHasExpired();
-              }
-              throw new Error(`Failed to update collection information: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Set the species data
-            if (respData.success) {
-              setEditingState({...editingState, data:{...editingState.data,...respData.data}});
-              for (let idx = 0; idx < collectionInfo.length; idx++) {
-                if (collectionInfo[idx].bucket === respData.data.bucket) {
-                  collectionInfo[idx] = respData.data;
-                  break;
+    const success = Server.ownerUpdateCollection(serverURL, settingsToken, editingState.data.id, collectionNewInfo, tokenHasExpired, 
+          (respData) => {     // Success
+              // Set the species data
+              if (respData.success) {
+                setEditingState({...editingState, data:{...editingState.data,...respData.data}});
+                for (let idx = 0; idx < collectionInfo.length; idx++) {
+                  if (collectionInfo[idx].bucket === respData.data.bucket) {
+                    collectionInfo[idx] = respData.data;
+                    break;
+                  }
                 }
-              }
-//              let curColl = collectionInfo.filter((item) => item.id === editingState.data.id);
-//              if (curColl && curColl.length > 0) {
-//                curColl[0] = respData.data;
-//              }
-              if (typeof(onSuccess) === 'function') {
+
                 onSuccess();
+              } else {
+                onError(respData.message);
               }
-            } else if (typeof(onError) === 'function') {
-              onError(respData.message);
-            }
-        })
-        .catch(function(err) {
-          console.log('Admin Update Collection Error: ',err);
-          addMessage(Level.Warning, 'An error occurred when attempting to update collection information');
-      });
-    } catch (err) {
-      console.log('Admin Update Collection Unknown Error: ',err);
+          },
+          (err) => {          // Failure
+              onError(err);
+          }
+    );
+
+    if (!success) {
       addMessage(Level.Warning, 'An unknown error occurred when attempting to update collection information');
     }
   }, [addMessage, collectionInfo, editingState, serverURL, settingsToken, tokenHasExpired]);
@@ -192,41 +166,22 @@ export default function SettingsOwner({loadingCollections, onClose}) {
    * Handles the new collection button press
    * @function
    * @param {object} event The triggering event
-   * @param {object} {location} The collection object to edit or falsy if a new collection is wanted
+   * @param {object} [collection] The collection object to edit or falsy if a new collection is wanted
    */
   const handleCollectionEdit = React.useCallback((event, collection) => {
     event.stopPropagation();
-    const adminCollectionUrl = serverURL + '/ownerCollectionDetails?t=' + encodeURIComponent(settingsToken);
-    const formData = new FormData();
 
-    formData.append('bucket', collection.bucket);
+    const success = Server.ownerCollectionsEdit(serverURL, settingsToken, collection.bucket, tokenHasExpired, 
+          (respData) => {   // Success
+              // Handle the result
+              setEditingState({type:EditingStates.Collection, data:respData});
+          },
+          (err) => {        // Failure
+              addMessage(Level.Warning, err);
+          }
+    );
 
-    try {
-      fetch(adminCollectionUrl, {
-        credentials: 'include',
-        method: 'POST',
-        body: formData,
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                tokenHasExpired();
-              }
-              throw new Error(`Failed to get collection details information: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Handle the result
-            setEditingState({type:EditingStates.Collection, data:respData});
-        })
-        .catch(function(err) {
-          console.log('Admin Collection Details Error: ',err);
-          addMessage(Level.Warning, 'An error occurred when attempting to get collection details');
-      });
-    } catch (err) {
-      console.log('Admin Collection Details Unknown Error: ',err);
+    if (!success) {
       addMessage(Level.Warning, 'An unknown error occurred when attempting to get collection details');
     }
 
@@ -237,7 +192,7 @@ export default function SettingsOwner({loadingCollections, onClose}) {
    * @function
    * @param {object} event The change event for searching
    */
-  function searchCollections(event) {
+  const searchCollections = React.useCallback((event) => {
     if (event.target.value && !loadingCollections) {
       const ucSearch = event.target.value.toUpperCase();
       setSelectedCollections(collectionInfo.filter((item) => item.name.toUpperCase().includes(ucSearch) || item.id.toUpperCase().includes(ucSearch) ||
@@ -245,7 +200,7 @@ export default function SettingsOwner({loadingCollections, onClose}) {
     } else {
       setSelectedCollections(loadingCollections ? [] : collectionInfo);
     }
-  }
+  }, [collectionInfo, loadingCollections]);
 
   /**
    * Returns the UI for editing Collections

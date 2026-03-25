@@ -6,6 +6,8 @@ import Button from '@mui/material/Button';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 
+import PropTypes from 'prop-types';
+
 import InputSlider from '../components/InputSlider';
 
 /**
@@ -52,7 +54,7 @@ export default function ImageAdjustments({isVisible, adjustments, onBrightnessCh
       </Grid>
       <Box id="image-edit-adjust" sx={{position:'absolute',left:'0px',top:'0px',height:'20px', flex:'1'}} 
               onClick={() => setShowAdjustments(!showAdjustments)}>
-        <Typography variant="body" sx={{textTransform:'uppercase',color:'darkgrey',backgroundColor:'rgba(255,255,255,0.3)',
+        <Typography variant="body1" sx={{textTransform:'uppercase',color:'darkgrey',backgroundColor:'rgba(255,255,255,0.3)',
                                          padding:'1px 3px 0px 3px',borderRadius:'3px',
                                          '&:hover':{backgroundColor:'rgba(255,255,255,0.7)',color:'black'},
                                          cursor:'pointer', ...adjustmentDropProps
@@ -63,3 +65,22 @@ export default function ImageAdjustments({isVisible, adjustments, onBrightnessCh
     </div>
   );
 }
+
+ImageAdjustments.propTypes = {
+  isVisible:          PropTypes.bool,
+  adjustments:        PropTypes.shape({
+                        brightness: PropTypes.number,
+                        contrast:   PropTypes.number,
+                        hue:        PropTypes.number,
+                        saturation: PropTypes.number,
+                      }),
+  onBrightnessChange: PropTypes.func.isRequired,
+  onContrastChange:   PropTypes.func.isRequired,
+  onHueChange:        PropTypes.func.isRequired,
+  onSaturationChange: PropTypes.func.isRequired,
+};
+
+ImageAdjustments.defaultProps = {
+  isVisible:   false,
+  adjustments: null,
+};

@@ -1,3 +1,5 @@
+'use client'
+
 /** @module components/FilterMonth */
 
 import * as React from 'react';

@@ -1,3 +1,5 @@
+'use client'
+
 /** @module components/FilterHour */
 
 import * as React from 'react';

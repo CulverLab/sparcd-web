@@ -30,6 +30,7 @@ import EditSpecies from './EditSpecies';
 import EditUser from './EditUser';
 import LocationList from './LocationList';
 import SpeciesList from './SpeciesList';
+import * as Server from './SettingsServerCalls';
 import UserList from './UserList';
 import { Level } from '../components/Messages';
 import { AddMessageContext, CollectionsInfoContext, TokenExpiredFuncContext, LocationsInfoContext, 
@@ -94,46 +95,30 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   // Check if we have stored changes on the server
   React.useEffect(() => {
     if (!serverModificationsChecked) {
-      const adminCheckUrl = serverURL + '/adminCheckChanges?t=' + encodeURIComponent(settingsToken);
+      let success = Server.adminCheckChanges(serverURL, settingsToken, setTokenExpired,
+                      (respData) => {     // Success
+                            setServerModificationsChecked(true);
+                            if (respData.locationsChanged) {
+                              setLocationsModified(true);
+                            }
+                            if (respData.speciesChanged) {
+                              setSpeciesModified(true);
+                            }
+                            if (respData.locationsChanged || respData.speciesChanged) {
+                              addMessage(Level.Information, "Previous unsaved edits were found. These can be applied when you're done");
+                            }
+                      },
+                      (err) => {          // Failure - fail silentry
 
-      try {
-        fetch(adminCheckUrl, {
-          credentials: 'include',
-          method: 'GET',
-        }).then(async (resp) => {
-              if (resp.ok) {
-                return resp.json();
-              } else {
-                if (resp.status === 401) {
-                  // User needs to log in again
-                  setTokenExpired();
-                }
-                throw new Error(`Failed to update changed settings information: ${resp.status}: ${await resp.text()}`);
-              }
-            })
-          .then((respData) => {
-              // Handle the result
-              if (respData.success) {
-                setServerModificationsChecked(true);
-                if (respData.locationsChanged) {
-                  setLocationsModified(true);
-                }
-                if (respData.speciesChanged) {
-                  setSpeciesModified(true);
-                }
-                if (respData.locationsChanged || respData.speciesChanged) {
-                  addMessage(Level.Information, "Previous unsaved edits were found. These can be applied when you're done");
-                }
-              }
-          })
-          .catch(function(err) {
-            console.log('Admin Location/Species Check Error: ',err);
-        });
-      } catch (err) {
-        console.log('Admin Location/Species Check Unknown Error: ',err);
+                      }
+      );
+
+      if (!success) {
+        // Fail silently
       }
+
     }
-  }, [addMessage, serverModificationsChecked, serverURL, settingsToken])
+  }, [addMessage, serverModificationsChecked, serverURL, setTokenExpired, settingsToken,])
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {
@@ -210,36 +195,20 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @function
    */
   const getUserInfo = React.useCallback(() => {
-    const adminUsersUrl = serverURL + '/adminUsers?t=' + encodeURIComponent(settingsToken);
 
-    try {
-      fetch(adminUsersUrl, {
-        credentials: 'include',
-        method: 'GET',
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
-              }
-              throw new Error(`Failed to get admin users: ${resp.status}: ${await resp.text()}`);
+    const success = Server.getUserInfo(serverURL, settingsToken, setTokenExpired,
+            (respData) => {     // Success
+                setUserInfo(respData);
+                setSelectedUsers(respData);
+            },
+            (err) => {     // Failure
+              addMessage(Level.Warning, err);
             }
-          })
-        .then((respData) => {
-            // Set the user data
-            setUserInfo(respData);
-            setSelectedUsers(respData);
-        })
-        .catch(function(err) {
-          console.log('Admin Users Error: ',err);
-          addMessage(Level.Warning, 'An error occurred when attempting to load user information');
-      });
-    } catch (err) {
-      console.log('Admin Users Unknown Error: ',err);
+    );
+
+    if (!success) {
       addMessage(Level.Warning, 'An unknown error occurred when attempting to load user information');
-    }    
+    }
   }, [addMessage, serverURL, settingsToken, setTokenExpired]);
 
   /**
@@ -247,34 +216,18 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @function
    */
   const getMasterSpecies = React.useCallback(() => {
-    const adminSpeciesUrl = serverURL + '/adminSpecies?t=' + encodeURIComponent(settingsToken);
-
-    try {
-      fetch(adminSpeciesUrl, {
-        credentials: 'include',
-        method: 'GET',
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
-              }
-              throw new Error(`Failed to get admin species: ${resp.status}: ${await resp.text()}`);
+    const success = Server.getMasterSpecies(serverURL, settingsToken, setTokenExpired,
+            (respData) => {     // Success
+                // Set the species data
+                setMasterSpecies(respData);
+                setSelectedSpecies(respData);
+            },
+            (err) => {     // Failure
+                addMessage(Level.Warning, err)
             }
-          })
-        .then((respData) => {
-            // Set the species data
-            setMasterSpecies(respData);
-            setSelectedSpecies(respData);
-        })
-        .catch(function(err) {
-          console.log('Admin Species Error: ',err);
-          addMessage(Level.Warning, 'An error occurred when attempting to load species information');
-      });
-    } catch (err) {
-      console.log('Admin Species Unknown Error: ',err);
+    );
+
+    if (!success) {
       addMessage(Level.Warning, 'An unknown error occurred when attempting to load species information');
     }
   }, [addMessage, serverURL, settingsToken, setTokenExpired]);
@@ -287,59 +240,32 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {function} onError The callable upon an issue ocurring
    */
   const updateCollection = React.useCallback((collectionNewInfo, onSuccess, onError) => {
-    const userUpdateCollUrl = serverURL + '/adminCollectionUpdate?t=' + encodeURIComponent(settingsToken);
+    onSuccess ||= () => {};
+    onError ||= () => {};
 
-    const formData = new FormData();
+    const editingId = editingState.data && editingState.data.id ? editingState.data.id : null;
 
-    formData.append('id', editingState.data && editingState.data.id ? editingState.data.id : null);
-    formData.append('name', collectionNewInfo.name);
-    formData.append('description', collectionNewInfo.description);
-    formData.append('email', collectionNewInfo.email);
-    formData.append('organization', collectionNewInfo.organization);
-    formData.append('allPermissions', JSON.stringify(collectionNewInfo.allPermissions));
-
-    try {
-      fetch(userUpdateCollUrl, {
-        credentials: 'include',
-        method: 'POST',
-        body: formData
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
-              }
-              throw new Error(`Failed to update collection information: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Set the species data
-            if (respData.success) {
-              setEditingState({...editingState, data:{...editingState.data,...respData.data}});
-              for (let idx = 0; idx < collectionInfo.length; idx++) {
-                if (collectionInfo[idx].bucket === respData.data.bucket) {
-                  collectionInfo[idx] = respData.data;
-                  break;
+    const success = Server.updateCollection(serverURL, settingsToken, editingId, collectionNewInfo, setTokenExpired,
+            (respData) => {     // Success
+                setEditingState({...editingState, data:{...editingState.data,...respData.data}});
+                for (let idx = 0; idx < collectionInfo.length; idx++) {
+                  if (collectionInfo[idx].bucket === respData.data.bucket) {
+                    collectionInfo[idx] = respData.data;
+                    break;
+                  }
                 }
-              }
-              if (typeof(onSuccess) === 'function') {
+
                 onSuccess();
-              }
-            } else if (typeof(onError) === 'function') {
-              onError(respData.message);
+            },
+            (err) => {          // Failure
+                onError(err);
             }
-        })
-        .catch(function(err) {
-          console.log('Admin Update Collection Error: ',err);
-          addMessage(Level.Warning, 'An error occurred when attempting to update collection information');
-      });
-    } catch (err) {
-      console.log('Admin Update Collection Unknown Error: ',err);
+    );
+
+    if (!success) {
       addMessage(Level.Warning, 'An unknown error occurred when attempting to update collection information');
     }
-  }, [addMessage, collectionInfo, editingState, serverURL, setEditingState, settingsToken]);
+  }, [addMessage, collectionInfo, editingState, serverURL, setTokenExpired, settingsToken]);
 
   /**
    * Creates a new collection on the server
@@ -349,54 +275,26 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {function} onError The callable upon an issue ocurring
    */
   const newCollection = React.useCallback((collectionNewInfo, onSuccess, onError) => {
-    const userUpdateCollUrl = serverURL + '/adminCollectionAdd?t=' + encodeURIComponent(settingsToken);
+    onSuccess ||= () => {};
+    onError ||= () => {};
 
-    const formData = new FormData();
-
-    formData.append('name', collectionNewInfo.name);
-    formData.append('description', collectionNewInfo.description);
-    formData.append('email', collectionNewInfo.email);
-    formData.append('organization', collectionNewInfo.organization);
-    formData.append('allPermissions', JSON.stringify(collectionNewInfo.allPermissions));
-
-    try {
-      fetch(userUpdateCollUrl, {
-        credentials: 'include',
-        method: 'POST',
-        body: formData
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
-              }
-              throw new Error(`Failed to update collection information: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Set the collection data
-            if (respData.success) {
+    const success = Server.newCollection(serverURL, settingsToken, collectionNewInfo, setTokenExpired,
+          (respData) => {     // Success
               setEditingState({...editingState, data:{...editingState.data,...respData.data}});
               collectionInfo.push(respData.data);
 
-              if (typeof(onSuccess) === 'function') {
-                onSuccess();
-              }
-            } else if (typeof(onError) === 'function') {
-              onError(respData.message);
-            }
-        })
-        .catch(function(err) {
-          console.log('Admin Update Collection Error: ',err);
-          addMessage(Level.Warning, 'An error occurred when attempting to update collection information');
-      });
-    } catch (err) {
-      console.log('Admin Update Collection Unknown Error: ',err);
+              onSuccess();
+          },
+          (err) => {          // Failure
+              onError(err);
+          }
+    );
+
+    if (!success) {
       addMessage(Level.Warning, 'An unknown error occurred when attempting to update collection information');
     }
-  }, [addMessage, collectionInfo, editingState, serverURL, setEditingState, settingsToken]);
+
+  }, [addMessage, collectionInfo, editingState, serverURL, setTokenExpired, settingsToken]);
 
   /**
    * Handles adding new/updating the collection information
@@ -421,54 +319,28 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {function} onError The callable upon an issue ocurring
    */
   const updateUser = React.useCallback((userNewInfo, onSuccess, onError) => {
-    const userUpdateUrl = serverURL + '/adminUserUpdate?t=' + encodeURIComponent(settingsToken);
+    onSuccess ||= () => {};
+    onError ||= () => {};
 
-    const formData = new FormData();
+    const success = Server.updateUser(serverURL, settingsToken, editingState.data.name, userNewInfo, setTokenExpired,
+            (respData) => {     // Success
+                setEditingState({...editingState, data:{...editingState.data, email:respData.email}});
+                let curUser = userInfo.filter((item) => item.name === editingState.data.name);
+                if (curUser && curUser.length > 0) {
+                  curUser[0]['email'] = respData.email;
+                }
 
-    formData.append('oldName', editingState.data.name);
-    formData.append('newEmail', userNewInfo.email);
-    formData.append('admin', userNewInfo.admin);
-
-    try {
-      fetch(userUpdateUrl, {
-        credentials: 'include',
-        method: 'POST',
-        body: formData
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
-              }
-              throw new Error(`Failed to update user information: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Set the species data
-            if (respData.success) {
-              setEditingState({...editingState, data:{...editingState.data, email:respData.email}});
-              let curUser = userInfo.filter((item) => item.name === editingState.data.name);
-              if (curUser && curUser.length > 0) {
-                curUser[0]['email'] = respData.email;
-              }
-              if (typeof(onSuccess) === 'function') {
                 onSuccess();
-              }
-            } else if (typeof(onError) === 'function') {
-              onError(respData.message);
+            },
+            (err) => {          // Failure
+                onError(err);
             }
-        })
-        .catch(function(err) {
-          console.log('Admin Update User Error: ',err);
-          addMessage(Level.Warning, 'An error occurred when attempting to update user information');
-      });
-    } catch (err) {
-      console.log('Admin Update User Unknown Error: ',err);
+    );
+
+    if (!success) {
       addMessage(Level.Warning, 'An unknown error occurred when attempting to update user information');
     }
-  }, [addMessage, editingState, serverURL, setEditingState, settingsToken, userInfo]);
+  }, [addMessage, editingState, serverURL, setTokenExpired, settingsToken, userInfo]);
 
   /**
    * Handles updating the species information
@@ -478,37 +350,14 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {function} onError The callable upon an issue ocurring
    */
   const updateSpecies = React.useCallback((newInfo, onSuccess, onError) => {
-    const speciesUpdateUrl = serverURL + '/adminSpeciesUpdate?t=' + encodeURIComponent(settingsToken);
+    onSuccess ||= () => {};
+    onError ||= () => {};
 
-    const formData = new FormData();
+    // Check if we have an old scientific name
+    const oldSciName = editingState.data ? editingState.data.scientificName : null;
 
-    formData.append('newName', newInfo.name);
-    if (editingState.data) {
-      formData.append('oldScientific', editingState.data.scientificName);
-    }
-    formData.append('newScientific', newInfo.scientificName);
-    formData.append('keyBinding', newInfo.keyBinding);
-    formData.append('iconURL', newInfo.speciesIconURL);
-
-    try {
-      fetch(speciesUpdateUrl, {
-        credentials: 'include',
-        method: 'POST',
-        body: formData
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
-              }
-              throw new Error(`Failed to update species information: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Set the species data
-            if (respData.success) {
+    const success = Server.updateSpecies(serverURL, settingsToken, oldSciName, newInfo, setTokenExpired,
+        (respData) => {     // Success
               const oldEditingState = editingState;
               const newEditingState = {...editingState, data:{...editingState.data,...newInfo}};
               let curSpecies = masterSpecies.filter((item) => item.scientificName === newEditingState.data.scientificName);
@@ -519,9 +368,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 curSpecies[0]['speciesIconURL'] = newInfo.speciesIconURL;
 
                 setSpeciesModified(true);
-                if (typeof(onSuccess) === 'function') {
-                  onSuccess();
-                }
+                onSuccess();
               } else if (!oldEditingState.data) {
                 let newMasterSpecies = masterSpecies;
                 newMasterSpecies.push({name:newInfo.name,
@@ -530,28 +377,21 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                                        speciesIconUrl:newInfo.speciesIconURL});
                 setMasterSpecies(newMasterSpecies);
                 setSpeciesModified(true);
-                if (typeof(onSuccess) === 'function') {
-                  onSuccess();
-                }
+                onSuccess();
               } else {
                 console.log('Error: unable to find species locally to update');
-                if (typeof(onError) === 'function') {
-                  onError("A problem occurred updating the UI with these changes. Please refresh to see the updates");
-                }
+                onError("A problem occurred updating the UI with these changes. Please refresh to see the updates");
               }
-            } else if (typeof(onError) === 'function') {
-              onError(respData.message);
-            }
-        })
-        .catch(function(err) {
-          console.log('Admin Update Species Error: ',err);
-          addMessage(Level.Warning, 'An error occurred when attempting to update species information');
-      });
-    } catch (err) {
-      console.log('Admin Update Species Unknown Error: ',err);
+        },
+        (err) => {          // Failure
+              onError(err);
+        }
+    );
+
+    if (!success) {
       addMessage(Level.Warning, 'An unknown error occurred when attempting to update species information');
     }
-  }, [addMessage, editingState, masterSpecies, serverURL, setMasterSpecies, setSpeciesModified, settingsToken,]);
+  }, [addMessage, editingState, masterSpecies, serverURL, setTokenExpired, settingsToken,]);
 
   /**
    * Handles updating the location information
@@ -561,49 +401,15 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {function} onError The callable upon an issue ocurring
    */
   const updateLocation = React.useCallback((newInfo, onSuccess, onError) => {
-    const locationsUpdateUrl = serverURL + '/adminLocationUpdate?t=' + encodeURIComponent(settingsToken);
+    onSuccess ||= () => {};
+    onError ||= () => {};
 
-    const formData = new FormData();
+    const editingId = editingState.data ? editingState.data.idProperty : newInfo.idProperty;
+    const oldLat = editingState.data !== null && editingState.data.latProperty ? editingState.data.latProperty : null;
+    const oldLng = editingState.data !== null && editingState.data.lngProperty ? editingState.data.lngProperty : null;
 
-    formData.append('name', newInfo.nameProperty);
-    formData.append('id', editingState.data ? editingState.data.idProperty : newInfo.idProperty);
-    formData.append('active', newInfo.activeProperty);
-    formData.append('measure', newInfo.measure);
-    formData.append('elevation', newInfo.elevationProperty);
-    formData.append('coordinate', newInfo.coordinate);
-    formData.append('new_lat', newInfo.latProperty);
-    formData.append('new_lon', newInfo.lngProperty);
-    if (editingState.data !== null && editingState.data.latProperty) {
-      formData.append('old_lat', editingState.data.latProperty);
-    }
-    if (editingState.data !== null && editingState.data.lngProperty) {
-      formData.append('old_lon', editingState.data.lngProperty);
-    }
-    formData.append('utm_zone', newInfo.utm_zone);
-    formData.append('utm_letter', newInfo.utm_letter);
-    formData.append('utm_x', newInfo.utm_x);
-    formData.append('utm_y', newInfo.utm_y);
-    formData.append('description', newInfo.descriptionProperty);
-
-    try {
-      fetch(locationsUpdateUrl, {
-        credentials: 'include',
-        method: 'POST',
-        body: formData
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
-              }
-              throw new Error(`Failed to update location information: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Set the species data
-            if (respData.success) {
+    const success = Server.updateLocation(serverURL, settingsToken, editingId, oldLat, oldLng, newInfo, setTokenExpired, 
+          (respData) => {     // Success
               const oldEditingState = editingState;
               const newEditingState = {...editingState, data:{...editingState.data,...respData.data}};
               let curLocation = locationItems.filter((item) => item.idProperty === newEditingState.data.idProperty && 
@@ -640,93 +446,58 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                   onError("A problem occurred updating the UI with these changes. Please refresh to see the updates");
                 }
               }
-            } else if (typeof(onError) === 'function') {
-              onError(respData.message);
-            }
-        })
-        .catch(function(err) {
-          console.log('Admin Update Location Error: ',err);
-          addMessage(Level.Warning, 'An error occurred when attempting to update location information');
-      });
-    } catch (err) {
-      console.log('Admin Update Location Unknown Error: ',err);
+
+          },
+          (err) => {          // Failure
+            onError(err);
+          }
+    );
+
+    if (!success) {
       addMessage(Level.Warning, 'An unknown error occurred when attempting to update location information');
     }
-  }, [addMessage, editingState, locationItems, serverURL, setLocationsModified, settingsToken]);
+  }, [addMessage, editingState, locationItems, serverURL, setLocationsModified, setTokenExpired, settingsToken]);
 
   /**
    * Handles the commit of any species or location changes
    * @function
    */
   const handleSaveChanges = React.useCallback(() => {
-    const adminCompleteUrl = serverURL + '/adminCompleteChanges?t=' + encodeURIComponent(settingsToken);
+    const success = Server.handleSaveChanges(serverURL, settingsToken, setTokenExpired,
+          (respData) => {     // Success
+              addMessage(Level.Information, 'Changes were successfully saved');
+              onClose();
+          },
+          (err) => {          // Failure
+              addMessage(Level.Warning, err);
+          }
+    );
 
-    try {
-      fetch(adminCompleteUrl, {
-        credentials: 'include',
-        method: 'PUT',
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
-              }
-              throw new Error(`Failed to update changed settings information: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Handle the result
-            addMessage(Level.Information, 'Changes were successfully saved');
-            onClose();
-        })
-        .catch(function(err) {
-          console.log('Admin Save Location/Species Error: ',err);
-          addMessage(Level.Warning, 'An error occurred when attempting to complete saving the changed settings information');
-      });
-    } catch (err) {
-      console.log('Admin Save Location/Species Unknown Error: ',err);
+    if (!success) {
       addMessage(Level.Warning, 'An unknown error occurred when attempting to complete saving the changed settings information');
     }
-  }, [addMessage, serverURL, settingsToken])
+  }, [addMessage, onClose, serverURL, settingsToken, setTokenExpired])
 
   /**
    * Handles the abandonment of any species or location changes
    * @function
    */
   const handleAbandonChanges = React.useCallback(() => {
-    const adminCompleteUrl = serverURL + '/adminAbandonChanges?t=' + encodeURIComponent(settingsToken);
+    const success = Server.handleAbandonChanges(serverURL, settingsToken, setTokenExpired,
+          (respData) => {     // Success
+              // Handle the result
+              addMessage(Level.Information, 'The outstanding changes were successfully abandoned');
+              onClose();
+          },
+          (err) => {          // Failure
+              addMessage(Level.Warning, err);
+          }
+    );
 
-    try {
-      fetch(adminCompleteUrl, {
-        credentials: 'include',
-        method: 'PUT',
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
-              }
-              throw new Error(`Failed to abandon changed settings information: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Handle the result
-            addMessage(Level.Information, 'The outstanding changes were successfully abandoned');
-            onClose();
-        })
-        .catch(function(err) {
-          console.log('Admin Abandon Location/Species Error: ',err);
-          addMessage(Level.Warning, 'An error occurred when attempting to abandon the changed settings information');
-      });
-    } catch (err) {
-      console.log('Admin Abandon Location/Species Unknown Error: ',err);
+    if (!success) {
       addMessage(Level.Warning, 'An unknown error occurred when attempting to abandon the changed settings information');
     }
-  }, [addMessage, serverURL, settingsToken])
+  }, [addMessage, onClose, serverURL, settingsToken, setTokenExpired])
 
 
   /**
@@ -738,13 +509,13 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   const handleUserEdit = React.useCallback((event, user) => {
     event.stopPropagation();
     setEditingState({type:EditingStates.User, data:user});
-  }, [setEditingState]);
+  }, []);
 
   /**
    * Handles the new collection button press
    * @function
    * @param {object} event The triggering event
-   * @param {object} {location} The collection object to edit or falsy if a new collection is wanted
+   * @param {object} [collection] The collection object to edit or falsy if a new collection is wanted
    */
   const handleCollectionEdit = React.useCallback((event, collection) => {
     event.stopPropagation();
@@ -755,52 +526,32 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       return;
     }
 
-    const adminCollectionUrl = serverURL + '/adminCollectionDetails?t=' + encodeURIComponent(settingsToken);
-    const formData = new FormData();
+    const success = Server.handleCollectionEdit(serverURL, settingsToken, collection, setTokenExpired, 
+          (respData) => {     // Success
+              // Handle the result
+              setEditingState({type:EditingStates.Collection, data:respData});
+          },
+          (err) => {          // Failure
+              addMessage(Level.Warning, err);
+          }
+    );
 
-    formData.append('bucket', collection.bucket);
-
-    try {
-      fetch(adminCollectionUrl, {
-        credentials: 'include',
-        method: 'POST',
-        body: formData,
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
-              }
-              throw new Error(`Failed to get collection details information: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Handle the result
-            setEditingState({type:EditingStates.Collection, data:respData});
-        })
-        .catch(function(err) {
-          console.log('Admin Collection Details Error: ',err);
-          addMessage(Level.Warning, 'An error occurred when attempting to get collection details');
-      });
-    } catch (err) {
-      console.log('Admin Collection Details Unknown Error: ',err);
+    if (!success) {
       addMessage(Level.Warning, 'An unknown error occurred when attempting to get collection details');
     }
 
-  }, [addMessage, serverURL, setEditingState, settingsToken]);
+  }, [addMessage, serverURL, setTokenExpired, settingsToken]);
 
   /**
    * Handles the new species button press
    * @function
    * @param {object} event The triggering event
-   * @param {object} {location} The species object to edit or falsy if a new species is wanted
+   * @param {object} [species] The species object to edit or falsy if a new species is wanted
    */
   const handleSpeciesEdit = React.useCallback((event, species) => {
     event.stopPropagation();
     setEditingState({type:EditingStates.Species, data:species});
-  }, [setEditingState]);
+  }, []);
 
   /**
    * Handles the new location button press
@@ -817,42 +568,21 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       return;
     }
 
-    // Get the location details from the server before editing
-    const adminLocationnUrl = serverURL + '/adminLocationDetails?t=' + encodeURIComponent(settingsToken);
-    const formData = new FormData();
-
-    formData.append('id', location.idProperty);
-
-    try {
-      fetch(adminLocationnUrl, {
-        credentials: 'include',
-        method: 'POST',
-        body: formData,
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
-              }
-              throw new Error(`Failed to get location details information: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
+    const success = Server.handleLocationEdit(serverURL, settingsToken, location.id, setTokenExpired,
+          (respData) => {     // Success
             // Handle the result
-            setEditingState({type:EditingStates.Location, data:respData});
-        })
-        .catch(function(err) {
-          console.log('Admin Location Details Error: ',err);
-          addMessage(Level.Warning, 'An error occurred when attempting to get location details');
-      });
-    } catch (err) {
-      console.log('Admin Location Details Unknown Error: ',err);
+              setEditingState({type:EditingStates.Location, data:respData});
+          },
+          (err) => {          // Failure
+              addMessage(Level.Warning, err);
+          }
+    );
+
+    if (!success) {
       addMessage(Level.Warning, 'An unknown error occurred when attempting to get location details');
     }
 
-  }, [addMessage, serverURL, setEditingState, settingsToken]);
+  }, [addMessage, serverURL, setTokenExpired,settingsToken]);
 
   /**
    * Handles the user search button press
@@ -866,7 +596,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     } else {
       setSelectedUsers(userInfo || []);
     }
-  }, [setSelectedUsers, userInfo]);
+  }, [userInfo]);
 
   /**
    * Handles the collection search button press
@@ -881,7 +611,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     } else {
       setSelectedCollections(loadingCollections ? [] : collectionInfo);
     }
-  }, [collectionInfo, setSelectedCollections]);
+  }, [collectionInfo, loadingCollections]);
 
   /**
    * Handles the species search button press
@@ -895,7 +625,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     } else {
       setSelectedSpecies(masterSpecies || []);
     }
-  }, [masterSpecies, setSelectedSpecies]);
+  }, [masterSpecies]);
 
   /**
    * Handles the location search button press
@@ -909,7 +639,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     } else {
       setSelectedLocations(loadingLocations ? [] : locationItems);
     }
-  }, [locationItems, setSelectedLocations]);
+  }, [locationItems, loadingLocations]);
 
   /**
    * Handles checking for incomplete uploads that are not known to the database
@@ -941,7 +671,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         setSelectedUsers(curSortInfo.sort((a, b) => direction === SortDirection.Ascending ? (a.autoAdded === b.autoAdded ? 0 : -1) : (a.autoAdded === b.autoAdded ? -1 : 0) ));
         break;
     }
-  }, [selectedUsers, setSelectedUsers]);
+  }, [selectedUsers]);
 
   /**
    * Sorts collections records by the specified column
@@ -1244,7 +974,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       setUserInfo([]);
       setSelectedUsers([]);
     }
-  }, [getUserInfo, setSelectedUsers, setUserInfo, userInfo]);
+  }, [getUserInfo, userInfo]);
 
   // Check on getting species information
   React.useEffect(() => {
@@ -1253,7 +983,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       setMasterSpecies([]);
       setSelectedSpecies([]);
     }
-  }, [getMasterSpecies, masterSpecies, setMasterSpecies, setSelectedSpecies]);
+  }, [getMasterSpecies, masterSpecies]);
 
   // Setup the tab and page generation
   const adminTabs = [

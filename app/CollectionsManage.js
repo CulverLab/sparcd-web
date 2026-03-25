@@ -19,19 +19,22 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 import { CollectionsInfoContext, NarrowWindowContext, SizeContext } from './serverInfo';
-import UploadSidebarItem from './components/UploadSidebarItem';
 
 import { pad } from './utils';
+
+const OVERLAY_Z_INDEX = 11111;    // The z-index of an overlay
 
 /**
  * Renders the UI for managing the list of uploaded folders
  * @function
  * @param {boolean} loadingCollections Indicates if collections are being loaded
- * @param {object} selectedCollection The currently selected collection
+ * @param {string} selectedCollection The currently selected collection name
  * @param {function} onEditUpload Called when the user wants to edit an upload of a collection
-  * @param {function} searchSetup Call when settting up or clearing search elements
-* @returns {object} The rendered UI
+ * @param {function} searchSetup Call when settting up or clearing search elements
+ * @returns {object} The rendered UI
  */
 export default function CollectionsManage({loadingCollections, selectedCollection, onEditUpload, searchSetup}) {
   const theme = useTheme();
@@ -43,45 +46,33 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
   const [expandedUpload, setExpandedUpload] = React.useState(false);
   const [searchIsSetup, setSearchIsSetup] = React.useState(false);
   const [selectionIndex, setSelectionIndex] = React.useState(-1);
-  const [sidebarWidth, setSidebarWidth] =  React.useState(200);// Default value is recalculated at display time
   const [totalHeight, setTotalHeight] = React.useState(null);  // Default value is recalculated at display time
-  const [windowSize, setWindowSize] = React.useState({width: 640, height: 480});  // Default values are recalculated at display time
-  const [workingTop, setWorkingTop] = React.useState(null);    // Default value is recalculated at display time
-  const [workspaceWidth, setWorkspaceWidth] = React.useState(640);  // Default value is recalculated at display time
-
-  // Setup search
-  React.useLayoutEffect(() => {
-    if (!searchIsSetup) {
-      searchSetup('Collection Name', handleCollectionSearch);
-      setSearchIsSetup(true);
-    }
-  }, [searchIsSetup]);
 
   // Initialize collections information
   React.useEffect(() => {
-    if (collectionsItems && selectedCollection && (selectionIndex == -1 || selectionIndex >= collectionsItems.length)) {
+    if (collectionsItems && selectedCollection && (selectionIndex === -1 || selectionIndex >= collectionsItems.length)) {
       setSelectionIndex(collectionsItems.findIndex((item) => item.name === selectedCollection));
     }
   }, [collectionsItems, selectedCollection, selectionIndex, setSelectionIndex]);
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {
-    setWindowSize(uiSizes.window);
-    calcTotalSize(uiSizes);
+    // More size setup
+    setTotalHeight(uiSizes.workspace.height);
+
   }, [narrowWindow, uiSizes]);
 
 
    // Scrolls the selected collection into view
   React.useLayoutEffect(() => {
-    if (selectionIndex >= 0 && selectionIndex < collectionsItems.length) {
+    if (selectionIndex >= 0 && collectionsItems && selectionIndex < collectionsItems.length) {
       const collectionName = collectionsItems[selectionIndex].name;
       let el = document.getElementById("collection-"+collectionName);
       if (el) {
         el.scrollIntoView({behavior: 'instant', block: 'center', inline: 'center'});
       }
     }
-  }, [selectionIndex])
-
+  }, [collectionsItems, selectionIndex])
 
   /**
    * Searches for collections that meet the search criteria and scrolls it into view
@@ -93,7 +84,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
     const foundCollections = collectionsItems.filter((item) => item.name.toUpperCase().includes(ucSearchTerm) ||
                                                                item.description.toUpperCase().includes(ucSearchTerm));
     // Scroll finding into view
-    if (foundCollections) {
+    if (foundCollections.length > 0) {
       const elCollection = document.getElementById("collection-"+foundCollections[0].name);
       if (elCollection) {
         elCollection.scrollIntoView();
@@ -143,85 +134,74 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
   }
 
   /**
-   * Calculates the total UI size available for the workarea
-   * @function
-   * @param {object} curSizes The working sizes of the UI layout
-   */
-  function calcTotalSize(curSizes) {
-    setTotalHeight(uiSizes.workspace.height);
-    setWorkingTop(uiSizes.workspace.top);
-
-    let curSidebarWidth = 0;
-    if (sidebarRef.current) {
-      curSidebarWidth = sidebarRef.current.offsetWidth;
-      setSidebarWidth(curSidebarWidth);
-    }
-
-    setWorkspaceWidth(uiSizes.workspace.width - curSidebarWidth);
-  }
-
-  /**
    * Formats the upload timestamp for display
    * @function
-   * @param {object} upload_ts The timestamp object from an upload
-   * @returns {str} Returns the formatted timestamp string
+   * @param {object} uploadTS The timestamp object from an upload
+   * @returns {string} Returns the formatted timestamp string
    */
-  function getLastUploadDate(upload_ts) {
-    let return_str = '';
-    if (upload_ts) {
-      if (upload_ts.date) {
-        if (upload_ts.date.year)
-          return_str += pad(upload_ts.date.year);
-        else
-          return_str += 'XXXX';
-        if (upload_ts.date.month)
-          return_str += '-' + pad(upload_ts.date.month, 2, 0);
-        else
-          return_str += '-XX';
-        if (upload_ts.date.day)
-          return_str += '-' + pad(upload_ts.date.day, 2, 0);
-        else
-          return_str += '-XX';
+  function getLastUploadDate(uploadTS) {
+    let returnStr = '';
+    if (uploadTS) {
+      if (uploadTS.date) {
+        if (uploadTS.date.year) {
+          returnStr += pad(uploadTS.date.year);
+        } else {
+          returnStr += 'XXXX';
+        }
+        if (uploadTS.date.month) {
+          returnStr += '-' + pad(uploadTS.date.month, 2, 0);
+        } else {
+          returnStr += '-XX';
+        }
+        if (uploadTS.date.day) {
+          returnStr += '-' + pad(uploadTS.date.day, 2, 0);
+        } else {
+          returnStr += '-XX';
+        }
       }
 
-      if (upload_ts.time) {
-        if (upload_ts.time.hour !== null)
-          return_str += ' ' + pad(upload_ts.time.hour, 2, 0);
-        else
-          return_str += ' XX'
-        if (upload_ts.time.minute !== null)
-          return_str += ':' + pad(upload_ts.time.minute, 2, 0);
-        else
-          return_str += ':XX'
-        if (upload_ts.time.second !== null)
-          return_str += ':' + pad(upload_ts.time.second, 2, 0);
-        else
-          return_str += ':XX'
+      if (uploadTS.time) {
+        if (uploadTS.time.hour !== null) {
+          returnStr += ' ' + pad(uploadTS.time.hour, 2, 0);
+        } else {
+          returnStr += ' XX';
+        }
+        if (uploadTS.time.minute !== null) {
+          returnStr += ':' + pad(uploadTS.time.minute, 2, 0);
+        } else {
+          returnStr += ':XX';
+        }
+        if (uploadTS.time.second !== null) {
+          returnStr += ':' + pad(uploadTS.time.second, 2, 0);
+        } else {
+          returnStr += ':XX';
+        }
       }
     }
 
-    if (return_str.length <= 0)
-      return_str = 'No last upload date';
+    if (returnStr.length <= 0) {
+      returnStr = 'No last upload date';
+    }
 
-    return return_str;
+    return returnStr;
   }
 
-  // Check if we need to specify variables that aren't setup yet
-  let curSelectionIndex = selectionIndex;
-  if (curSelectionIndex == -1 && collectionsItems && selectedCollection) {
-    curSelectionIndex = collectionsItems.findIndex((item) => item.name === selectedCollection);
-    setSelectionIndex(curSelectionIndex);
-  }
+  // Setup search
+  React.useLayoutEffect(() => {
+    if (!searchIsSetup) {
+      searchSetup('Collection Name', handleCollectionSearch);
+      setSearchIsSetup(true);
+    }
+  }, [handleCollectionSearch, searchIsSetup, searchSetup]);
 
   // Render the UI
   const curHeight = (totalHeight || 480) + 'px';
-  const curStart = (workingTop || 25) + 'px';
-  const curCollection = collectionsItems && curSelectionIndex >= 0 ? collectionsItems[curSelectionIndex] : {uploads: []};
+  const curCollection = collectionsItems && selectionIndex >= 0 ? collectionsItems[selectionIndex] : { uploads: [] };
   return (
     <Box id='collection-manage-workspace-wrapper'>
       <Grid id='collection-manage-workspace' container direction='row' alignItems='start' justifyContent='start' sx={{ width:'100vw' }} columns={48}>
         <div id='collection-manage-workspace-collections-wrapper' 
-                style={{minWidth:'calc(100vw - 460px', maxWidth:'calc(100vw - 460px)', maxHeight:curHeight, paddingLeft:'10px', overflowY:'scroll'}}>
+                style={{minWidth:'calc(100vw - 460px)', maxWidth:'calc(100vw - 460px)', maxHeight:curHeight, paddingLeft:'10px', overflowY:'scroll'}}>
           <Grid id='collection-manage-workspace-collections-details' container direction="row">
             { collectionsItems && collectionsItems.map((item, idx) =>
               <Grid key={'collection-'+item.name+'-'+idx} >
@@ -275,7 +255,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
             )}
           </Grid>
         </div>
-        <div id='collection-manage-workspace-uploads-wrapper' style={{minWidth:'460px', maxWidth:'446px', maxHeight:curHeight, paddingRight:'10px', overflowY:"scroll"}}>
+        <div id='collection-manage-workspace-uploads-wrapper' style={{minWidth:'460px', maxWidth:'460px', maxHeight:curHeight, paddingRight:'10px', overflowY:"scroll"}}>
           <Grid id='collection-manage-workspace-uploads-details' container direction="column" alignItems='start' justifyContent="start">
             { curCollection && curCollection.uploads.map((item, idx) =>
               <Card id={"collection-upload-"+item.name} key={'collection-'+idx} variant="outlined" 
@@ -283,7 +263,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                 <CardHeader title={
                                   <Grid id="collection-card-header-wrapper" container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
                                     <Grid>
-                                      <Typography gutterBottom variant="h6" component="h4" noWrap="true">
+                                      <Typography gutterBottom variant="h6" component="h4" noWrap>
                                         {item.name}
                                       </Typography>
                                     </Grid>
@@ -305,13 +285,13 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                     <AccordionSummary
                       id={'summary-'+item.name}
                       expandIcon={<ExpandMoreIcon />}
-                      aria-controls="upload-details-content"
+                      aria-controls={`upload-details-content-${item.name}`}
                     >
                       <Typography component="span">
                         Advanced details
                       </Typography>
                     </AccordionSummary>
-                    <AccordionDetails sx={{backgroundColor:'#C8D2E4'}}>
+                    <AccordionDetails id={`upload-details-content-${item.name}`} sx={{backgroundColor:'#C8D2E4'}}>
                       <Grid container id={'collection-upload-'+item.name} direction="column" alignItems="start" justifyContent="start">
                         <Grid sx={{padding:'5px 0'}}>
                           <Typography variant="body2">
@@ -351,7 +331,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
       </Grid>
       { loadingCollections && 
           <Grid id="loading-collections-wrapper" container direction="row" alignItems="center" justifyContent="center" 
-                sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
+                sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:OVERLAY_Z_INDEX}}
           >
             <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
               <Grid container direction="column" alignItems="center" justifyContent="center" >
@@ -368,7 +348,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
       }
       { editingUploadMask && 
           <Grid id="waiting-edit-upload-wrapper" container direction="row" alignItems="center" justifyContent="center" 
-                sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
+                sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:OVERLAY_Z_INDEX}}
           >
             <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
               <Grid container direction="column" alignItems="center" justifyContent="center" spacing={1}>
@@ -386,3 +366,14 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
     </Box>
   );
 }
+
+CollectionsManage.propTypes = {
+  loadingCollections: PropTypes.bool.isRequired,
+  selectedCollection: PropTypes.string,
+  onEditUpload: PropTypes.func.isRequired,
+  searchSetup: PropTypes.func.isRequired,
+};
+
+CollectionsManage.defaultProps = {
+  selectedCollection: null,
+};

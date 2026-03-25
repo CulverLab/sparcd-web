@@ -25,6 +25,7 @@ import { useTheme } from '@mui/material/styles';
 
 import PropTypes from 'prop-types';
 
+import * as Server from './SettingsServerCalls';
 import { Level } from '../components/Messages';
 import { AddMessageContext, CollectionsInfoContext, TokenExpiredFuncContext, geographicCoordinates, 
          TokenContext, UserNameContext } from '../serverInfo';
@@ -192,34 +193,19 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
    * @function
    */
   const checkIfAdmin = React.useCallback(() => {
-    try {
-      const isAdminUrl = serverURL + '/adminCheck?t=' + encodeURIComponent(settingsToken)
-      fetch(isAdminUrl, {
-        credentials: 'include',
-        method: 'GET'
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              if (resp.status === 401) {
-                // User needs to log in again
-                setTokenExpired();
+    const success = Server.checkIfAdmin(serverURL, settingsToken, setTokenExpired,
+          (respData) => {     // Success
+              // Process the results
+              if (respData.value === true) {
+                setIsAdmin(true);
               }
-              throw new Error(`Failed checked to see if user is an admin: ${resp.status}: ${await resp.text()}`);
-            }
-          })
-        .then((respData) => {
-            // Process the results
-            if (respData.value === true) {
-              setIsAdmin(true);
-            }
-        })
-        .catch(function(err) {
-          console.log('Check For Admin Error: ', err);
-          addMessage(Level.Warning, "An error occurred while logging in for administration purposes");
-      });
-    } catch (err) {
-      console.log('Check For Admin Unknown Error: ',err);
+          },
+          (err) => {          // Failure
+              addMessage(Level.Warning, err);
+          }
+    );
+
+    if (!success) {
       addMessage(Level.Warning, "An unknown error occurred while logging in for administration purposes");
     }
 
@@ -255,7 +241,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
    * Calculate our sizes and positions
    * @function
    */
-  function calculateSizes() {
+  const calculateSizes = React.useCallback(()  => {
     const titleEl = document.getElementsByTagName('header');
     if (titleEl) {
       const curRect = titleEl[0].getBoundingClientRect();
@@ -264,7 +250,8 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
     }
 
     return null;
-  }
+
+  }, []);
 
   /**
    * Called when the user changes a value

@@ -1178,8 +1178,8 @@ def query_dl():
             dl_name = target if target else 'drsanderson_all.csv'
             return Response(query_utils.query_allpictures2csv(query_results[tab],
                                     user_info.settings,
-                                    query_results['columsMods'][tab] if tab in \
-                                                        query_results['columsMods'] else None),
+                                    query_results['columnsMods'][tab] if tab in \
+                                                        query_results['columnsMods'] else None),
                             mimetype='application/csv',
                             headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
@@ -1187,8 +1187,8 @@ def query_dl():
             dl_name = target if target else 'allresults.csv'
             return Response(query_utils.query_raw2csv(query_results[tab],
                                     user_info.settings,
-                                    query_results['columsMods'][tab] if tab in \
-                                                        query_results['columsMods'] else None),
+                                    query_results['columnsMods'][tab] if tab in \
+                                                        query_results['columnsMods'] else None),
                             mimetype='text/csv',
                             headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
@@ -1196,8 +1196,8 @@ def query_dl():
             dl_name = target if target else 'locations.csv'
             return Response(query_utils.query_location2csv(query_results[tab],
                                     user_info.settings,
-                                    query_results['columsMods'][tab] if tab in \
-                                                        query_results['columsMods'] else None),\
+                                    query_results['columnsMods'][tab] if tab in \
+                                                        query_results['columnsMods'] else None),\
                             mimetype='text/csv',
                             headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
@@ -1205,8 +1205,8 @@ def query_dl():
             dl_name = target if target else 'species.csv'
             return Response(query_utils.query_species2csv(query_results[tab],
                                     user_info.settings,
-                                    query_results['columsMods'][tab] if tab in \
-                                                        query_results['columsMods'] else None),
+                                    query_results['columnsMods'][tab] if tab in \
+                                                        query_results['columnsMods'] else None),
                             mimetype='text/csv',
                             headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 

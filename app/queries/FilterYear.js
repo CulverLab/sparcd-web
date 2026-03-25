@@ -1,3 +1,5 @@
+'use client'
+
 /** @module components/FilterYear */
 
 import * as React from 'react';

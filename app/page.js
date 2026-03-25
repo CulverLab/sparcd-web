@@ -1581,7 +1581,7 @@ export default function Home() {
               <Box id='sparcd-middle-wrapper' sx={{}} >
                 {!curLoggedIn || createNewInstance === true || repairInstance === true ? 
                   <LoginValidContext.Provider value={loginValidStates}>
-                    <Login prev_url={dbURL} prev_user={dbUser} prev_remember={dbRemember} onLogin={handleLogin}
+                    <Login prevUrl={dbURL} prevUser={dbUser} prevRemember={dbRemember} onLogin={handleLogin}
                            onRememberChange={handleRememberChanged} />
                   </LoginValidContext.Provider>
                   :

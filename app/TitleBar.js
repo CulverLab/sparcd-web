@@ -15,6 +15,8 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 import { Level } from './components/Messages';
 import Settings from './settings/Settings';
 import styles from './components/components.module.css';
@@ -45,26 +47,28 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
   const userMessages = React.useContext(UserMessageContext);  // User messages
   const userName = React.useContext(UserNameContext);  // User display name
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
+  const searchRef = React.useRef(null);         // The search element
+  const welcomeHasTimedOut = React.useRef(false); // Flag used to show the welcome has timed out
   const welcomeTimeoutRef = React.useRef(null); // Stores the timer ID for removing welcome message
-  const [welcomeTimedOut, setWelcomeTimedOut] = React.useState(false);  // Used to keep the hello message to initial display
+  const [welcomeShown, setWelcomeShown] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
-  const [welcomeShown, setWelcomeShown] = React.useState(false); // Flag used to show users a welcome message
-
+  
   const haveUnreadMessages = React.useMemo(() => {
     return userMessages?.count > 0 && userMessages?.messages?.filter((item) => item.read_sec === null).length > 0;
   }, [userMessages]);
 
   // Used to setup the welcome message
   React.useEffect(() => {
-    if (!loginToken || welcomeTimedOut) {
+    if (!loginToken || welcomeShown || welcomeHasTimedOut.current) {
       return;
     }
+
     setWelcomeShown(true);
 
     if (welcomeTimeoutRef.current == null) {
       welcomeTimeoutRef.current = window.setTimeout(() => {
           setWelcomeShown(false);
-          setWelcomeTimedOut(true);
+          welcomeHasTimedOut.current = true;
           welcomeTimeoutRef.current = null;
       }, WELCOME_TIMEOUT_SEC);
     }
@@ -77,47 +81,54 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
       }
     };
 
-  }, [loginToken, welcomeShown, setWelcomeShown]);
+  }, [loginToken]);
   /**
    * Handles the clicking of the search icon
    * @function
    */
-  function clickHandler() {
-    const searchEl = document.getElementById(searchId);
-    if (searchEl && searchEl.value) {
-      if (onSearch(searchEl.value)) {
-        searchEl.value = null;
+  const clickHandler = React.useCallback(() => {
+    if (searchRef.current && searchRef.current.value) {
+      if (onSearch?.(searchRef.current.value)) {
+        searchRef.current.value = null;
       }
     }
-  }
+  }, [onSearch]);
 
   /**
    * Handles the Enter key to start a search
    * @function
    * @param {object} event The event
    */
-  function handleSearchChange(event) {
+  const handleSearchChange = React.useCallback((event) => {
     if (event.key === 'Enter') {
       clickHandler();
     }
-  }
+  }, [clickHandler]);
 
   /**
    * Handles the user requesting breadcrumb navigation
    * @function
    * @param {object} navItem The chosen breadcrumb navigation item
    */
-  function handleNav(navItem) {
-    onBreadcrumb(navItem);
-  }
+  const handleNav = React.useCallback((navItem) => {
+    onBreadcrumb?.(navItem);
+  }, [onBreadcrumb]);
 
   /**
    * Handles the user requesting settings closure
    * @function
    */
-  function handleSettingsClose() {
+  const handleSettingsClose = React.useCallback(() => {
     setShowSettings(false);
-  }
+  }, []);
+
+  /**
+   * Function to add a login check failed message
+   * @function
+   */
+  const loginCheckFailedMessage = React.useCallback(() => {
+    addMessage(Level.Warning, 'Login check failed');
+  }, [addMessage])
 
   /**
    * Handles the user wanting to make admin changes
@@ -125,8 +136,8 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
    * @param {string} pw The password for administration editing
    */
   const handleAdminSettings = React.useCallback((pw) => {
-    onAdminSettings(pw, handleSettingsClose, () => {addMessage(Level.Warning, 'Login check failed');});
-  }, [onAdminSettings, handleSettingsClose, addMessage]);
+    onAdminSettings?.(pw, handleSettingsClose, loginCheckFailedMessage);
+  }, [handleSettingsClose, loginCheckFailedMessage, onAdminSettings]);
 
   /**
    * Handles the user wanting to make collection changes
@@ -134,8 +145,54 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
    * @param {string} pw The password for administration editing
    */
   const handleOwnerSettings = React.useCallback((pw) => {
-    onOwnerSettings(pw, handleSettingsClose, () => {addMessage(Level.Warning, 'Login check failed');});
-  }, [onOwnerSettings, handleSettingsClose, addMessage]);
+    onOwnerSettings?.(pw, handleSettingsClose, loginCheckFailedMessage);
+  }, [handleSettingsClose, loginCheckFailedMessage, onOwnerSettings]);
+
+  /**
+   * Function to handle navigating home
+   * @function
+   */
+  const handleNavigateHome = React.useCallback(() => {
+    window.location.href="/";
+  }, []);
+
+  /**
+   * Function to handle showing messages
+   * @function
+   */
+  const handleShowMessages = React.useCallback(() => {
+    onMessages(loginToken)
+  }, [loginToken, onMessages]);
+
+  /**
+   * Function to handle showing settings
+   * @function
+   */
+  const handleShowSettings = React.useCallback(() => {
+    setShowSettings(true)
+  }, []);
+
+  /**
+   * Function to handle logout
+   * @function
+   */
+  const handleLogout = React.useCallback(() => {
+    handleSettingsClose();
+    onLogout();
+  }, [handleSettingsClose, onLogout]);
+
+  /**
+   * Handle the user navigating through breadcrumbs
+   * @function
+   * @param {object} event The triggering event
+   */
+  const handleBreadcrumbNavigation = React.useCallback((event) => {
+    const idx = parseInt(event.currentTarget.dataset.idx, 10);
+    if (idx >= 0 && idx < breadcrumbs.length) {
+      handleNav(breadcrumbs[idx]);
+    }
+  }, [breadcrumbs, handleNav]);
+
 
   const extraInputSX = React.useMemo(() => {
     return size === "small" ? { maxWidth: '10em' } : {};
@@ -148,11 +205,10 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
         <Grid id='sparcd-header-items' container direction="column" spacing={0} sx={{flexGrow:1}}>
           <Grid id='sparcd-header-image-wrapper' container direction="row" spacing={3} sx={{flexGrow:1}}>
             <Grid id='sparcd-header-image-link' size="grow" container direction="row" alignItems="center" sx={{cursor:'pointer'}}>
-                <div onClick={() => window.location.href="/"}
+                <div onClick={handleNavigateHome}
                       aria-label="Scientific Photo Analysis for Research and Conservation database"
                       role="link"
                       tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && (window.location.href="/")}
                       className={styles.titlebar_title}
                 >
                   SPARC&apos;d
@@ -185,6 +241,7 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
                             onKeyDown={handleSearchChange}
                             slotProps={{
                               input: {
+                                inputRef: searchRef,
                                 endAdornment:
                                   <InputAdornment position="end">
                                     <IconButton
@@ -200,7 +257,7 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
                 }
                 { loginToken !== null && 
                   <Tooltip title='Messages'>
-                    <IconButton fontSize="small" onClick={() => onMessages(loginToken)}
+                    <IconButton fontSize="small" onClick={handleShowMessages}
                                 sx={{ ...(haveUnreadMessages ? theme.palette.have_messages : {}) }}
                       >
                       <MailOutlinedIcon fontSize="small"/>
@@ -209,7 +266,7 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
                 }
                 { loginToken !== null && 
                   <Tooltip title='Settings'>
-                    <IconButton size="small" onClick={() => setShowSettings(true)}>
+                    <IconButton size="small" onClick={handleShowSettings}>
                       <MenuOutlinedIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -223,8 +280,8 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
                 breadcrumbs.map((item, idx) => {
                               return (<React.Fragment key={"breadcrumb-" + idx + '-' + item.name} >
                                         &nbsp;
-                                        <Link component="button" underline="hover" sx={{}}
-                                              onClick={() => handleNav(item)}
+                                        <Link component="button" underline="hover" data-idx={idx} 
+                                              onClick={handleBreadcrumbNavigation}
                                         >
                                           {item.name}{idx < (breadcrumbs.length -1) ? ' / ' : ' '}
                                         </Link>
@@ -238,9 +295,24 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
         </Grid>
       </Box>
       {showSettings && onSettings != null && <Settings curSettings={userSettings} onChange={onSettings} onClose={handleSettingsClose} 
-                                                       onLogout={() => {handleSettingsClose();onLogout();}} onAdminSettings={handleAdminSettings} 
+                                                       onLogout={handleLogout} onAdminSettings={handleAdminSettings} 
                                                        onOwnerSettings={handleOwnerSettings} />
       }
     </header>
     );
 }
+
+TitleBar.propTypes = {
+  searchTitle:     PropTypes.string,
+  breadcrumbs:     PropTypes.arrayOf(PropTypes.shape({
+    name:          PropTypes.string.isRequired,
+  })),
+  size:            PropTypes.oneOf(['small', 'full']),
+  onSearch:        PropTypes.func,
+  onBreadcrumb:    PropTypes.func,
+  onSettings:      PropTypes.func,
+  onLogout:        PropTypes.func.isRequired,
+  onMessages:      PropTypes.func.isRequired,
+  onAdminSettings: PropTypes.func.isRequired,
+  onOwnerSettings: PropTypes.func.isRequired,
+};

@@ -289,6 +289,7 @@ def query_output(results: Results, results_id: str) -> tuple:
         return tuple()
 
     return {'id': results_id,
+            'resultsCount': len(results.get_images()),
             'DrSandersonOutput': get_dr_sanderson_output(results),
             'DrSandersonAllPictures': get_dr_sanderson_pictures(results),
             'csvRaw': get_csv_raw(results),
@@ -337,7 +338,7 @@ def query_output(results: Results, results_id: str) -> tuple:
                 'imageDownloads': {'name':'Name'}
             },
             # Column modifications
-            'columsMods': {
+            'columnsMods': {
                 'csvRaw': [{'type': 'hasLocations',
                            'UTM': 'locationUTM',
                            'LATLON': 'LocationLATLON',
