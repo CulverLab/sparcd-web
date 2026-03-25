@@ -12,6 +12,8 @@ const MAX_FILES_UPLOAD_SPLIT = 5; // Maximum number of files to upload at one ti
 
 const SLOW_FILE_THRESHOLD_SEC = 7.0; // Files taking longer than this trigger batch size reduction
 
+const GET_COUNTS_CHECK_INTERVAL_MS = 5 * 1000;    // Number of seconds converted to milliseconds
+
 // Uploading state enum — re-exported so consumers don't need to redefine it
 export const uploadingState = Object.freeze({
   none: 0,
@@ -254,7 +256,7 @@ export function useChunkUpload(selectedTimezone) {
 
         const countChanged = respData.uploaded !== prevUploadCount || !startTs;
         if (countChanged) {
-          window.setTimeout(() => getUploadCounts(uploadId, uploadFiles, onSuccess, onFailed, 0, respData.uploaded, Date.now()), 2000);
+          window.setTimeout(() => getUploadCounts(uploadId, uploadFiles, onSuccess, onFailed, 0, respData.uploaded, Date.now()), GET_COUNTS_CHECK_INTERVAL_MS);
           if (uploadStateRef.current !== uploadingState.retryingFailed && uploadStateRef.current !== uploadingState.error) {
             uploadStateUpdate(uploadingState.uploading);
           }
@@ -293,7 +295,7 @@ export function useChunkUpload(selectedTimezone) {
               uploadStateUpdate(uploadingState.retryingFailed);
               handleFailedUploads(uploadId, uploadFiles, retrySuccess, retryFailed);
               if (!retryCompleted) {
-                window.setTimeout(() => getUploadCounts(uploadId, uploadFiles, onSuccess, onFailed), 2000);
+                window.setTimeout(() => getUploadCounts(uploadId, uploadFiles, onSuccess, onFailed), GET_COUNTS_CHECK_INTERVAL_MS);
               }
             } else if (uploadStateRef.current !== uploadingState.uploadFailure) {
               uploadStateUpdate(uploadingState.uploadFailure);
@@ -302,7 +304,7 @@ export function useChunkUpload(selectedTimezone) {
               onFailed?.();
             }
           } else {
-            window.setTimeout(() => getUploadCounts(uploadId, uploadFiles, onSuccess, onFailed, 0, respData.uploaded, startTs), 2000);
+            window.setTimeout(() => getUploadCounts(uploadId, uploadFiles, onSuccess, onFailed, 0, respData.uploaded, startTs), GET_COUNTS_CHECK_INTERVAL_MS);
           }
         }
       },

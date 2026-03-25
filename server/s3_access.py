@@ -447,11 +447,15 @@ def check_incomplete_thread(minio: Minio, bucket: str) -> Optional[tuple]:
 
                 # Check the numbers
                 if upload_info and not uploaded_images == int(upload_info['imageCount']):
+                    if one_obj.object_name.endswith('/') or one_obj.object_name.endswith('\\'):
+                        upload_path = one_obj.object_name[:-1]
+                    else:
+                        upload_path = one_obj.object_name
                     incomplete_uploads.append({'upload_user': upload_info['uploadUser'],
                                                 'expected': int(upload_info['imageCount']),
                                                 'actual': uploaded_images,
                                                 'bucket': bucket,
-                                                's3_path': one_obj.object_name,
+                                                's3_path': upload_path,
                                                 'date': upload_info['uploadDate'],
                                                 })
     finally:
