@@ -332,16 +332,25 @@ class SPARCdDatabase:
             incomplete: the known information on the incomplete uploads
         """
         for one_item in incomplete:
+            up_dt = datetime.datetime(year=int(one_item['date']['date']['year']),
+                                  month=int(one_item['date']['date']['month']),
+                                  day=int(one_item['date']['date']['day']),
+                                  hour=int(one_item['date']['time']['hour']),
+                                  minute=int(one_item['date']['time']['minute']),
+                                  second=int(one_item['date']['time']['second']),
+                                )
+
+            print('HACK: INCOMPLETE:',s3_id, one_item,flush=True)
             if not self._db.sandbox_exists(s3_id, one_item['bucket'], one_item['upload_user'],
                                                                             one_item['s3_path']):
-                up_dt = datetime.datetime(year=int(one_item['date']['date']['year']),
-                                      month=int(one_item['date']['date']['month']),
-                                      day=int(one_item['date']['date']['day']),
-                                      hour=int(one_item['date']['time']['hour']),
-                                      minute=int(one_item['date']['time']['minute']),
-                                      second=int(one_item['date']['time']['second']),
-                                    )
+                # Not found, add it
+                print('HACK:        NOT FOUND',flush=True)
                 self._db.sandbox_add_recovered(s3_id, one_item['bucket'], one_item['upload_user'],
+                                                        one_item['s3_path'], up_dt)
+            else:
+                # Found, update it
+                print('HACK:        FOUND',flush=True)
+                self._db.sandbox_set_recovered(s3_id, one_item['bucket'], one_item['upload_user'],
                                                         one_item['s3_path'], up_dt)
 
     def sandbox_get_s3_info(self, username: str, upload_id: str) -> tuple:
