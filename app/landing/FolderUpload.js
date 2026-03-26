@@ -940,7 +940,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
           </Typography>
           { uploadState === uploadingState.error && 
             <Typography gutterBottom variant="body1" sx={{paddingTop:'15px'}} >
-              You can retry to upload the remaining images at a later time if you choose not to proceed now
+              You can retry to upload the remaining images at a later time
             </Typography>
           }
         </Stack>
@@ -962,14 +962,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
           </React.Fragment>
         );
       }
-      if (uploadCompleted) {
-        return (
-          <React.Fragment>
-            <Button id="folder_upload_continue" sx={{flex:1}} size="small" onClick={doneUpload}>Done</Button>
-            <Button id="folder_upload_another" sx={{flex:1,whiteSpace:'nowrap'}} size="small" onClick={anotherUpload}>Upload Another</Button>
-          </React.Fragment>
-        );
-      }
       if (uploadState === uploadingState.uploadFailure) {
         return (
           <React.Fragment>
@@ -984,6 +976,14 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
           <React.Fragment>
             <Button id="folder_upload_error_retry" sx={{flex:1}} size="small" onClick={failedUploadRetry}>Retry failed files</Button>
             <Button id="folder_upload_error_done" sx={{flex:1, whiteSpace:"nowrap"}} size="small" onClick={failedDone}>Done</Button>
+          </React.Fragment>
+        );
+      }
+      if (uploadCompleted) {
+        return (
+          <React.Fragment>
+            <Button id="folder_upload_continue" sx={{flex:1}} size="small" onClick={doneUpload}>Done</Button>
+            <Button id="folder_upload_another" sx={{flex:1,whiteSpace:'nowrap'}} size="small" onClick={anotherUpload}>Upload Another</Button>
           </React.Fragment>
         );
       }
