@@ -31,7 +31,7 @@ const EditingStates = {
 };
 
 /**
- * Returns the UI for administrator tasks
+ * Returns the UI for owner administrator tasks
  * @function
  * @param {boolean} loadingCollections Flag indicating collections are being loaded
  * @param {function} onClose Function for when the user wants to close this
@@ -137,7 +137,7 @@ export default function SettingsOwner({loadingCollections, onClose}) {
 
     const success = Server.ownerUpdateCollection(serverURL, settingsToken, editingState.data.id, collectionNewInfo, tokenHasExpired, 
           (respData) => {     // Success
-              // Set the species data
+              // Set the collection data
               if (respData.success) {
                 setEditingState({...editingState, data:{...editingState.data,...respData.data}});
                 for (let idx = 0; idx < collectionInfo.length; idx++) {
@@ -219,9 +219,9 @@ export default function SettingsOwner({loadingCollections, onClose}) {
 
     dblClickFunc = dblClickFunc ? dblClickFunc : () => {};
     return (
-      <Grid id='admin-settings-collections-details-wrapper' container direction="column" justifyContent="center" alignItems="center"
+      <Grid id='owner-settings-collections-details-wrapper' container direction="column" justifyContent="center" alignItems="center"
             sx={{width:'100%', padding:'0px 5px 0 5px'}} >
-        <Grid id="admin-settings-collection-details-header" container direction="row" justifyContent="space-between" alignItems="start"
+        <Grid id="owner-settings-collection-details-header" container direction="row" justifyContent="space-between" alignItems="start"
               sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
           <Grid size={5}>
             <Typography noWrap variant="body1" sx={{fontWeight:'bold', paddingLeft:'5px'}}>
@@ -239,9 +239,9 @@ export default function SettingsOwner({loadingCollections, onClose}) {
             </Typography>
           </Grid>
         </Grid>
-        <Grid id='admin-settings-details' sx={{overflowX:'auto',width:'100%', maxHeight:detailsHeight+'px' }}>
+        <Grid id='owner-settings-details' sx={{overflowX:'auto',width:'100%', maxHeight:detailsHeight+'px' }}>
         { selectedCollections.filter((item) => item.permissions.ownerProperty === true).map((item, idx) => 
-            <Grid container direction="row" id={"admin-species-"+idx} key={item.name+'-'+idx} justifyContent="space-between" alignItems="start"
+            <Grid container direction="row" id={"owner-collections-"+idx} key={item.name+'-'+idx} justifyContent="space-between" alignItems="start"
                   sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }} onDoubleClick={(event) => dblClickFunc(event,item)} >
               <Grid size={5}>
                 <Typography noWrap variant="body2">
@@ -272,7 +272,7 @@ export default function SettingsOwner({loadingCollections, onClose}) {
    */
   function generateEditingUI() {
     return (
-      <Grid container id="settings-admin-edit-wrapper" alignItems="center" justifyContent="center"
+      <Grid container id="owner-settings-edit-wrapper" alignItems="center" justifyContent="center"
             sx={{...theme.palette.screen_overlay_grey}}
       >
       {editingState.type === EditingStates.Collection && <EditCollection data={editingState.data} onUpdate={updateCollection}
@@ -288,7 +288,7 @@ export default function SettingsOwner({loadingCollections, onClose}) {
    */
   function generateDonePanel() {
     return (
-      <Grid id="admin-settings-panel-done-close" container direction="column" justifyContent="center" alignItems="center"
+      <Grid id="owner-settings-panel-done-close" container direction="column" justifyContent="center" alignItems="center"
              sx={{width:'100%', position:'absolute', top:'0px', bottom:'0px'}} >
         <Typography>
           All changes have been saved

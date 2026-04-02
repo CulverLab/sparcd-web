@@ -40,7 +40,7 @@ export default function SpeciesList({species, sortColumn, sortDirection, maxHeig
       { species.map((item, idx) => 
             <Grid container direction="row" id={"admin-species-"+idx} key={item.name+'-'+idx} justifyContent="space-between" alignItems="start"
                   sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'}}} onDoubleClick={(event) => onDblClick(event,item)} >
-              <Grid size={5}>
+              <Grid size={5}  sx={{marginRight:'auto'}}>
                 <Typography noWrap variant="body2">
                   {item.name}
                 </Typography>
@@ -50,7 +50,7 @@ export default function SpeciesList({species, sortColumn, sortDirection, maxHeig
                   {item.scientificName}
                 </Typography>
               </Grid>
-              <Grid size={2} sx={{marginLeft:'auto'}}>
+              <Grid size={2} sx={{marginLeft:'auto', paddingRight:'5px'}}>
                 <Typography noWrap variant="body2">
                   {item.keyBinding}
                 </Typography>

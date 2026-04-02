@@ -30,7 +30,7 @@ export default function LocationList({locations, sortColumn, sortDirection, maxH
   // Return the UI
   return (
     <Box id='admin-settings-locations-details-wrapper' sx={{width:'100%', padding:'0px 5px 0 5px'}} >
-      <Grid id="admin-settings-species-header" container direction="row" justifyContent="space-between" alignItems="start"
+      <Grid id="admin-settings-locations-header" container direction="row" justifyContent="space-between" alignItems="start"
             sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
         { getSettingsHeader(1, sortColumn === 1, sortDirection, 5, 'Name', {marginRight:"auto"}, (dir)=>onSort('name', dir) )}
         { getSettingsHeader(2, sortColumn === 2, sortDirection, 3, 'ID', {marginRight:"auto"}, (dir)=>onSort('id', dir) )}
@@ -40,7 +40,7 @@ export default function LocationList({locations, sortColumn, sortDirection, maxH
       <Grid id='admin-settings-details' sx={{overflowX:'auto',width:'100%', maxHeight:maxHeight }}>
       { locations.map((item, idx) => {
           const extraAttribs = item.activeProperty ? {} : {color:'grey'};
-          return (<Grid container direction="row" id={"admin-species-"+idx} key={item.name+'-'+idx} justifyContent="space-between" alignItems="start"
+          return (<Grid container direction="row" id={"admin-locations-"+idx} key={item.name+'-'+idx} justifyContent="space-between" alignItems="start"
                   sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'}, ...extraAttribs }} onDoubleClick={(event) => onDblClick(event,item)} >
               <Grid size={5}>
                 <Typography noWrap variant="body2" >

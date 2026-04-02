@@ -38,7 +38,7 @@ export default function CollectionList({collections, sortColumn, sortDirection, 
       </Grid>
       <Grid id='admin-settings-details' sx={{overflowX:'auto',width:'100%', maxHeight:maxHeight }}>
       { collections.map((item, idx) => 
-          <Grid container direction="row" id={"admin-species-"+idx} key={item.name+'-'+idx} justifyContent="space-between" alignItems="start"
+          <Grid container direction="row" id={"admin-collections-"+idx} key={item.name+'-'+idx} justifyContent="space-between" alignItems="start"
                 sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }} onDoubleClick={(event) => onDblClick(event,item)} >
             <Grid size={5}>
               <Typography noWrap variant="body2">

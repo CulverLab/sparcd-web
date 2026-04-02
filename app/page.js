@@ -800,6 +800,7 @@ export default function Home() {
             setUserSettings({name:respData.name, settings:curSettings});
             setUserMessages({count:respData.messageCount ? respData.messageCount : 0, messages:null, loading: false})
 
+            setUserIdleTimedOut(false);
             setLoggedIn(true);
             setLastToken(loginToken);
             window.setTimeout(() => handleFetchMessages(loginToken), 1000);
