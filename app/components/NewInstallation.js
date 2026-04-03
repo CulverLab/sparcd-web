@@ -230,35 +230,38 @@ export default function NewInstallation({newInstallToken, isRepair, onCancel}) {
   }
 
   // Return the UI
+  // TODO: Use WorkspaceOverly with Theme changes to match what we have here
   return (
-      <Grid id="new-install-wrapper" container direction="row" alignItems="center" justifyContent="center" 
-            sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.75)', zIndex:11111}}
-      >
-        <div style={{backgroundColor:'honeydew', border:'1px solid grey', borderRadius:'15px', padding:'25px 20px'}}>
-          <Grid container direction="column" alignItems="center" justifyContent="center" >
-            <img id="sparcd-logo" src="/sparcd.png" alt="SPARC'd Logo" className={styles.titlebar_icon}/>
-            <Typography variant="h4" component="h4" sx={{padding:"20px 0px"}}>
-              {isRepair === false ? "Welcome to setting up a new SPARCd configuration" : "Welcome to repairing your SPARCd configuration"}
-            </Typography>
-            {errorMessage !== null && 
-              <Typography variant="body1" sx={{fontSize:"larger"}}>
-                {errorMessage}
+      <React.Fragment>
+        <Grid id="new-install-wrapper" container direction="row" alignItems="center" justifyContent="center" 
+              sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.75)', zIndex:11111}}
+        >
+          <div style={{backgroundColor:'honeydew', border:'1px solid grey', borderRadius:'15px', padding:'25px 20px'}}>
+            <Grid container direction="column" alignItems="center" justifyContent="center" >
+              <img id="sparcd-logo" src="/sparcd.png" alt="SPARC'd Logo" className={styles.titlebar_icon}/>
+              <Typography variant="h4" component="h4" sx={{padding:"20px 0px"}}>
+                {isRepair === false ? "Welcome to setting up a new SPARCd configuration" : "Welcome to repairing your SPARCd configuration"}
               </Typography>
-            }
-            <Typography variant="body1" sx={{borderBottom:"1px solid lightgrey"}}>
-              <IconButton aria-label="Important" >
-                <PriorityHighOutlinedIcon fontSize="small" style={{color:'sandybrown'}}/>
-              </IconButton>
-              {getStageMessage(installStep) }
-            </Typography>
-            <Grid container direction="row" alignItems="center" justifyContent="space-between" sx={{minWidth:"50%", paddingTop:"40px"}}>
-              <Button size="small" onClick={onCancel}>Login Again</Button>
-              <Button size="small" onClick={handleContinue}>
-                {installStep === InstallStep.installExists ? "Try Again" : "Continue"}
-              </Button>
+              {errorMessage !== null && 
+                <Typography variant="body1" sx={{fontSize:"larger"}}>
+                  {errorMessage}
+                </Typography>
+              }
+              <Typography variant="body1" sx={{borderBottom:"1px solid lightgrey"}}>
+                <IconButton aria-label="Important" >
+                  <PriorityHighOutlinedIcon fontSize="small" style={{color:'sandybrown'}}/>
+                </IconButton>
+                {getStageMessage(installStep) }
+              </Typography>
+              <Grid container direction="row" alignItems="center" justifyContent="space-between" sx={{minWidth:"50%", paddingTop:"40px"}}>
+                <Button size="small" onClick={onCancel}>Login Again</Button>
+                <Button size="small" onClick={handleContinue}>
+                  {installStep === InstallStep.installExists ? "Try Again" : "Continue"}
+                </Button>
+              </Grid>
             </Grid>
-          </Grid>
-        </div>
+          </div>
+        </Grid>
         { (installStep === InstallStep.newInstallOk || installStep === InstallStep.installCompleted) &&
           <Grid id="new-install-new-wrapper" container direction="row" alignItems="center" justifyContent="center" 
                 sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.75)', zIndex:11111}}
@@ -344,7 +347,7 @@ export default function NewInstallation({newInstallToken, isRepair, onCancel}) {
             </div>
           </Grid>
         }
-      </Grid>
+      </React.Fragment>
   );
 }
 
