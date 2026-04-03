@@ -23,6 +23,8 @@ import { FilterMonthFormData } from './queries/FilterMonth';
 import { FilterSpeciesFormData } from './queries/FilterSpecies';
 import { FilterYearFormData } from './queries/FilterYear';
 import QueryResults from './queries/QueryResults';
+import * as Server from './ServerCalls';
+import WorkspaceOverlay from './components/WorkspaceOverlay';
 import * as utils from './utils';
 
 import { Level } from './components/Messages';
@@ -39,11 +41,12 @@ const QUERY_RESULTS_SHOW_DELAY_SEC = 5;   // Minimum delay before showing the re
  */
 export default function Queries({loadingCollections}) {
   const theme = useTheme();
-  const dividerRef = React.useRef();   // Used for sizeing
-  const expandCollapseRef = React.useRef();   // Used for sizeing
-  const queryActionsRef = React.useRef(null);         // For access to the query actions element
-  const queryCancelledRef = React.useRef(false);        // Indicates the user want to cancel the query
-  const queryIntervalRef = React.useRef(60);   // The current interval value
+  const dividerRef = React.useRef();          // Used for sizing
+  const expandCollapseRef = React.useRef();   // Used for sizing
+  const queryActionsRef = React.useRef(null);       // For access to the query actions element
+  const queryCancelledRef = React.useRef(false);    // Indicates the user want to cancel the query
+  const queryIntervalRef = React.useRef(60);        // The current interval value
+  const resultShowTimeoutRef = React.useRef(null);  // Handle of timeout when showing results
   const serverURLRef = React.useRef(utils.getServer());
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const locationItems = React.useContext(LocationsInfoContext); // Locations
@@ -52,18 +55,34 @@ export default function Queries({loadingCollections}) {
   const speciesItems = React.useContext(SpeciesInfoContext);  // Species
   const speciesOtherItems = React.useContext(SpeciesOtherNamesContext); // Unofficial species
   const uiSizes = React.useContext(SizeContext);  // UI Dimensions
-  const actionScrollTimeoutRef = React.useRef(null);    // Used to make sure the add filter is alawys in view
+  const actionScrollTimeoutRef = React.useRef(null);    // Used to make sure the add filter is always in view
   const [dividerHeight, setDividerHeight] = React.useState(20); // Used to size controls
   const [expandCollapseWidth, setExpandCollapseWidth] = React.useState(24);
   const [filters, setFilters] = React.useState([]); // Stores filter information
   const [isExpanded, setIsExpanded] = React.useState(false); // Used to indicate the filters are expanded
   const [queryResults, setQueryResults] = React.useState(null); // Used to store query results
-  const [waitingOnQuery, setWaitingOnQuery] = React.useState(null);  // Used for managing queries and the UI
+  const [waitingOnQuery, setWaitingOnQuery] = React.useState(null);  // Used for managing queries and the UI delay in showing results
   const [workspaceWidth, setWorkspaceWidth] = React.useState(640);  // Default value is recalculated at display time
 
   const activeQueryRef = React.useRef(null);
 
-  let mergedSpecies = React.useMemo(() => [].concat(speciesItems).concat(speciesOtherItems ? speciesOtherItems : []), [speciesItems,speciesOtherItems]);
+  let mergedSpecies = React.useMemo(() => [].concat(speciesItems).concat(speciesOtherItems ?? []), [speciesItems,speciesOtherItems]);
+
+  // Handlers for getting the data from each filter
+  const FILTER_HANDLERS = React.useMemo(() => {
+    return ({
+        'Species Filter':     (data, formData) => FilterSpeciesFormData(data, formData, mergedSpecies),
+        'Location Filter':    (data, formData) => FilterLocationsFormData(data, formData, locationItems),
+        'Elevation Filter':   (data, formData) => FilterElevationsFormData(data, formData),
+        'Year Filter':        (data, formData) => FilterYearFormData(data, formData),
+        'Month Filter':       (data, formData) => FilterMonthFormData(data, formData),
+        'Hour Filter':        (data, formData) => FilterHourFormData(data, formData),
+        'Day of Week Filter': (data, formData) => FilterDayOfWeekFormData(data, formData),
+        'Start Date Filter':  (data, formData) => FilterDateFormData('startDate', data, formData),
+        'End Date Filter':    (data, formData) => FilterDateFormData('endDate', data, formData),
+        'Collection Filter':  (data, formData) => FilterCollectionsFormData(data, formData)
+      });
+  }, [locationItems, mergedSpecies]);
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {
@@ -80,6 +99,22 @@ export default function Queries({loadingCollections}) {
     }
   }, [uiSizes]);
 
+  // Make sure the timer is cancelled if we unmount before it triggers
+  React.useEffect(() => {
+    return () => {
+      if (actionScrollTimeoutRef.current) {
+        const curTimeout = actionScrollTimeoutRef.current;
+        actionScrollTimeoutRef.current = null;
+        clearTimeout(curTimeout);
+      }
+      if (resultShowTimeoutRef.current) {
+        const curTimeout = resultShowTimeoutRef.current;
+        resultShowTimeoutRef.current = null;
+        clearTimeout(curTimeout);
+      }
+    }
+  }, []);
+
   /**
    * Adds a new filter to the list of filters
    * @function
@@ -95,7 +130,7 @@ export default function Queries({loadingCollections}) {
       // Set the timeout to remove the spinner and update the UI
       setFilters(prev => [...prev, newFilter]);
       onComplete?.();
-    });
+    }, 0);
 }, []);
 
   /**
@@ -117,7 +152,10 @@ export default function Queries({loadingCollections}) {
   const handleFilterChange = React.useCallback((filterId, filterData) => {
     setFilters(prev => {
       const filterIdx = prev.findIndex((item) => item.id === filterId);
-      return filterIdx > -1 ? prev.map((item, idx) => idx === filterIdx ? {...item, data:filterData} : item) : prev;
+      if (filterIdx === -1) {
+        return prev;
+      }
+      return prev.map((item, idx) => idx === filterIdx ? {...item, data:filterData} : item);
     });
   }, []);
 
@@ -154,49 +192,56 @@ export default function Queries({loadingCollections}) {
     let formData = new FormData();
 
     for (const filter of queryFilters) {
-      switch(filter.type) {
-        case 'Species Filter':
-          FilterSpeciesFormData(filter.data, formData, mergedSpecies);
-          break;
-        case 'Location Filter':
-          FilterLocationsFormData(filter.data, formData, locationItems);
-          break;
-        case 'Elevation Filter':
-          FilterElevationsFormData(filter.data, formData);
-          break;
-        case 'Year Filter':
-          FilterYearFormData(filter.data, formData);
-          break;
-        case 'Month Filter':
-          FilterMonthFormData(filter.data, formData);
-          break;
-        case 'Hour Filter':
-          FilterHourFormData(filter.data, formData);
-          break;
-        case 'Day of Week Filter':
-          FilterDayOfWeekFormData(filter.data, formData);
-          break;
-        case 'Start Date Filter':
-          FilterDateFormData('startDate', filter.data, formData);
-          break;
-        case 'End Date Filter':
-          FilterDateFormData('endDate', filter.data, formData);
-          break;
-        case 'Collection Filter':
-          FilterCollectionsFormData(filter.data, formData);
-        break;
-      }
+      FILTER_HANDLERS[filter.type]?.(filter.data, formData);
     }
 
     return formData;
-  }, [mergedSpecies, locationItems]);
+  }, [FILTER_HANDLERS]);
+
+  /**
+   * Handles the results from a successful query call
+   * @function
+   * @param {object} respData The result of the query call
+   * @param {Number} queryId The ID of the query associated with the response data
+   */
+  const handleQueryResult = React.useCallback((respData, queryId) => {
+    if (!respData) {
+      return;
+    }
+
+    if (activeQueryRef.current === queryId && Object.keys(respData).length > 0) {
+      // Check if should slightly delay showing the query results
+      const time_diff_sec = (Date.now() - queryId) / 1000.0;
+      if (Math.round(time_diff_sec) >= QUERY_RESULTS_SHOW_DELAY_SEC) {
+        // Show the results
+        setQueryResults(respData);
+        setIsExpanded(false);
+        setWaitingOnQuery(null);
+      } else  {
+        // Wait to show the results
+        const remaining = QUERY_RESULTS_SHOW_DELAY_SEC - time_diff_sec;
+        resultShowTimeoutRef.current = window.setTimeout(() => {
+                                                      resultShowTimeoutRef.current = null;
+                                                      setQueryResults(respData);
+                                                      setIsExpanded(false);
+                                                      setWaitingOnQuery(null);
+                                                    }, remaining * 1000);
+      }
+      activeQueryRef.current = null;
+    } else {
+      if (Object.keys(respData).length <= 0) {
+        addMessage(Level.Information, 'The query returned no results. Please adjust your query and try again');
+      }
+      activeQueryRef.current = null;
+      setWaitingOnQuery(null);
+    }
+  }, [addMessage]);
 
   /**
    * Makes the call to get the query data and saves the results
    * @function
    */
   const handleQuery = React.useCallback(() => {
-    const queryUrl = serverURLRef.current + '/query?t=' + encodeURIComponent(queryToken) + "&i=" + "60";
     const formData = getQueryFormData(filters);
     const queryId = Date.now();
 
@@ -207,67 +252,32 @@ export default function Queries({loadingCollections}) {
     queryCancelledRef.current = false;
     activeQueryRef.current = queryId;
 
-    // Make the query
-    try {
-      fetch(queryUrl, {
-        credentials: 'include',
-        method: 'POST',
-        body: formData
-      })
-      .then(async (resp) => {
-          if (resp.ok) {
-            return resp.json();
-          } else {
-            if (resp.status === 401) {
-              // User needs to log in again
-              setTokenExpired();
-            }
-            throw new Error(`Failed to complete query: ${resp.status}: ${await resp.text()}`);
-          }
-      })
-      .then((respData) => {
-        // Check if this has been cancelled
-        if (queryCancelledRef.current === true) {
-          queryCancelledRef.current = false;
-          return;
-        }
-        // TODO: handle no results
-        console.log('QUERY:',respData);
-        if (activeQueryRef.current === queryId && Object.keys(respData).length > 0) {
-          const time_diff_sec = (Date.now() - queryId) / 1000.0;
-          if (Math.round(time_diff_sec) >= QUERY_RESULTS_SHOW_DELAY_SEC) {
-            setQueryResults(respData);
-            setIsExpanded(false);
-            setWaitingOnQuery(null);
-          } else  {
-            const remaining = QUERY_RESULTS_SHOW_DELAY_SEC - time_diff_sec;
-            window.setTimeout(() => {setQueryResults(respData);setIsExpanded(false);setWaitingOnQuery(null);}, remaining * 1000);
-          }
-          activeQueryRef.current = null;
-        } else {
-          if (Object.keys(respData).length <= 0) {
-            addMessage(Level.Information, 'The query returned no results. Please adjust your query and try again');
-          }
-          activeQueryRef.current = null;
-          setWaitingOnQuery(null);
-        }
-      })
-      .catch(function(err) {
-        console.log('CATCH ERROR: ',err);
-        if (activeQueryRef.current === queryId) {
-          activeQueryRef.current = null;
-          setWaitingOnQuery(null);
-          addMessage(Level.Error, 'An error was detected while executing the query', 'Query Error Detected');
-        }
-      });
-    } catch (error) {
-      console.log('HAVE ERROR:', error);
-      if (activeQueryRef.current === queryId) {
-        activeQueryRef.current = null;
-        setWaitingOnQuery(null);
-        addMessage(Level.Error, 'An error occurred while executing the query', 'Query Error');
-      }
+    const success = Server.query(serverURLRef.current, queryToken, formData, setTokenExpired,
+                      (respData) => {   // Success
+                          // Check if this has been cancelled
+                          if (queryCancelledRef.current === true) {
+                            queryCancelledRef.current = false;
+                            return;
+                          }
+
+                          console.log('QUERY:',respData);
+                          handleQueryResult(respData, queryId);
+                      },
+                      (err) => {        // Failure
+                          if (activeQueryRef.current === queryId) {
+                            activeQueryRef.current = null;
+                            setWaitingOnQuery(null);
+                            addMessage(Level.Error, 'An error was detected while executing the query', 'Query Error Detected');
+                          }
+                      }
+    );
+
+    if (!success) {
+      activeQueryRef.current = null;
+      setWaitingOnQuery(null);
+      addMessage(Level.Error, 'An error occurred while executing the query', 'Query Error');
     }
+
   }, [addMessage, filters, getQueryFormData, queryToken]);
 
   /**
@@ -294,11 +304,12 @@ export default function Queries({loadingCollections}) {
    * @param {string} tabId The tab name to download
    */
   const handleDownload = React.useCallback((tabId) => {
-    const downloadUrl =  serverURLRef.current + '/query_dl?t=' + encodeURIComponent(queryToken) + '&q=' + encodeURIComponent(tabId) + 
-                                                                '&d=' + encodeURIComponent(queryResults['downloads'][tabId]);
+    const params = new URLSearchParams({ t: queryToken, q: tabId, d: queryResults.downloads[tabId] });
+    const downloadUrl = `${serverURLRef.current}/query_dl?${params}`;
+
     const element = document.createElement('a');
     element.setAttribute('href', downloadUrl);
-    element.setAttribute('download', queryResults['downloads'][tabId]);
+    element.setAttribute('download', queryResults.downloads[tabId]);
     element.setAttribute('rel','noopener');
     //element.setAttribute('target','_blank');
 
@@ -356,38 +367,26 @@ export default function Queries({loadingCollections}) {
       }
       </Grid>
       { loadingCollections && 
-          <Grid id="query-loading-collections-wrapper" container direction="row" alignItems="center" justifyContent="center" 
-                sx={{position:'absolute', top:0, left:0, width:'100vw', height:uiSizes.workspace.height, backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
-          >
-            <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
-              <Grid container direction="column" alignItems="center" justifyContent="center" >
-                  <Typography gutterBottom variant="body2" color="lightgrey">
-                    Loading collections, please wait...
-                  </Typography>
-                  <CircularProgress variant="indeterminate" />
-                  <Typography gutterBottom variant="body2" color="lightgrey">
-                    This may take a while
-                  </Typography>
-              </Grid>
-            </div>
-          </Grid>
+          <WorkspaceOverlay >
+            <Typography gutterBottom variant="body2" color="lightgrey">
+              Loading collections, please wait...
+            </Typography>
+            <CircularProgress variant="indeterminate" />
+            <Typography gutterBottom variant="body2" color="lightgrey">
+              This may take a while
+            </Typography>
+          </WorkspaceOverlay>
       }
       { waitingOnQuery && 
-          <Grid id="query-running-query-wrapper" container direction="row" alignItems="center" justifyContent="center" 
-                sx={{position:'absolute', top:0, left:0, width:'100vw', height:uiSizes.workspace.height, backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
-          >
-            <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
-              <Grid container direction="column" alignItems="center" justifyContent="center" >
-                  <Typography gutterBottom variant="body2" color="lightgrey">
-                    Working on your query, please wait...
-                  </Typography>
-                  <CircularProgress variant="indeterminate" />
-                  <Box>
-                    <Button sx={{'flex':'1'}} size="small" onClick={cancelQuery} >Cancel</Button>
-                  </Box>
-              </Grid>
-            </div>
-          </Grid>
+          <WorkspaceOverlay>
+            <Typography gutterBottom variant="body2" color="lightgrey">
+              Working on your query, please wait...
+            </Typography>
+            <CircularProgress variant="indeterminate" />
+            <Box>
+              <Button sx={{'flex':'1'}} size="small" onClick={cancelQuery} >Cancel</Button>
+            </Box>
+          </WorkspaceOverlay>
       }
     </Box>
   );

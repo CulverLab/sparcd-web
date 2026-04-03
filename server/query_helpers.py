@@ -8,7 +8,7 @@ from typing import Callable, Optional
 import dateutil.tz
 
 from sparcd_db import SPARCdDatabase
-from s3_access import S3Connection, SPARCD_PREFIX
+from s3_access import S3Connection
 from format_dr_sanderson import get_dr_sanderson_output, get_dr_sanderson_pictures
 from format_csv import get_csv_raw, get_csv_location, get_csv_species
 from format_image_downloads import get_image_downloads
@@ -59,6 +59,9 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
     matches = []
     for one_upload in cur_uploads:
         cur_images = []
+        if not one_upload['info'] or 'images' not in one_upload['info']:
+            continue
+
         for one_image in one_upload['info']['images']:
             excluded = False
             image_dt = None

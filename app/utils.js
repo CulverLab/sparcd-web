@@ -63,3 +63,28 @@ export function pad(value, length, padding, left) {
 export function meters2feet(meters) {
   return Math.round((meters * 3.28084 + Number.EPSILON) * 100) / 100;
 }
+
+/**
+ * Function to compare two uploads for reverse sorting by date (newest on top)
+ * @function
+ */
+export function compareUploadDates(first, second) {
+  const toMs = ({ date: { date, time } }) =>
+    new Date(
+      date.year, date.month - 1, date.day,
+      time.hour, time.minute, time.second,
+      Math.floor(time.nano / 1e6)
+    ).getTime();
+
+  return toMs(second) - toMs(first); // Newest first
+};
+
+/**
+ * Converts the passed in value to boolean type
+ * @function
+ */
+export function coerceBool(value, defaultValue = false) {
+  if (value === null || value === undefined) return defaultValue;
+  if (typeof value === 'boolean') return value;
+  return String(value).toLowerCase() === 'true';
+}

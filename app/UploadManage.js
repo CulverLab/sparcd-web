@@ -13,6 +13,8 @@ import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import PropTypes from 'prop-types';
+
 import { SandboxInfoContext, SizeContext } from './serverInfo';
 import UploadSidebarItem from './components/UploadSidebarItem';
 
@@ -25,7 +27,6 @@ import UploadSidebarItem from './components/UploadSidebarItem';
  */
 export default function UploadManage({selectedUpload, onEditUpload}) {
   const theme = useTheme();
-  const sidebarRef = React.useRef();
   const sandboxItems = React.useContext(SandboxInfoContext);
   const uiSizes = React.useContext(SizeContext);
   const [sidebarWidth, setSidebarWidth] = React.useState(150);  // Default value is recalculated at display time
@@ -33,14 +34,11 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
   const [workingTop, setWorkingTop] = React.useState(null);  // Default value is recalculated at display time
   const [workspaceWidth, setWorkspaceWidth] = React.useState(640);  // Default value is recalculated at display time
   const [selectionIndex, setSelectionIndex] = React.useState(sandboxItems.findIndex((item) => item.name === selectedUpload));
-  const [windowSize, setWindowSize] = React.useState({width: 640, height: 480});  // Default values are recalculated at display time
 
-  // Recalcuate available space in the window
-  React.useLayoutEffect(() => {
-    setWorkspaceWidth(uiSizes.window.width - 150);
-    setWindowSize(uiSizes.window);
-    calcTotalSize(uiSizes);
-  }, [uiSize]);
+  // Keep selection index up to date
+  React.useEffect(() => {
+    setSelectionIndex(sandboxItems.findIndex((item) => item.name === selectedUpload));
+  }, [sandboxItems, selectedUpload]);
 
   /**
    * Handler for when the user's selection changes and prevents default behavior
@@ -48,40 +46,39 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
    * @param {object} event The event
    * @param {string} name The name of the new selected upload
    */
-  function onSandboxChange(event, name) {
+  const onSandboxChange = React.useCallback((event, name) => {
     event.preventDefault();
-    setSelectionIndex(sandboxItems.findIndex((item) => item.name == name));
-  }
+    setSelectionIndex(sandboxItems.findIndex((item) => item.name === name));
+  }, [sandboxItems]);
 
   /**
    * Handles the user not wanting to edit an upload and prevents default behavior
    * @function
    * @param {object} event The event
    */
-  function onCancelEditUpload(event) {
+  const onCancelEditUpload = React.useCallback((event) => {
     event.preventDefault();
     setSelectionIndex(-1);
-  }
+  }, []);
 
   /**
-   * Handle the user wanting to edit an upload  and prevents default behavior
+   * Handle the user wanting to edit an upload and prevents default behavior
    * @function
    * @param {object} event The event
    */
-  function handleEditUpload(event) {
+  const handleEditUpload = React.useCallback((event) => {
     event.preventDefault();
     onEditUpload(sandboxItems[selectionIndex].collectionId, sandboxItems[selectionIndex].key, "Uploads");
-  }
+  }, [onEditUpload, sandboxItems, selectionIndex]);
 
   /**
    * Calculates the total UI size available for the workarea
    * @function
    * @param {object} curSize The total width and height of the window layout items
    */
-  function calcTotalSize(curSize) {
+  const calcTotalSize = React.useCallback((curSize) => {
 
-    let maxHeight = (curSize.height - elHeaderSize.height - elFooterSize.height) + 'px';
-  
+    setWorkspaceWidth(curSize.window.width - 150);
     setTotalHeight(curSize.workspace.height);
     setWorkingTop(curSize.workspace.top);
 
@@ -89,27 +86,31 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
     if (elLeftSidebar) {
       const elLeftSidebarSize = elLeftSidebar.getBoundingClientRect();
       setSidebarWidth(elLeftSidebarSize.width);
-      setWorkspaceWidth(windowSize.width - elLeftSidebarSize.width);
+      setWorkspaceWidth(curSize.window.width - elLeftSidebarSize.width);
     }
-  }
+  }, []);
+
+  // Recalculate available space in the window
+  React.useLayoutEffect(() => {
+    calcTotalSize(uiSizes);
+  }, [calcTotalSize, uiSizes]);
 
   // Render the UI
-  const curHeight = (totalHeight || 480) + 'px';
-  const curStart = (workingTop || 25) + 'px';
+  const curHeight = (totalHeight || 480);
+  const curStart = (workingTop || 25);
   const workplaceStartX = sidebarWidth;
-  const curSelectionIndex = selectionIndex;
   return (
     <Box sx={{ flexGrow: 1, 'width': '100vw' }} >
-      <Grid id='left-sidebar' ref={sidebarRef} container direction='column' alignItems='stretch' columns='1' 
+      <Grid id='left-sidebar' container direction='column' alignItems='stretch' columns='1' 
           style={{ 'minHeight':curHeight, 'maxHeight':curHeight, 'height':curHeight, 'top':curStart, 
                    'position':'absolute', ...theme.palette.left_sidebar }} >
-        { sandboxItems.map((item, idx) => <UploadSidebarItem uploadItem={item.name} key={item.name} selected={idx == curSelectionIndex}
+        { sandboxItems.map((item, idx) => <UploadSidebarItem uploadItem={item.name} key={item.name} selected={idx === selectionIndex}
                                                              onClick={(ev) => onSandboxChange(ev, item.name)} />) }
       </Grid>
       <Grid id='upload-workspace' container spacing={0} direction="column" alignItems="center" justifyContent="center"
             style={{ 'minHeight':curHeight, 'maxHeight':curHeight, 'height':curHeight, 'top':curStart, 'left':workplaceStartX,
                      'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 'position':'absolute' }}>
-        { curSelectionIndex <= -1 ?
+        { selectionIndex <= -1 ?
             <Grid size={{ xs: 12, sm: 12, md:12 }}>
               <Container sx={{border:'1px solid grey', borderRadius:'5px', color:'darkslategrey', background:'#E0F0E0'}}>
                 <Typography variant="body" sx={{ color: 'text.secondary' }}>
@@ -122,12 +123,12 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
               <Card variant='outlined' sx={{backgroundColor: 'action.selected', maxWidth:'50vw'}}>
                 <CardContent>
                   <Typography variant="body" sx={{ color: 'text.secondary' }}>
-                    Do you want to edit <span style={{fontWeight:'bold'}}>{sandboxItems[curSelectionIndex].name}</span>?
+                    Do you want to edit <span style={{fontWeight:'bold'}}>{sandboxItems[selectionIndex].name}</span>?
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button sx={{'flex':'1'}} size="small" onClick={handleEditUpload} >Edit</Button>
-                  <Button sx={{'flex':'1'}} size="small"onClick={onCancelEditUpload} >Cancel</Button>
+                  <Button sx={{flex:1}} size="small" onClick={handleEditUpload} >Edit</Button>
+                  <Button sx={{flex:1}} size="small" onClick={onCancelEditUpload} >Cancel</Button>
                 </CardActions>
               </Card>
             </Grid>
@@ -136,3 +137,8 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
     </Box>
   );
 }
+
+UploadManage.propTypes = {
+  selectedUpload: PropTypes.string.isRequired,
+  onEditUpload:   PropTypes.func.isRequired,
+};

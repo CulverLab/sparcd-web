@@ -17,6 +17,7 @@ import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton'
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import WorkspaceOverlay from './components/WorkspaceOverlay';
 import { useTheme } from '@mui/material/styles';
 
 import PropTypes from 'prop-types';
@@ -24,8 +25,6 @@ import PropTypes from 'prop-types';
 import { CollectionsInfoContext, NarrowWindowContext, SizeContext } from './serverInfo';
 
 import { pad } from './utils';
-
-const OVERLAY_Z_INDEX = 11111;    // The z-index of an overlay
 
 /**
  * Renders the UI for managing the list of uploaded folders
@@ -330,38 +329,26 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
         </div>
       </Grid>
       { loadingCollections && 
-          <Grid id="loading-collections-wrapper" container direction="row" alignItems="center" justifyContent="center" 
-                sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:OVERLAY_Z_INDEX}}
-          >
-            <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
-              <Grid container direction="column" alignItems="center" justifyContent="center" >
-                  <Typography gutterBottom variant="body2" color="lightgrey">
-                    Loading collections, please wait...
-                  </Typography>
-                  <CircularProgress variant="indeterminate" />
-                  <Typography gutterBottom variant="body2" color="lightgrey">
-                    This may take a while
-                  </Typography>
-              </Grid>
-            </div>
-          </Grid>
+          <WorkspaceOverlay>
+            <Typography gutterBottom variant="body2" color="lightgrey">
+              Loading collections, please wait...
+            </Typography>
+            <CircularProgress variant="indeterminate" />
+            <Typography gutterBottom variant="body2" color="lightgrey">
+              This may take a while
+            </Typography>
+          </WorkspaceOverlay>
       }
       { editingUploadMask && 
-          <Grid id="waiting-edit-upload-wrapper" container direction="row" alignItems="center" justifyContent="center" 
-                sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:OVERLAY_Z_INDEX}}
-          >
-            <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
-              <Grid container direction="column" alignItems="center" justifyContent="center" spacing={1}>
-                  <Typography gutterBottom variant="body2" color="lightgrey">
-                    Preparing to edit uploaded images
-                  </Typography>
-                  <CircularProgress variant="indeterminate" />
-                  <Button size="small" variant="contained" onClick={() => setEditingUploadMask(false)} sx={{marginTop:'10px'}}>
-                    Cancel
-                  </Button>
-              </Grid>
-            </div>
-          </Grid>
+          <WorkspaceOverlay>
+              <Typography gutterBottom variant="body2" color="lightgrey">
+                Preparing to edit uploaded images
+              </Typography>
+              <CircularProgress variant="indeterminate" />
+              <Button size="small" variant="contained" onClick={() => setEditingUploadMask(false)} sx={{marginTop:'10px'}}>
+                Cancel
+              </Button>
+          </WorkspaceOverlay>
       }
     </Box>
   );
