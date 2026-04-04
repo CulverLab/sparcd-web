@@ -5,13 +5,13 @@ FROM node:current-alpine AS java-build
 
 WORKDIR /javasite
 
-RUN apk add openjdk21
-RUN apk add maven
+RUN apk add --no-cache openjdk21 maven
 
 COPY ./java/pom.xml .
 COPY ./java/src ./src
 
 RUN mvn -U compile package
+
 
 # Build our Frontend install
 FROM node:current-alpine AS frontend-build
@@ -19,8 +19,8 @@ FROM node:current-alpine AS frontend-build
 WORKDIR /buildsite
 
 # Install needed tools (won't have an impact if everything is all set)
-RUN apk add npm nodejs
-RUN npm update -g npm
+RUN apk add --no-cache npm nodejs && \
+    npm update -g npm
 
 # Install the package dependencies
 COPY ./package.json ./
@@ -35,6 +35,7 @@ COPY ./app ./app
 # Build the node packages
 RUN npm run build
 
+
 # Build the final image
 FROM nginx:alpine
 
@@ -48,43 +49,46 @@ ENV HTTPS_PORT=443
 
 # Install python stuff
 COPY ./requirements.txt ./
-RUN apk update
-RUN apk add python3 py-pip
-RUN apk add gdal
-RUN apk add ffmpeg
-RUN apk add gdal-dev && \
-    apk add python3-dev && \
-    apk add gcc g++ && \
-    python3 -m pip install --upgrade --no-cache-dir -r requirements.txt --break-system-packages && \
-    apk del gcc g++ && \
-    apk del python3-dev && \
-    apk del gdal-dev
-RUN apk cache clean
 
-# Install additional tools and runtimes
-RUN apk add openjdk21
-RUN apk add exiftool
-RUN apk add openssl
+# Install all runtime dependencies and Python packages in a single layer.
+# Build tools (gcc, g++, gdal-dev, python3-dev) are removed at the end of
+# the same RUN instruction so they are never persisted in the image
+RUN apk add --no-cache \
+        python3 \
+        py-pip \
+        gdal \
+        ffmpeg \
+        openjdk21 \
+        exiftool \
+        openssl \
+        gdal-dev \
+        python3-dev \
+        gcc \
+        g++ && \
+    pip install --upgrade --no-cache-dir \
+        -r requirements.txt \
+        --break-system-packages && \
+    apk del \
+        gdal-dev \
+        python3-dev \
+        gcc \
+        g++
 
 # Copy over the Java app
 COPY --from=java-build /javasite/target/ExifWriter-1.0-jar-with-dependencies.jar ./ExifWriter.jar
 
 # Copy over the built website
 COPY --from=frontend-build /buildsite/out ./
-RUN mkdir templates
-RUN mv index.html templates/
 
 # Copy the source code over
 COPY --exclude=__pycache__ --exclude=.DS_Store ./server/ ./
 
-# Build the default database
-RUN rm *.sqlite    # Clean up any testing databases
-RUN python3 create_db.py $PWD sparcd.sqlite
-RUN rm create_db.py
-
-# Clean up files we don't want on the server
-RUN rm -f requirements.txt
-RUN rm -f .DS_Store
+RUN mkdir templates && \
+    mv index.html templates/ && \
+    rm *.sqlite    && \
+    python3 create_db.py $PWD sparcd.sqlite && \
+    rm create_db.py && \
+    rm -f requirements.txt .DS_Store
 
 # Generate a self-signed certificate to work without a domain name
 # This certificate is good for 10 years. Clients will need to accept the

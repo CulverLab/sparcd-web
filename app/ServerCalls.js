@@ -713,18 +713,18 @@ export function userSettings(serverURL, token, newSettings, onExpiredToken, onSu
  * @param {string} serverURL The URL to the server
  * @param {string} token The authorization token
  * @param {object} formData The data to POST to the server
+ * @param {number} interval The query interval between sightings
  * @param {function} onExpiredToken Function to call when we get an expired token return
  * @param {function} onSuccess The function to call upon success
  * @param {function} onFailure The function to call upon failure
  * @return {boolean} Returns true if the call was successfullly made, false if not
  */
-export function query(serverURL, token, formData, onExpiredToken, onSuccess, onFailure) {
+export function query(serverURL, token, formData, interval, onExpiredToken, onSuccess, onFailure) {
   onExpiredToken ||= () => {};
   onSuccess ||= () => {};
   onFailure ||= () => {};
 
-  // TODO: Make "i" parameter the actual interval
-  const queryUrl = serverURL + '/query?t=' + encodeURIComponent(token) + "&i=" + "60";
+  const queryUrl = serverURL + '/query?t=' + encodeURIComponent(token) + "&i=" + encodeURIComponent(interval);
 
   // Make the query
   try {

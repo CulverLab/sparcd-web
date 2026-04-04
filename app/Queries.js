@@ -252,7 +252,7 @@ export default function Queries({loadingCollections}) {
     queryCancelledRef.current = false;
     activeQueryRef.current = queryId;
 
-    const success = Server.query(serverURLRef.current, queryToken, formData, setTokenExpired,
+    const success = Server.query(serverURLRef.current, queryToken, formData, queryIntervalRef.current, setTokenExpired,
                       (respData) => {   // Success
                           // Check if this has been cancelled
                           if (queryCancelledRef.current === true) {
