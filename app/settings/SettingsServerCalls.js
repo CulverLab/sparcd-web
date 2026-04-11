@@ -169,14 +169,14 @@ export function updateCollection(serverURL, token, editingId, collectionInfo, on
 
   const formData = new FormData();
 
-  formData.append('id', editingId);
-  formData.append('name', collectionInfo.name);
-  formData.append('description', collectionInfo.description);
-  formData.append('email', collectionInfo.email);
-  formData.append('organization', collectionInfo.organization);
-  formData.append('allPermissions', JSON.stringify(collectionInfo.allPermissions));
-
   try {
+    formData.append('id', editingId);
+    formData.append('name', collectionInfo.name);
+    formData.append('description', collectionInfo.description);
+    formData.append('email', collectionInfo.email);
+    formData.append('organization', collectionInfo.organization);
+    formData.append('allPermissions', JSON.stringify(collectionInfo.allPermissions));
+
     fetch(userUpdateCollUrl, {
       credentials: 'include',
       method: 'POST',
@@ -232,13 +232,13 @@ export function newCollection(serverURL, token, collectionInfo, onExpiredToken, 
 
   const formData = new FormData();
 
-  formData.append('name', collectionInfo.name);
-  formData.append('description', collectionInfo.description);
-  formData.append('email', collectionInfo.email);
-  formData.append('organization', collectionInfo.organization);
-  formData.append('allPermissions', JSON.stringify(collectionInfo.allPermissions));
-
   try {
+    formData.append('name', collectionInfo.name);
+    formData.append('description', collectionInfo.description);
+    formData.append('email', collectionInfo.email);
+    formData.append('organization', collectionInfo.organization);
+    formData.append('allPermissions', JSON.stringify(collectionInfo.allPermissions));
+
     fetch(userUpdateCollUrl, {
       credentials: 'include',
       method: 'POST',
@@ -295,11 +295,11 @@ export function updateUser(serverURL, token, oldName, userInfo, onExpiredToken, 
 
   const formData = new FormData();
 
-  formData.append('oldName', oldName);
-  formData.append('newEmail', userInfo.email);
-  formData.append('admin', userInfo.admin);
-
   try {
+    formData.append('oldName', oldName);
+    formData.append('newEmail', userInfo.email);
+    formData.append('admin', userInfo.admin);
+
     fetch(userUpdateUrl, {
       credentials: 'include',
       method: 'POST',
@@ -356,15 +356,15 @@ export function updateSpecies(serverURL, token, oldScientificName, newInfo, onEx
 
   const formData = new FormData();
 
-  formData.append('newName', newInfo.name);
-  if (oldScientificName) {
-    formData.append('oldScientific', oldScientificName);
-  }
-  formData.append('newScientific', newInfo.scientificName);
-  formData.append('keyBinding', newInfo.keyBinding);
-  formData.append('iconURL', newInfo.speciesIconURL);
-
   try {
+    formData.append('newName', newInfo.name);
+    if (oldScientificName) {
+      formData.append('oldScientific', oldScientificName);
+    }
+    formData.append('newScientific', newInfo.scientificName);
+    formData.append('keyBinding', newInfo.keyBinding);
+    formData.append('iconURL', newInfo.speciesIconURL);
+
     fetch(speciesUpdateUrl, {
       credentials: 'include',
       method: 'POST',
@@ -424,27 +424,27 @@ export function updateLocation(serverURL, token, editingId, oldLat, oldLon, newI
 
   const formData = new FormData();
 
-  formData.append('name', newInfo.nameProperty);
-  formData.append('id', editingId);
-  formData.append('active', newInfo.activeProperty);
-  formData.append('measure', newInfo.measure);
-  formData.append('elevation', newInfo.elevationProperty);
-  formData.append('coordinate', newInfo.coordinate);
-  formData.append('new_lat', newInfo.latProperty);
-  formData.append('new_lon', newInfo.lngProperty);
-  if (oldLat) {
-    formData.append('old_lat', oldLat);
-  }
-  if (oldLon) {
-    formData.append('old_lon', oldLon);
-  }
-  formData.append('utm_zone', newInfo.utm_zone);
-  formData.append('utm_letter', newInfo.utm_letter);
-  formData.append('utm_x', newInfo.utm_x);
-  formData.append('utm_y', newInfo.utm_y);
-  formData.append('description', newInfo.descriptionProperty);
-
   try {
+    formData.append('name', newInfo.nameProperty);
+    formData.append('id', editingId);
+    formData.append('active', newInfo.activeProperty);
+    formData.append('measure', newInfo.measure);
+    formData.append('elevation', newInfo.elevationProperty);
+    formData.append('coordinate', newInfo.coordinate);
+    formData.append('new_lat', newInfo.latProperty);
+    formData.append('new_lon', newInfo.lngProperty);
+    if (oldLat) {
+      formData.append('old_lat', oldLat);
+    }
+    if (oldLon) {
+      formData.append('old_lon', oldLon);
+    }
+    formData.append('utm_zone', newInfo.utm_zone);
+    formData.append('utm_letter', newInfo.utm_letter);
+    formData.append('utm_x', newInfo.utm_x);
+    formData.append('utm_y', newInfo.utm_y);
+    formData.append('description', newInfo.descriptionProperty);
+
     fetch(locationsUpdateUrl, {
       credentials: 'include',
       method: 'POST',
@@ -594,9 +594,9 @@ export function handleCollectionEdit(serverURL, token, collection, onExpiredToke
   const adminCollectionUrl = serverURL + '/adminCollectionDetails?t=' + encodeURIComponent(token);
   const formData = new FormData();
 
-  formData.append('bucket', collection.bucket);
-
   try {
+    formData.append('bucket', collection.bucket);
+
     fetch(adminCollectionUrl, {
       credentials: 'include',
       method: 'POST',
@@ -649,9 +649,9 @@ export function handleLocationEdit(serverURL, token, locationId, onExpiredToken,
   const adminLocationnUrl = serverURL + '/adminLocationDetails?t=' + encodeURIComponent(token);
   const formData = new FormData();
 
-  formData.append('id', locationId);
-
   try {
+    formData.append('id', locationId);
+
     fetch(adminLocationnUrl, {
       credentials: 'include',
       method: 'POST',
@@ -703,9 +703,10 @@ export function continueCheckIncomplete(serverURL, token, collections, onExpired
   const checkIncompleteUrl = serverURL + '/adminCheckIncomplete?t=' + encodeURIComponent(token);
 
   const formData = new FormData();
-  formData.append('collections', JSON.stringify(collections));
 
   try {
+    formData.append('collections', JSON.stringify(collections));
+
     fetch(checkIncompleteUrl, {
       credentials: 'include',
       method: 'POST',
@@ -805,14 +806,14 @@ export function ownerUpdateCollection(serverURL, token, editingId, collectionInf
 
   const formData = new FormData();
 
-  formData.append('id', editingId);
-  formData.append('name', collectionInfo.name);
-  formData.append('description', collectionInfo.description);
-  formData.append('email', collectionInfo.email);
-  formData.append('organization', collectionInfo.organization);
-  formData.append('allPermissions', JSON.stringify(collectionInfo.allPermissions));
-
   try {
+    formData.append('id', editingId);
+    formData.append('name', collectionInfo.name);
+    formData.append('description', collectionInfo.description);
+    formData.append('email', collectionInfo.email);
+    formData.append('organization', collectionInfo.organization);
+    formData.append('allPermissions', JSON.stringify(collectionInfo.allPermissions));
+
     fetch(userUpdateCollUrl, {
       credentials: 'include',
       method: 'POST',
@@ -863,9 +864,9 @@ export function ownerCollectionsEdit(serverURL, token, bucket, onExpiredToken, o
   const adminCollectionUrl = serverURL + '/ownerCollectionDetails?t=' + encodeURIComponent(token);
   const formData = new FormData();
 
-  formData.append('bucket', bucket);
-
   try {
+    formData.append('bucket', bucket);
+
     fetch(adminCollectionUrl, {
       credentials: 'include',
       method: 'POST',

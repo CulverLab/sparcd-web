@@ -1,6 +1,8 @@
 /** @module ServerCalls */
 
 
+const LIMIT_FORM_FILE_CHUNK = 5000
+
 /**
  * Logs onto the server
  * @function
@@ -64,9 +66,9 @@ export function settingsAdminCheck(serverURL, token, pw, onExpiredToken, onSucce
 
   const formData = new FormData();
 
-  formData.append('value', pw);
-
   try {
+    formData.append('value', pw);
+
     const resp = fetch(settingsCheckUrl, {
       credentials: 'include',
       method: 'POST',
@@ -118,9 +120,9 @@ export function settingsOwnerCheck(serverURL, token, pw, onExpiredToken, onSucce
 
   const formData = new FormData();
 
-  formData.append('value', pw);
-
   try {
+    formData.append('value', pw);
+
     const resp = fetch(settingsCheckUrl, {
       credentials: 'include',
       method: 'POST',
@@ -450,11 +452,11 @@ export function messageAdd(serverURL, token, recipients, subject, message, onExp
 
   const formData = new FormData();
 
-  formData.append('receiver', recipients.split(',').map((item) => item.trim()) );
-  formData.append('subject', subject);
-  formData.append('message', message);
-
   try {
+    formData.append('receiver', recipients.split(',').map((item) => item.trim()) );
+    formData.append('subject', subject);
+    formData.append('message', message);
+
     const resp = fetch(newMessagesUrl, {
       credentials: 'include',
       method: 'POST',
@@ -505,9 +507,9 @@ export function messageRead(serverURL, token, msgIds, onExpiredToken, onSuccess,
 
   const formData = new FormData();
 
-  formData.append('ids', JSON.stringify(msgIds));
-
   try {
+    formData.append('ids', JSON.stringify(msgIds));
+
     const resp = fetch(readMessagesUrl, {
       credentials: 'include',
       method: 'POST',
@@ -559,9 +561,9 @@ export function messageDelete(serverURL, token, msgIds, onExpiredToken, onSucces
 
   const formData = new FormData();
 
-  formData.append('ids', JSON.stringify(msgIds));
-
   try {
+    formData.append('ids', JSON.stringify(msgIds));
+
     const resp = fetch(delMessagesUrl, {
       credentials: 'include',
       method: 'POST',
@@ -612,11 +614,10 @@ export function uploadImages(serverURL, token, collectionId, uploadId, onExpired
   const uploadUrl = serverURL + '/uploadImages?t=' + encodeURIComponent(token);
   const formData = new FormData();
 
-  formData.append('id', collectionId);
-  formData.append('up', uploadId);
+   try {
+    formData.append('id', collectionId);
+    formData.append('up', uploadId);
 
-  // Get the information on the upload
-  try {
     const resp = fetch(uploadUrl, {
       credentials: 'include',
       method: 'POST',
@@ -1196,7 +1197,7 @@ export function locationInfo(serverURL, token, locId, locName, locLat, locLon, l
  * @param {string} token The authorization token
  * @param {string} collectionId The ID of the collection the upload belongs to
  * @param {string} uploadId The ID of the upload the images are a part of
- * @param {Array} imagePaths The array of image paths of images to update
+ * @param {Array} files The array of files to update the timestamp of
  * @param {number} adjYear The adjustment count of years
  * @param {number} adjMonth The adjustment count of months
  * @param {number} adjDay The adjustment count of days
@@ -1208,8 +1209,66 @@ export function locationInfo(serverURL, token, locId, locName, locLat, locLon, l
  * @param {function} onFailure The function to call upon failure
  * @return {boolean} Returns true if the call was successfullly made, false if not
  */
-export function imagesAdjustTimestamp(serverURL, token, collectionId, uploadId, imagePaths, adjYear, adjMonth, adjDay, adjHour, adjMinute, adjSecond,
+export function imagesAdjustTimestamp(serverURL, token, collectionId, uploadId, files, adjYear, adjMonth, adjDay, adjHour, adjMinute, adjSecond,
                                       onExpiredToken, onSuccess, onFailure) {
+  onExpiredToken ||= () => {};
+  onSuccess ||= () => {};
+  onFailure ||= () => {};
+
+  const adjustTimestampUrl = serverURL + '/adjustTimestamps?t=' + encodeURIComponent(token);
+
+  const formData = new FormData();
+
+  try {
+    formData.append('collection', collectionId);
+    formData.append('upload',     uploadId);
+    formData.append('year',   adjYear);
+    formData.append('month',  adjMonth);
+    formData.append('day',    adjDay);
+    formData.append('hour',   adjHour);
+    formData.append('minute', adjMinute);
+    formData.append('second', adjSecond);
+
+    if (files.length < LIMIT_FORM_FILE_CHUNK) {
+      formData.append('files', JSON.stringify(files.map((item) => item.name)));
+    } else {
+      formData.append('files', JSON.stringify(files.slice(0,LIMIT_FORM_FILE_CHUNK).map((item) => item.name)));
+      let index = 1;
+      let start = LIMIT_FORM_FILE_CHUNK;
+      while (start < files.length) {
+        let end = Math.min(start + LIMIT_FORM_FILE_CHUNK, files.length);
+        formData.append('files'+index, JSON.stringify(files.slice(start,end).map((item) => item.name)));
+        start += LIMIT_FORM_FILE_CHUNK;
+        index += 1;
+      };
+    }
+
+    fetch(adjustTimestampUrl, {
+      credentials: 'include',
+      method: 'POST',
+      body: formData
+    }).then(async (resp) => {
+          if (resp.ok) {
+            return resp.json();
+          } else {
+            if (resp.status === 401) {
+              // User needs to log in again
+              onExpiredToken();
+            }
+            throw new Error(`Failed to get location information: ${resp.status}: ${await resp.text()}`);
+          }
+        })
+      .then((respData) => {
+        onSuccess(respData);
+      })
+      .catch(function(err) {
+        console.log('Location tooltip Error: ',err);
+        onFailure(err);
+    });
+  } catch (err) {
+    console.log('Location tooltip Unknown Error: ',err);
+    return false;
+  }
 
   return true;
 }

@@ -1016,12 +1016,13 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
     const toChange = getCheckedNamedImages();
     if (!toChange || toChange.length <= 0) {
       onSuccess();
+      return;
     }
 
     const success = Server.imagesAdjustTimestamp(serverURL, editToken,
                           curUpload.collectionId,
                           curUpload.uploadId,
-                          toChange.map((item) => item.s3_path),
+                          toChange,
                           adjustedFields[ADJUST_TIMESTAMP_FIELDS.YEAR],
                           adjustedFields[ADJUST_TIMESTAMP_FIELDS.MONTH],
                           adjustedFields[ADJUST_TIMESTAMP_FIELDS.DAY],
@@ -1135,7 +1136,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                                     addMessage(Level.Information, 'Image timestamps successfully adjusted');
                                 },
                                 (err) => {
-                                    if (type(err) === 'string') {
+                                    if (typeof(err) === 'string') {
                                       addMessage(Level.Error, err)
                                     } else {
                                       addMessage(Level.Error, 'An error ocurred while trying to adjust image timestamps');
@@ -1143,7 +1144,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                                 }
   );
 
-  }, [addMessage, handleAdjustTimestampClose]);
+  }, [addMessage, handleAdjustTimestampClose, handleImageTimestampUpdates]);
 
   // Variables to help with generating the UI
   const curHeight = totalHeight;
