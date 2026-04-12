@@ -869,7 +869,6 @@ def add_to_datetime(dt: datetime, ta: relativedelta) -> datetime:
     new_day = min(dt.day, max_day)
 
     result = dt.replace(year=new_year, month=new_month, day=new_day)
-    print('HACK:ADDTODATETIME:',ta.year,ta.month,ta.day,ta.hour,ta.minute,ta.second,flush=True)
 
     # Apply days / hours / minutes / seconds via timedelta
     result += timedelta(days=ta.day, hours=ta.hour, minutes=ta.minute, seconds=ta.second)

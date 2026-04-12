@@ -1129,13 +1129,17 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
       return;
     }
 
+    setPendingMessage('Updating timestamps' + (getCheckedNamedImages().length > 5 ? '. This may take a while' : ''))
+
     // Make the server call
     handleImageTimestampUpdates(adjustedFields,
                                 (respData) => {     // Success
                                     handleAdjustTimestampClose();
+                                    setPendingMessage(null);
                                     addMessage(Level.Information, 'Image timestamps successfully adjusted');
                                 },
                                 (err) => {
+                                    setPendingMessage(null);
                                     if (typeof(err) === 'string') {
                                       addMessage(Level.Error, err)
                                     } else {

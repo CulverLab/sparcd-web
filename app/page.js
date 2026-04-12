@@ -110,7 +110,6 @@ export default function Home() {
   const [userSettings, setUserSettings] =  React.useState(DEFAULT_USER_SETTINGS);
 
 
-  console.log('HACK: LOGININFO:',loggedIn,lastToken);
   /**
    * Handles the idle events
    * @function
@@ -126,7 +125,6 @@ export default function Home() {
   const checkIdleTimeout = React.useCallback(() => {
     // Check if we're disabled
     if (!checkForIdleRef.current || !loggedIn) {
-      console.log('HACK: CHECK TIMEOUT WHILE DISABLED');
       lastIdleTimeoutIdRef.current = window.setTimeout(checkIdleTimeout, idleTimeoutSecRef.current * 1000);
       return;
     }
@@ -135,9 +133,7 @@ export default function Home() {
     const diffSec = (Date.now() - idleLastTimestampRef.current) / 1000;
 
     // We idle out if we are at, or exceed, the limit
-    console.log('HACK: CHECK TIMEOUT:', diffSec, idleTimeoutSecRef.current, 'TIMEOUT:',lastIdleTimeoutIdRef.current);
     if (diffSec >= idleTimeoutSecRef.current) {
-      console.log('HACK:     TIMEDOUT');
       lastIdleTimeoutIdRef.current = null;
       setUserIdleTimedOut(true);
     } else {
@@ -156,14 +152,12 @@ export default function Home() {
     // Start the timer for checking the idle flag (we wait a minimum of the idle timout seconds)
     if (lastIdleTimeoutIdRef.current === null) {
       checkForIdleRef.current = true;
-      console.log('HACK: CHECK FOR IDLE IN',idleTimeoutSecRef.current, 'SECONDS');
       lastIdleTimeoutIdRef.current = window.setTimeout(checkIdleTimeout, idleTimeoutSecRef.current * 1000);
     }
 
     return () => {
       // Stop any timeout
       if (lastIdleTimeoutIdRef.current !== null) {
-        console.log('HACK: UNMOUNT CLEARING TIMEOUT');
         window.clearTimeout(lastIdleTimeoutIdRef.current);
         lastIdleTimeoutIdRef.current = null;
       }

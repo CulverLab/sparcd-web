@@ -64,7 +64,8 @@ export default function AdjustImageTimestamp({images, onUpdate, onCancel}) {
 
   // We adjust the timestamp based upon the earliest time
 const earliestTimestamp = React.useMemo(() => {
-  const sorted = [...(images ?? [])].sort((a, b) => a.timestamp - b.timestamp);
+  // Return the difference if we have two timestamps, otherwise have they empty one be last
+  const sorted = [...(images ?? [])].sort((a, b) => a.timestamp && b.timestamp ? a.timestamp - b.timestamp : a ? 1 : -1);
   return sorted.length > 0 ? sorted[0].timestamp : null;
 }, [images]);
 

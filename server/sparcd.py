@@ -7,6 +7,7 @@ import hashlib
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -1953,6 +1954,25 @@ def sandbox_file():
                                  audio_codec='aac',
                                  ffmpeg_params=['-preset', 'fast', '-crf', '23', '-threads', '4'],
                                  logger=None)
+                video_clip.close()
+
+                # Re-mux the converted file with metadata copied from the original
+                metadata_output = mp4_filename.replace('.mp4', '_meta.mp4')
+                subprocess.run(
+                    [
+                        'ffmpeg', '-y',
+                        '-i', mp4_filename,        # converted video (video/audio streams)
+                        '-i', temp_file[1],        # original file (metadata source)
+                        '-map', '0',               # use all streams from converted file
+                        '-map_metadata', '1',      # copy metadata from original file
+                        '-codec', 'copy',          # no re-encoding
+                        metadata_output
+                    ],
+                    check=True,
+                    capture_output=True
+                )
+                os.replace(metadata_output, mp4_filename)
+
                 upload_file = mp4_filename
                 working_name = remote_name
                 working_mimetype = 'video/mp4'
@@ -1960,7 +1980,7 @@ def sandbox_file():
                                            upload_id,
                                            request.files[one_file].filename,
                                            working_name)
-            except OSError as ex:
+            except (OSError, subprocess.CalledProcessError) as ex:
                 print(f'Exception caught when converting MOV to .mp4: {temp_file[1]}', flush=True)
                 print(ex,flush=True)
                 raise ex
@@ -2749,7 +2769,6 @@ def adjust_timestamps():
         return jsonify({'success':True})
 
     # Get all the file names
-    print('HACK: ALLFILES:',all_files,flush=True)
     try:
         all_files = json.loads(all_files)
     except json.JSONDecodeError as ex:
@@ -2760,7 +2779,6 @@ def adjust_timestamps():
     req_index = 1
     while True:
         more_files = request.form.get(f'files{req_index}', None)
-        print('HACK:   MOREFILES:',more_files,flush=True)
         if not more_files:
             break
 
@@ -2801,16 +2819,11 @@ def adjust_timestamps():
     # and in the media
     time_adjust = relativedelta(year=year, month=month, day=day,
                                                             hour=hour, minute=minute, second=second)
-    print('HACK: ADJ: ',year,month,day,hour,minute,second,time_adjust, flush=True)
     for one_file in all_files:
-        print('HACK:  ONEFILE:',one_file,flush=True)
-        print('HACK:         :',tuple(media_info.keys()), flush=True)
         mapped_file = media_map[one_file] if one_file in media_map else None
-        print('HACK:   MAPPED:',mapped_file, flush=True)
         if mapped_file is None:
             continue
         if mapped_file in media_info:
-            print('HACK:  FOUND IMAGE', flush=True)
 
             # Get the image from the server
             temp_file = tempfile.mkstemp(suffix=os.path.splitext(mapped_file)[1],
@@ -2836,15 +2849,12 @@ def adjust_timestamps():
                                     media_info[mapped_file][camtrap.CAMTRAP_MEDIA_TIMESTAMP_IDX])
                 if media_ts:
                     # Adjust the timestamp
-                    print('HACK:  ADJTS:',media_ts,flush=True)
                     media_ts = sdu.add_to_datetime(media_ts, time_adjust)
-                    print('HACK:      :',media_ts,flush=True)
                     media_info[mapped_file][camtrap.CAMTRAP_MEDIA_TIMESTAMP_IDX] = \
                                                                                 media_ts.isoformat()
 
             # Put the image back up if we changed the timestamp
             if new_ts is not None:
-                print('HACK: PUTTING IMAGE BACK', flush=True)
                 S3Connection.upload_file(s3_info,
                                     s3_bucket,
                                     media_info[mapped_file][camtrap.CAMTRAP_MEDIA_FILE_PATH_IDX],
@@ -2856,7 +2866,6 @@ def adjust_timestamps():
                 os.unlink(temp_file[1])
 
     # Upload the MEDIA csv file to the server
-    print('HACK: UPDATING CAMTRAP MEDIA', flush=True)
     S3Connection.upload_camtrap_data(s3_info,
                                      s3_bucket,
                                      make_s3_path((s3_path, MEDIA_CSV_FILE_NAME)),

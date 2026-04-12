@@ -98,10 +98,6 @@ def __parse_exiftool_timestamp(parse_lines: tuple) -> Optional[datetime.datetime
     Return:
         The found timestamp
     """
-    # HACK
-    for one in parse_lines:
-        print('HACK: TSEXIF:', one, flush=True)
-    # HACK
     cur_dt = None
     for one_line in parse_lines:
         try:
@@ -161,13 +157,11 @@ def get_image_timestamp(image_path: str) -> Optional[datetime.datetime]:
         The creation timestamp if found, otherwise the modification timestamp. If a valid
         timestamp isn't found, None is returned
     """
-    print('HACK: UPDATE_TIMESTAMP', flush=True)
     # Loop through some tries to get the information
     tries = 0
     while tries < MAX_TRIES_GETTIME:
         try:
             cmd = ["exiftool", "-time:all", "-a", "-G0:1", "-s", image_path]
-            print('HACK:         CMD:', cmd, flush=True)
             res = subprocess.run(cmd, capture_output=True, check=True)
             break
         except subprocess.CalledProcessError as ex:
@@ -180,7 +174,6 @@ def get_image_timestamp(image_path: str) -> Optional[datetime.datetime]:
         tries += 1
 
     if tries >= MAX_TRIES_GETTIME:
-        print('HACK:     NO TIMESTAMP FOUND:', flush=True)
         return None
 
     # Convert the timestamp to a datetime
@@ -389,11 +382,9 @@ def update_timestamp(local_path: str, time_adjust: relativedelta) -> Optional[da
     # Check to see if we have anything to work with before trying to change the timestamp
     cur_ts = get_image_timestamp(local_path)
     if not cur_ts:
-        print('HACK:       NO TIMESTAMP IN FILE')
         return None
 
     # Format the adjustment strings
-    print('HACK: UPDATETIMESTAMP:',time_adjust, flush=True)
     pos_update_str = None
     if any(val for val in (time_adjust.year,time_adjust.month,time_adjust.day,time_adjust.hour,
                             time_adjust.minute, time_adjust.second) if val > 0):
@@ -411,12 +402,9 @@ def update_timestamp(local_path: str, time_adjust: relativedelta) -> Optional[da
                         ':'.join([f'{abs(val):02d}' if val < 0 else '00' for \
                             val in (time_adjust.hour, time_adjust.minute, time_adjust.second)])
     # Update the timestamps using the relative values
-    print('HACK:   POS:', pos_update_str, flush=True)
-    print('HACK:   NEG:', neg_update_str, flush=True)
     try:
         if pos_update_str:
             cmd = ["exiftool", f'-time:all+="{pos_update_str}"', local_path]
-            print('HACK:     UPDATECOMMAND:', cmd, flush=True)
             _ = subprocess.run(cmd, capture_output=True, check=True)
     except subprocess.CalledProcessError as ex:
         print(f'ERROR: Exception updating timestamp on image {local_path}',flush=True)
@@ -427,7 +415,6 @@ def update_timestamp(local_path: str, time_adjust: relativedelta) -> Optional[da
     try:
         if neg_update_str:
             cmd = ["exiftool", f'-time:all-="{neg_update_str}"', local_path]
-            print('HACK:     UPDATECOMMAND:', cmd, flush=True)
             _ = subprocess.run(cmd, capture_output=True, check=True)
     except subprocess.CalledProcessError as ex:
         print(f'ERROR: Exception updating timestamp on image {local_path}',flush=True)
@@ -436,5 +423,4 @@ def update_timestamp(local_path: str, time_adjust: relativedelta) -> Optional[da
         print(ex.stderr, flush=True)
 
     cur_ts = get_image_timestamp(local_path)
-    print('HACK:     RETURN:', cur_ts, flush=True)
     return cur_ts
