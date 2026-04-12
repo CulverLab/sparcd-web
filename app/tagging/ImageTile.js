@@ -1,4 +1,4 @@
-/** @module components/ImageTile */
+/** @module tagging/ImageTile */
 
 import * as React from 'react';
 import Box from '@mui/material/Box';
@@ -17,11 +17,12 @@ import PropTypes from 'prop-types';
  * @function
  * @param {string} name The name of the image to display
  * @param {string} type The type of image the tile is
- * @param {object} species Array of species associated with the tile
+ * @param {object} timestamp The timestamp of the image
+ * @param {Array} species Array of species associated with the tile
  * @param {function} onClick Handler for the user clicking the tile
  * @return {object} The UI to render
  */
-export default function ImageTile({name, type, species, onClick}) {
+export default function ImageTile({name, type, timestamp, species, onClick}) {
   const theme = useTheme();
 
   if (!species) {
@@ -77,9 +78,14 @@ export default function ImageTile({name, type, species, onClick}) {
               {haveSpecies ? <CheckCircleOutlinedIcon fontSize="small" sx={{color:"#68AB68", marginLeft:'auto'}}/> : null}
             </Grid>
             {generateImageSvg(haveSpecies ? 'grey':undefined, haveSpecies ? '#68AB68':undefined)}
-            <Typography variant="body1" sx={{marginLeft:'auto', border:'1px solid black', borderRadius:'7px', backgroundColor:haveSpecies ? 'dimgrey' : 'silver', padding:'2px 5px' }}>
-              {type}
-            </Typography>
+            <Grid container direction='row' alignItems='center' justifyContent='space-between' sx={{width:'100%'}} >
+              <Typography variant="body1" sx={{border:'1px solid black', borderRadius:'7px', backgroundColor:haveSpecies ? 'dimgrey' : 'silver', padding:'2px 5px' }}>
+                {type}
+              </Typography>
+              <Typography variant="body1" sx={{marginLeft:'auto'}} >
+                {timestamp ? timestamp.toLocaleString() : ''}
+              </Typography>
+            </Grid>
             <Grid container id={`species-list-${name}-info`} spacing={0} direction="column" alignItems="center" justifyContent="flex-start"
                   sx={{width:'100%'}}>
               <Grid container direction="row" alignItems="center" justifyContent="space-between"

@@ -4,10 +4,11 @@ import concurrent.futures
 import datetime
 import json
 import traceback
-from typing import Callable, Optional
+from typing import Optional
 import dateutil.tz
 
 from sparcd_db import SPARCdDatabase
+from spd_types.s3info import S3Info
 from s3_access import S3Connection
 from format_dr_sanderson import get_dr_sanderson_output, get_dr_sanderson_pictures
 from format_csv import get_csv_raw, get_csv_location, get_csv_species
@@ -131,35 +132,26 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
     return [cur_upload['info']|{'images':cur_images} for cur_upload,cur_images in matches]
 
 
-def list_uploads_thread(s3_url: str, user_name: str, user_secret: str, bucket: str) -> object:
+def list_uploads_thread(s3_info: S3Info, bucket: str) -> object:
     """ Used to load upload information from an S3 instance
     Arguments:
-        s3_url - the URL to connect to
-        user_name - the name of the user to connect with
-        user_secret - the secret used to connect
+        s3_info - the information on the S3 instance
         bucket - the bucket to look in
     Return:
         Returns an object with the loaded uploads
     """
-    uploads_info = S3Connection.list_uploads(s3_url,    \
-                                        user_name,      \
-                                        user_secret,    \
-                                        bucket,         \
-                                        True)
+    uploads_info = S3Connection.list_uploads(s3_info, bucket, True)
 
     return {'bucket': bucket, 'uploads_info': uploads_info}
 
 
-def filter_collections(db: SPARCdDatabase, cur_coll: tuple, s3_id: str, s3_url: str, \
-                       user_name: str, fetch_password: Callable, filters: tuple) -> tuple:
+def filter_collections(db: SPARCdDatabase, cur_coll: tuple, s3_info: S3Info, \
+                                                                        filters: tuple) -> tuple:
     """ Filters the collections in an efficient manner
     Arguments:
         db - connections to the current database
         cur_coll - the list of applicable collections
-        s3_id: the ID of the S3 endpoint
-        s3_url - the URL to the S3 instance
-        user_name - the user's name for S3
-        fetch_password - returns the user's password
+        s3_info - the information on the S3 instance
         filters - the filters to apply to the data
     Returns:
         Returns the filtered results
@@ -170,7 +162,7 @@ def filter_collections(db: SPARCdDatabase, cur_coll: tuple, s3_id: str, s3_url: 
     # Load all the DB data first
     for one_coll in cur_coll:
         cur_bucket = one_coll['bucket']
-        uploads_info = db.get_uploads(s3_id, cur_bucket, TIMEOUT_UPLOADS_SEC)
+        uploads_info = db.get_uploads(s3_info.id, cur_bucket, TIMEOUT_UPLOADS_SEC)
         if uploads_info is not None and uploads_info:
             uploads_info = [{'bucket':cur_bucket,                           \
                              'name':one_upload['name'],                     \
@@ -190,10 +182,8 @@ def filter_collections(db: SPARCdDatabase, cur_coll: tuple, s3_id: str, s3_url: 
 
     # Load the S3 uploads in an aynchronous fashion
     if len(s3_uploads) > 0:
-        user_secret = fetch_password()
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            cur_futures = {executor.submit(list_uploads_thread, s3_url, user_name, \
-                                                                        user_secret, cur_bucket):
+            cur_futures = {executor.submit(list_uploads_thread, s3_info, cur_bucket):
                             cur_bucket for cur_bucket in s3_uploads}
 
             for future in concurrent.futures.as_completed(cur_futures):
@@ -206,7 +196,7 @@ def filter_collections(db: SPARCdDatabase, cur_coll: tuple, s3_id: str, s3_url: 
                                          'info':one_upload,
                                          'json':json.dumps(one_upload)
                                         } for one_upload in uploads_results['uploads_info']]
-                        db.save_uploads(s3_id, uploads_results['bucket'], uploads_info)
+                        db.save_uploads(s3_info.id, uploads_results['bucket'], uploads_info)
 
                         # Filter on current DB uploads
                         if len(uploads_info) > 0:

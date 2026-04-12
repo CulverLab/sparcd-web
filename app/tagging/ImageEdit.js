@@ -1,6 +1,6 @@
 'use client'
 
-/** @module ImageEdit */
+/** @module tagging/ImageEdit */
 
 import * as React from 'react';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';

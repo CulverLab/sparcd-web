@@ -201,7 +201,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
       <Grid id='collection-manage-workspace' container direction='row' alignItems='start' justifyContent='start' sx={{ width:'100vw' }} columns={48}>
         <div id='collection-manage-workspace-collections-wrapper' 
                 style={{minWidth:'calc(100vw - 460px)', maxWidth:'calc(100vw - 460px)', maxHeight:curHeight, paddingLeft:'10px', overflowY:'scroll'}}>
-          <Grid id='collection-manage-workspace-collections-details' container direction="row">
+          <Grid id='collection-manage-workspace-collections-details' container direction="row" >
             { collectionsItems && collectionsItems.map((item, idx) =>
               <Grid key={'collection-'+item.name+'-'+idx} >
                     <Grid display='flex' justifyContent='left' size='grow' >

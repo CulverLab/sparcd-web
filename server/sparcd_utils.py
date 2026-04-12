@@ -1,6 +1,6 @@
 """ Utility functions for SPARCd server """
 
-from datetime import datetime
+import calendar
 import concurrent.futures
 import hashlib
 import json
@@ -10,14 +10,17 @@ import shutil
 import tempfile
 import time
 import traceback
-from typing import Callable, Optional
+from typing import Optional
 import uuid
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 
 import image_utils
 import spd_crypt as crypt
 from sparcd_db import SPARCdDatabase
 import sparcd_file_utils as sdfu
+from spd_types.s3info import S3Info
 from s3_access import S3Connection, SPARCD_PREFIX, LOCATIONS_JSON_FILE_NAME, SPECIES_JSON_FILE_NAME
 import s3_utils as s3u
 from text_formatters.coordinate_utils import DEFAULT_UTM_ZONE, deg2utm, deg2utm_code
@@ -33,7 +36,7 @@ TEMP_LOCATIONS_FILE_NAME = SPARCD_PREFIX + 'locations.json'
 TIMEOUT_UPLOADS_SEC = 3 * 60 * 60
 
 # Allowed movie extensions for upload
-UPLOAD_KNOWN_MOVIE_EXT = ['.mp4', '.mov']
+UPLOAD_KNOWN_MOVIE_EXT = ['.mp4', '.mov', '.avi']
 
 
 def make_boolean(value) -> bool:
@@ -175,21 +178,17 @@ def cleanup_old_queries(db: SPARCdDatabase, token: str) -> None:
                     print(ex)
 
 
-def load_locations(s3_url: str, user_name: str, fetch_password: Callable, s3_id: str, \
-                                                                    for_admin: bool=False) -> tuple:
+def load_locations(s3_info: S3Info, for_admin: bool=False) -> tuple:
     """ Loads locations and converts lat-lon to UTM
     Arguments:
-        s3_url - the URL to the S3 instance
-        user_name - the user's name for S3
-        fetch_password: returns the user's password
-        s3_id: ID for the S3 endpoint
+        s3_info - the information on the S3 endpoint
         for_admin: when set to True, location details are not obscured
     Return:
         Returns the locations along with the converted coordinates
     """
     cur_locations = s3u.load_sparcd_config(LOCATIONS_JSON_FILE_NAME,
-                                                    s3_id+'-'+TEMP_LOCATIONS_FILE_NAME,
-                                                    s3_url, user_name, fetch_password)
+                                                    s3_info.id+'-'+TEMP_LOCATIONS_FILE_NAME,
+                                                    s3_info)
     if not cur_locations:
         return cur_locations
 
@@ -217,14 +216,11 @@ def load_locations(s3_url: str, user_name: str, fetch_password: Callable, s3_id:
     return cur_locations
 
 
-def update_admin_locations(url: str, user: str, password: str, s3_id: str, changes: dict) -> bool:
+def update_admin_locations(s3_info: S3Info, changes: dict) -> bool:
     """ Updates the master list of locations with the changes under the
         'locations' key
     Arguments:
-        url: the URL to the S3 instance
-        user: the S3 user name
-        password: the S3 password
-        s3_id: ID associated with the s3 endpoint
+        s3_info: the information on the S3 endpoint
         changes: the list of changes for locations
     Return:
         Returns True unless a problem is found
@@ -234,7 +230,7 @@ def update_admin_locations(url: str, user: str, password: str, s3_id: str, chang
         return True
 
     # Try to get the configuration information from S3
-    all_locs = S3Connection.get_configuration(LOCATIONS_JSON_FILE_NAME, url, user, password)
+    all_locs = S3Connection.get_configuration(s3_info, LOCATIONS_JSON_FILE_NAME)
     if all_locs is None:
         return False
     all_locs = json.loads(all_locs)
@@ -277,11 +273,10 @@ def update_admin_locations(url: str, user: str, password: str, s3_id: str, chang
     all_locs = tuple(all_locs.values())
 
     # Save to S3 and the local file system
-    S3Connection.put_configuration(LOCATIONS_JSON_FILE_NAME, json.dumps(all_locs, indent=4),
-                                    url, user, password)
+    S3Connection.put_configuration(s3_info, LOCATIONS_JSON_FILE_NAME, json.dumps(all_locs,indent=4))
 
 
-    config_file_path = os.path.join(tempfile.gettempdir(), s3_id + '-' + TEMP_LOCATIONS_FILE_NAME)
+    config_file_path = os.path.join(tempfile.gettempdir(), s3_info.id+'-'+TEMP_LOCATIONS_FILE_NAME)
     sdfu.save_timed_info(config_file_path, all_locs)
 
     return True
@@ -365,13 +360,10 @@ def normalize_collection(coll: dict) -> dict:
     return cur_col
 
 
-def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
-                                                            all_collections: tuple=None) -> tuple:
+def get_sandbox_collections(s3_info: S3Info, items: tuple, all_collections: tuple=None) -> tuple:
     """ Returns the sandbox information as collection information
     Arguments:
-        url: the URL to the S3 instance
-        user: the S3 user name
-        password: the S3 password
+        s3_info: the information for connecting to the S3 instance
         items: the sandbox items as returned by the database
         all_collections: the list of known collections
     Return:
@@ -417,8 +409,7 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
                     if len(found_uploads) > 0:
                         cur_upload = found_uploads[0]
             else:
-                found = S3Connection.get_collection_info(url, user, password, bucket,
-                                                                            one_item['s3_path'])
+                found = S3Connection.get_collection_info(s3_info, bucket, one_item['s3_path'])
                 if found:
                     # Indicate we've downloaded collection from S3 and look for the upload
                     coll_uploads[bucket]['s3_collection'] = True
@@ -434,8 +425,7 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
             continue
 
         if cur_upload is None:
-            cur_upload = S3Connection.get_upload_info(url, user, password, bucket,
-                                                                                one_item['s3_path'])
+            cur_upload = S3Connection.get_upload_info(s3_info, bucket, one_item['s3_path'])
             if cur_upload is None:
                 print(f'ERROR: Unable to retrieve upload for bucket {bucket}: ' \
                                                                 f'Path: "{one_item['s3_path']}"')
@@ -518,13 +508,11 @@ def token_is_valid(token: str, client_ip: str, user_agent: str, db: SPARCdDataba
     return False, None
 
 
-def update_admin_species(url: str, user: str, password: str, changes: dict) -> Optional[tuple]:
+def update_admin_species(s3_info: S3Info, changes: dict) -> Optional[tuple]:
     """ Updates the master list of species with the changes under the
         'species' key
     Arguments:
-        url: the URL to the S3 instance
-        user: the S3 user name
-        password: the S3 password
+        s3_info: the information on the S3 endpoint
         changes: the list of changes for species
     Return:
         Returns the tuple of updated species, or None if a problem is found
@@ -534,7 +522,7 @@ def update_admin_species(url: str, user: str, password: str, changes: dict) -> O
         return True
 
     # Try to get the configuration information from S3
-    all_species = S3Connection.get_configuration(SPECIES_JSON_FILE_NAME, url, user, password)
+    all_species = S3Connection.get_configuration(s3_info, SPECIES_JSON_FILE_NAME)
     if all_species is None:
         return None
     all_species = json.loads(all_species)
@@ -565,14 +553,12 @@ def update_admin_species(url: str, user: str, password: str, changes: dict) -> O
     return all_species
 
 
-def process_upload_changes(s3_url: str, username: str, fetch_password: Callable, \
+def process_upload_changes(s3_info: S3Info, \
                             collection_id: str, upload_name: str,  species_timed_file: str, \
                             change_locations: tuple=None, files_info: tuple=None) -> tuple:
     """ Updates the image files with the information passed in
     Argument:
-        s3_url: the URL to the S3 endpoint (in clear text)
-        username: the name of the user associated with the token
-        fetch_password: returns the user password
+        s3_info: the information for the S3 endpoint
         collection_id: the ID of the collection the files are in
         upload_name: the name of the upload
         species_timed_file: the name of the timed file to load species from
@@ -598,15 +584,13 @@ def process_upload_changes(s3_url: str, username: str, fetch_password: Callable,
 
     # Get the list of files to update
     update_files = files_info if not change_locations else \
-                        S3Connection.get_image_paths(s3_url, username, fetch_password(), \
-                                                                        collection_id, upload_name)
+                        S3Connection.get_image_paths(s3_info, collection_id, upload_name)
 
     edit_folder = tempfile.mkdtemp(prefix=SPARCD_PREFIX + 'edits_' + uuid.uuid4().hex)
 
     try: # We have this "try" for the "finally" clause to remove the temporary folder
         # All species and locations in case we have to look something up
-        cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME, species_timed_file, \
-                                                        s3_url, username, fetch_password)
+        cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME, species_timed_file, s3_info)
 
         # Loop through the files
         for idx, one_file in enumerate(update_files):
@@ -625,7 +609,7 @@ def process_upload_changes(s3_url: str, username: str, fetch_password: Callable,
 
             # Get the image to work with
             if file_ext not in UPLOAD_KNOWN_MOVIE_EXT:
-                S3Connection.download_image(s3_url, username, fetch_password(), one_file['bucket'],
+                S3Connection.download_image(s3_info, one_file['bucket'],
                                                                     one_file['s3_path'], save_path)
                 cur_species, cur_location, _ = image_utils.get_embedded_image_info(save_path)
                 if cur_species is None:
@@ -684,9 +668,10 @@ def process_upload_changes(s3_url: str, username: str, fetch_password: Callable,
                                 loc_lon = save_location['loc_lon'] if save_location else None,
                                 species_data = save_species):
                         # Put the file back onto S3
-                        S3Connection.upload_file(s3_url, username, fetch_password(),
-                                                    one_file['bucket'], one_file['s3_path'],
-                                                    save_path)
+                        S3Connection.upload_file(s3_info,
+                                                 one_file['bucket'],
+                                                 one_file['s3_path'],
+                                                 save_path)
 
                         # Register this file as a success
                         success_files.append(one_file)
@@ -770,34 +755,26 @@ def get_tz_offset(tz_offset: str) -> int:
     return tz_offset
 
 
-def list_uploads_thread(s3_url: str, user_name: str, user_secret: str, bucket: str) -> object:
+def list_uploads_thread(s3_info: S3Info, bucket: str) -> object:
     """ Used to load upload information from an S3 instance
     Arguments:
-        s3_url - the URL to connect to
-        user_name - the name of the user to connect with
-        user_secret - the secret used to connect
+        s3_info - the connection information for the S3 instance
         bucket - the bucket to look in
     Return:
         Returns an object with the loaded uploads
     """
-    uploads_info = S3Connection.list_uploads(s3_url, \
-                                        user_name, \
-                                        user_secret, \
-                                        bucket)
+    uploads_info = S3Connection.list_uploads(s3_info, bucket)
 
     return {'bucket': bucket, 'uploads_info': uploads_info}
 
 
-def species_stats(db: SPARCdDatabase, colls: tuple, s3_id: str, s3_url: str, user_name: str, \
-                                                    fetch_password: Callable) -> Optional[dict]:
+def species_stats(db: SPARCdDatabase, colls: tuple, s3_id: str, s3_info: S3Info) -> Optional[dict]:
     """ Filters the collections in an efficient manner
     Arguments:
         db - connections to the current database
         colls - the list of collections
         s3_id - the ID of the S3 instance
-        s3_url - the URL to the S3 instance
-        user_name - the user's name for S3
-        fetch_password - returns the user's password
+        s3_info - the connection information for the S3 instance
     Returns:
         Returns the species stats
     """
@@ -825,10 +802,8 @@ def species_stats(db: SPARCdDatabase, colls: tuple, s3_id: str, s3_url: str, use
     # Load the S3 uploads in an aynchronous fashion
     if len(s3_uploads) > 0:
         # TODO: Change this so that multiple calls get blocked until the first one succeeds
-        user_secret = fetch_password()
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            cur_futures = {executor.submit(list_uploads_thread, s3_url, user_name, \
-                                                                        user_secret, cur_bucket):
+            cur_futures = {executor.submit(list_uploads_thread, s3_info, cur_bucket):
                             cur_bucket for cur_bucket in s3_uploads}
 
             for future in concurrent.futures.as_completed(cur_futures):
@@ -871,3 +846,31 @@ def species_stats(db: SPARCdDatabase, colls: tuple, s3_id: str, s3_url: str, use
                                                                     one_species['scientificName']
 
     return ret_stats
+
+def add_to_datetime(dt: datetime, ta: relativedelta) -> datetime:
+    """ Adjusts the datetime according to the offset parameters. Handles leap years
+        correctly. Doesn't adjust time offsets smaller than seconds
+    Arguments:
+        dt:   The starting datetime
+        ta:   Contains the offsets to the various timestamp parts
+    Returns:
+        A new datetime with all offsets applied.
+    """
+    # Apply years + months (calendar arithmetic, with clamping)
+    total_months = dt.month - 1 + ta.month   # convert to 0-based month count
+    total_months += ta.year * 12
+
+    new_year  = dt.year + total_months // 12
+    new_month = total_months % 12 + 1      # back to 1-based
+
+    # Clamp the day to the last valid day of the target month so that e.g.
+    # Jan 31 + 1 month → Feb 28/29 instead of raising an error.
+    max_day = calendar.monthrange(new_year, new_month)[1]
+    new_day = min(dt.day, max_day)
+
+    result = dt.replace(year=new_year, month=new_month, day=new_day)
+
+    # Apply days / hours / minutes / seconds via timedelta
+    result += timedelta(days=ta.day, hours=ta.hour, minutes=ta.minute, seconds=ta.second)
+
+    return result

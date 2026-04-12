@@ -23,9 +23,9 @@ export function checkPreviousUpload(serverURL, token, path, onExpiredToken, onSu
   const sandboxPrevUrl = serverURL + '/sandboxPrev?t=' + encodeURIComponent(token);
   const formData = new FormData();
 
-  formData.append('path', path);
-
   try {
+    formData.append('path', path);
+
     fetch(sandboxPrevUrl, {
       credentials: 'include',
       method: 'POST',
@@ -81,12 +81,12 @@ export function updateUploadRecovery(serverURL, token, collId, locId, uploadKey,
   const sandboxRecoveryUrl = serverURL + '/sandboxRecoveryUpdate?t=' + encodeURIComponent(token);
   const formData = new FormData();
 
-  formData.append('id', collId);
-  formData.append('key', uploadKey);
-  formData.append('loc', locId);
-  formData.append('path', path);
-
   try {
+    formData.append('id', collId);
+    formData.append('key', uploadKey);
+    formData.append('loc', locId);
+    formData.append('path', path);
+
     fetch(sandboxRecoveryUrl, {
       credentials: 'include',
       method: 'POST',
@@ -142,29 +142,29 @@ export function continueNewUpload(serverURL, token, collectionId, locationId, pa
   const sandboxNewUrl = serverURL + '/sandboxNew?t=' + encodeURIComponent(token);
   const formData = new FormData();
 
-  formData.append('collection', collectionId);
-  formData.append('location', locationId);
-  formData.append('path', path);
-  formData.append('comment', comment);
-  formData.append('ts', new Date().toISOString());
-  formData.append('tz', Intl.DateTimeFormat().resolvedOptions().timeZone);
-
-  // Break the upload into pieces if it's too large
-  if (files.length < LIMIT_FORM_FILE_CHUNK) {
-    formData.append('files', JSON.stringify(files.map((item) => item.webkitRelativePath)));
-  } else {
-    formData.append('files', JSON.stringify(files.slice(0,LIMIT_FORM_FILE_CHUNK).map((item) => item.webkitRelativePath)));
-    let index = 1;
-    let start = LIMIT_FORM_FILE_CHUNK;
-    while (start < files.length) {
-      let end = Math.min(start + LIMIT_FORM_FILE_CHUNK, files.length);
-      formData.append('files'+index, JSON.stringify(files.slice(start,end).map((item) => item.webkitRelativePath)));
-      start += LIMIT_FORM_FILE_CHUNK;
-      index += 1;
-    };
-  }
-
   try {
+    formData.append('collection', collectionId);
+    formData.append('location', locationId);
+    formData.append('path', path);
+    formData.append('comment', comment);
+    formData.append('ts', new Date().toISOString());
+    formData.append('tz', Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+    // Break the upload into pieces if it's too large
+    if (files.length < LIMIT_FORM_FILE_CHUNK) {
+      formData.append('files', JSON.stringify(files.map((item) => item.webkitRelativePath)));
+    } else {
+      formData.append('files', JSON.stringify(files.slice(0,LIMIT_FORM_FILE_CHUNK).map((item) => item.webkitRelativePath)));
+      let index = 1;
+      let start = LIMIT_FORM_FILE_CHUNK;
+      while (start < files.length) {
+        let end = Math.min(start + LIMIT_FORM_FILE_CHUNK, files.length);
+        formData.append('files'+index, JSON.stringify(files.slice(start,end).map((item) => item.webkitRelativePath)));
+        start += LIMIT_FORM_FILE_CHUNK;
+        index += 1;
+      };
+    }
+
     fetch(sandboxNewUrl, {
       credentials: 'include',
       method: 'POST',
@@ -216,10 +216,10 @@ export function prevUploadResetContinue(serverURL, token, uploadId, files, onExp
   const sandboxResetUrl = serverURL + '/sandboxReset?t=' + encodeURIComponent(token);
   const formData = new FormData();
 
-  formData.append('id', uploadId);
-  formData.append('files', JSON.stringify(files.map((item) => item.webkitRelativePath)));
-
   try {
+    formData.append('id', uploadId);
+    formData.append('files', JSON.stringify(files.map((item) => item.webkitRelativePath)));
+
     fetch(sandboxResetUrl, {
       credentials: 'include',
       method: 'POST',
@@ -329,10 +329,10 @@ export function checkUploadedFiles(serverURL, token, uploadId, files, onExpiredT
   const sandboxCheckUrl = serverURL + '/sandboxCheckContinueUpload?t=' + encodeURIComponent(token);
   const formData = new FormData();
 
-  formData.append('id', uploadId);
-  formData.append(files[0].name, files[0]);
-
   try {
+    formData.append('id', uploadId);
+    formData.append(files[0].name, files[0]);
+
     fetch(sandboxCheckUrl, {
       credentials: 'include',
       method: 'POST',
@@ -483,9 +483,9 @@ export function uploadCompleted(serverURL, token, uploadId, onExpiredToken, onSu
   const sandboxCompleteUrl = serverURL + '/sandboxCompleted?t=' + encodeURIComponent(token);
   const formData = new FormData();
 
-  formData.append('id', uploadId);
-
   try {
+    formData.append('id', uploadId);
+
     fetch(sandboxCompleteUrl, {
       credentials: 'include',
       method: 'POST',
@@ -540,14 +540,14 @@ export function uploadChunk(serverURL, token, fileChunk, uploadId, numFiles, tzI
   const sandboxFileUrl = serverURL + '/sandboxFile?t=' + encodeURIComponent(token);
   const formData = new FormData();
 
-  formData.append('id', uploadId);
-  formData.append('tz_off', tzInfo);
-
-  for (let idx = 0; idx < numFiles && idx < fileChunk.length; idx++) {
-    formData.append(fileChunk[idx].name, fileChunk[idx]);
-  }
-
   try {
+    formData.append('id', uploadId);
+    formData.append('tz_off', tzInfo);
+
+    for (let idx = 0; idx < numFiles && idx < fileChunk.length; idx++) {
+      formData.append(fileChunk[idx].name, fileChunk[idx]);
+    }
+
     fetch(sandboxFileUrl, {
       credentials: 'include',
       method: 'POST',
@@ -647,10 +647,11 @@ export function handleSelUploadComplete(serverURL, token, collectionId, uploadKe
   const uploadCompleteUrl = serverURL + '/setUploadComplete?t=' + encodeURIComponent(token);
 
   const formData = new FormData();
-  formData.append('collectionId', collectionId);
-  formData.append('uploadKey', uploadKey);
 
   try {
+    formData.append('collectionId', collectionId);
+    formData.append('uploadKey', uploadKey);
+
     fetch(uploadCompleteUrl, {
       credentials: 'include',
       method: 'POST',
@@ -708,12 +709,13 @@ export function getTooltipInfo (serverURL, token, curLoc, onExpiredToken, onSucc
 
   const formData = new FormData();
 
-  formData.append('id', curLoc.idProperty);
-  formData.append('name', curLoc.nameProperty);
-  formData.append('lat', curLoc.latProperty);
-  formData.append('lon', curLoc.lngProperty);
-  formData.append('ele', curLoc.elevationProperty);
   try {
+    formData.append('id', curLoc.idProperty);
+    formData.append('name', curLoc.nameProperty);
+    formData.append('lat', curLoc.latProperty);
+    formData.append('lon', curLoc.lngProperty);
+    formData.append('ele', curLoc.elevationProperty);
+
     fetch(locationInfoUrl, {
       credentials: 'include',
       method: 'POST',

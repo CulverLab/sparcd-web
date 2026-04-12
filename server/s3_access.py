@@ -17,6 +17,7 @@ import uuid
 from minio import Minio, S3Error
 
 from s3_connect import s3_connect
+from spd_types.s3info import S3Info
 from camtrap.v016 import camtrap
 
 # Prefix for SPARCd things
@@ -80,8 +81,29 @@ def make_s3_path(parts: tuple) -> str:
     return "/".join([one_part.rstrip('/').rstrip('\\') for one_part in parts])
 
 
-def get_s3_file(minio: Minio, bucket: str, file: str, dest_file: str):
+def download_s3_file(minio: Minio, bucket: str, file: str, dest_file: str) -> bool:
     """Downloads files from S3 server
+    Arguments:
+        minio: the s3 client instance
+        bucket: the bucket to download from
+        file: the S3 file to download and read
+        dest_file: the file to write the download to
+    Return:
+        Returns True if the file was downloaded, and False if there was a problem
+    Notes:
+        It is up to the caller to clean up the downloaded file
+    """
+    try:
+        minio.fget_object(bucket, file, dest_file)
+        return True
+    except S3Error as ex:
+        if ex.code != "NoSuchKey":
+            raise ex
+    return False
+
+
+def get_s3_file(minio: Minio, bucket: str, file: str, dest_file: str):
+    """Downloads files from S3 server and returns the contents
     Arguments:
         minio: the s3 client instance
         bucket: the bucket to download from
@@ -89,6 +111,8 @@ def get_s3_file(minio: Minio, bucket: str, file: str, dest_file: str):
         dest_file: the file to write the download to
     Returns:
         Returns the content of the file or None if there was an error
+    Notes:
+        It is up to the caller to clean up the downloaded file
     """
     try:
         minio.fget_object(bucket, file, dest_file)
@@ -101,7 +125,7 @@ def get_s3_file(minio: Minio, bucket: str, file: str, dest_file: str):
 
 
 def put_s3_file(minio: Minio, bucket: str, file: str, src_file: str, \
-                content_type: str='text/plain'):
+                content_type: str='text/plain') -> None:
     """ Upload files to the S3 server
     Arguments:
         minio: the s3 client instance
@@ -109,8 +133,6 @@ def put_s3_file(minio: Minio, bucket: str, file: str, src_file: str, \
         file: the S3 file to update
         src_file: the location of the file to upload to the server
         content_type: the content type of the upload
-    Returns:
-        Returns the content of the file or None if there was an error
     """
     try:
         minio.fput_object(bucket, file, src_file, content_type=content_type)
@@ -546,66 +568,60 @@ class S3Connection:
     """
 
     @staticmethod
-    def list_collections(url: str, user: str, password: str) -> Optional[tuple]:
+    def list_collections(conn_info: S3Info) -> Optional[tuple]:
         """ Returns the collection information
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
         Returns:
             Returns the collections, or None
         """
         found_buckets = []
 
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
         all_buckets = minio.list_buckets()
 
         # Get the SPARCd buckets
         found_buckets = [one_bucket.name for one_bucket in all_buckets if \
                                                 one_bucket.name.startswith(SPARCD_PREFIX)]
 
-        user_collections = get_user_collections(minio, user, found_buckets)
+        user_collections = get_user_collections(minio, conn_info.access_key, found_buckets)
 
         return user_collections
 
     @staticmethod
-    def get_collections(url: str, user: str, password: str) -> Optional[tuple]:
+    def get_collections(conn_info: S3Info) -> Optional[tuple]:
         """ Returns the collection information
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
         Returns:
             Returns the collections, or None
         """
         found_buckets = []
 
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
         all_buckets = minio.list_buckets()
 
         # Get the SPARCd buckets
         found_buckets = [one_bucket.name for one_bucket in all_buckets if \
                                                 one_bucket.name.startswith(SPARCD_PREFIX)]
 
-        user_collections = get_user_collections(minio, user, found_buckets)
+        user_collections = get_user_collections(minio, conn_info.access_key, found_buckets)
 
         return update_user_collections(minio, user_collections)
 
     @staticmethod
-    def get_collection_info(url: str, user: str, password: str, bucket: str, \
+    def get_collection_info(conn_info: S3Info, bucket: str, \
                                                         upload_path: str=None) -> Optional[dict]:
         """ Returns information for one collection
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             bucket: the bucket of interest
             upload_path: a specific upload path to return information on. Otherwise all the uploads
                         are returned
         Return:
             Returns the information on the collection or None if the collection isn't found
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
         all_buckets = minio.list_buckets()
 
         # Get the matching bucket
@@ -614,7 +630,7 @@ class S3Connection:
         if not found_buckets:
             return None
 
-        user_collections = get_user_collections(minio, user, found_buckets)
+        user_collections = get_user_collections(minio, conn_info.access_key, found_buckets)
         if not user_collections:
             return None
 
@@ -630,19 +646,16 @@ class S3Connection:
         return user_collections[0]
 
     @staticmethod
-    def get_upload_info(url: str, user: str, password: str, bucket: str, \
-                                                        upload_path: str) -> Optional[dict]:
+    def get_upload_info(conn_info: S3Info, bucket: str, upload_path: str) -> Optional[dict]:
         """ Returns information for one upload in a collection
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             bucket: the bucket of interest
             upload_path: a specific upload path to return information on
         Return:
             Returns the information on the collection or None if the collection isn't found
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
         all_buckets = minio.list_buckets()
 
         # Get the matching bucket
@@ -695,13 +708,10 @@ class S3Connection:
         return upload_info
 
     @staticmethod
-    def get_image_paths(url: str, user: str, password: str, collection_id: str, \
-                   upload_name: str) -> Optional[tuple]:
+    def get_image_paths(conn_info: S3Info, collection_id: str, upload_name: str) -> Optional[tuple]:
         """ Returns the information on the images found for an upload to the collection
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             collection_id: the ID of the collection of the upload
             upload_name: the name of the upload to get image data on
         Returns:
@@ -711,7 +721,7 @@ class S3Connection:
         bucket = SPARCD_PREFIX + collection_id
         upload_path = make_s3_path(('Collections', collection_id, 'Uploads', upload_name)) + '/'
 
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         images = get_s3_images(minio, bucket, [upload_path])
 
@@ -719,18 +729,16 @@ class S3Connection:
 
 
     @staticmethod
-    def have_images(url: str, user: str, password: str, bucket: str, path: str) -> bool:
+    def have_images(conn_info: S3Info, bucket: str, path: str) -> bool:
         """ Checks if the path has images
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             bucket: the bucket to download from
             path: the path to the search on
         Return:
             True is returned if image files were found and False otherwise
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         # Get the sub folders and search those
         loaded_folders = get_uploaded_folders(minio, bucket, path)
@@ -744,13 +752,11 @@ class S3Connection:
         return False
 
     @staticmethod
-    def get_images(url: str, user: str, password: str, collection_id: str, \
+    def get_images(conn_info: S3Info, collection_id: str, \
                    upload_name: str, need_url: bool=True) -> Optional[tuple]:
         """ Returns the image information for an upload of a collection
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             collection_id: the ID of the collection of the upload
             upload_name: the name of the upload to get image data on
             need_url: set to False if a remote URL to the image isn't needed
@@ -761,15 +767,32 @@ class S3Connection:
         upload_path = make_s3_path(('Collections', collection_id, S3_UPLOADS_PATH_PART, \
                                                                                 upload_name)) + '/'
 
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         images = get_s3_images(minio, bucket, [upload_path], need_url)
 
         images_dict = {obj['s3_path']: obj for obj in images}
 
-        # Temp file for getting observations
+        # Temp file for getting media and observations
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
+
+        # Get the media information for each image
+        media_info_path = make_s3_path((upload_path, MEDIA_CSV_FILE_NAME))
+        csv_data = get_s3_file(minio, bucket, media_info_path, temp_file[1])
+        if csv_data is not None:
+
+            reader = csv.reader(StringIO(csv_data))
+            for csv_info in reader:
+                cur_img = images_dict.get(csv_info[camtrap.CAMTRAP_MEDIA_ID_IDX])
+                if cur_img is not None:
+                    # Add the timestamp
+                    cur_img['timestamp'] = csv_info[camtrap.CAMTRAP_MEDIA_TIMESTAMP_IDX]
+                else:
+                    print('Unable to find media image: ' \
+                                            f'{csv_info[camtrap.CAMTRAP_MEDIA_ID_IDX]}')
+        else:
+            print(f'Unable to get media information: {media_info_path}')
 
         # Get the species information for each image
         upload_info_path = make_s3_path((upload_path, OBSERVATIONS_CSV_FILE_NAME))
@@ -783,7 +806,6 @@ class S3Connection:
                 # Update the image with a species if we find it
                 cur_img = images_dict.get(csv_info[camtrap.CAMTRAP_OBSERVATION_MEDIA_ID_IDX])
                 if cur_img is not None:
-
                     # Add the species
                     if cur_img.get('species') is None:
                         cur_img['species'] = []
@@ -796,9 +818,10 @@ class S3Connection:
                     cur_img['species'].append({ 'name':common_name, \
                                 'scientificName': \
                                         csv_info[camtrap.CAMTRAP_OBSERVATION_SCIENTIFIC_NAME_IDX], \
-                                'count':csv_info[camtrap.CAMTRAP_OBSERVATION_COUNT_IDX]})
+                                'count':csv_info[camtrap.CAMTRAP_OBSERVATION_COUNT_IDX],
+                                })
                 else:
-                    print('Unable to find collection image: ' \
+                    print('Unable to find observation image: ' \
                                             f'{csv_info[camtrap.CAMTRAP_OBSERVATION_MEDIA_ID_IDX]}')
         else:
             print(f'Unable to get observations information: {upload_info_path}')
@@ -809,13 +832,11 @@ class S3Connection:
 
 
     @staticmethod
-    def list_uploads(url: str, user: str, password: str, bucket: str, \
+    def list_uploads(conn_info: S3Info, bucket: str, \
                                                 extended_location: bool=False) -> Optional[tuple]:
         """ Returns the upload information for a collection
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             bucket: the bucket of the uploads
             extended_location: returns additional location information when set to True 
         Returns:
@@ -828,7 +849,7 @@ class S3Connection:
         uploads_path = make_s3_path(('Collections', bucket[len(SPARCD_PREFIX):],
                                                                 S3_UPLOADS_PATH_PART)) + '/'
 
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         # Get the uploads and their information
         coll_uploads = []
@@ -930,15 +951,13 @@ class S3Connection:
         return coll_uploads
 
     @staticmethod
-    def get_configuration(filename: str, url: str, user: str, password: str):
+    def get_configuration(conn_info: S3Info, filename: str):
         """ Returns the configuration contained in the file
         Arguments:
+            conn_info: the connection information for the S3 endpoint
             filename: the name of the configuration to download
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         # Find the name of our settings bucket
         settings_bucket = find_settings_bucket(minio)
@@ -961,21 +980,19 @@ class S3Connection:
         return config_data
 
     @staticmethod
-    def put_configuration(filename: str, config: str, url: str, user: str, password: str):
+    def put_configuration(conn_info: S3Info, filename: str, config: str):
         """ Updates the server with the configuration string in the file
         Arguments:
+            conn_info: the connection information for the S3 endpoint
             filename: the name of the configuration to update
             config: the configuration to write to the file
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         # Find the name of our settings bucket
         settings_bucket = find_settings_bucket(minio)
         if not settings_bucket:
-            print(f'Unable to find settings bucket at {url}')
+            print(f'Unable to find settings bucket at {conn_info.url}')
             return
 
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
@@ -995,29 +1012,25 @@ class S3Connection:
             os.unlink(temp_file[1])
 
     @staticmethod
-    def get_object_urls(url: str, user: str, password: str, object_info: tuple) -> tuple:
+    def get_object_urls(conn_info: S3Info, object_info: tuple) -> tuple:
         """ Returns the URLs of the objects listed in object_info
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             object_info: tuple containing tuple pairs of bucket name and the object path
         Return:
             Returns a tuple containing the S3 URLs for the objects (each url subject to timeout)
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         return [minio.presigned_get_object(one_obj[0], one_obj[1]) for one_obj in object_info]
 
     @staticmethod
-    def download_images_cb(url: str, user: str, password:str, files: tuple, dest_path: str, \
+    def download_images_cb(conn_info: S3Info, files: tuple, dest_path: str, \
                                                         callback: Callable, callback_data) -> None:
         """ Downloads files into the destination path and calls the callback for each file
             downloaded
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             files: a tuple containing the bucket, path, and (optionally) the destination path of the
                     downloaded file
             dest_path: the starting location to download files to
@@ -1027,7 +1040,7 @@ class S3Connection:
             If a destination path is not specified for a file, the S3 path is used (starting at the
             root of the dest_path)
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         # Download the files one at a time and call the callback
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -1047,31 +1060,26 @@ class S3Connection:
         callback(callback_data, None, None, None)
 
     @staticmethod
-    def download_image(url: str, user: str, password: str, bucket: str, s3_path: str, \
-                                                                    dest_file_path: str) -> None:
+    def download_image(conn_info: S3Info, bucket: str, s3_path: str, dest_file_path: str) -> None:
         """ Downloads the file to the destination path
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             bucket: the bucket to download from
             s3_path: the path to the file on S3
             dest_file_path: the location to download the file to
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         # Download the files one at a time and call the callback
         minio.fget_object(bucket, s3_path, dest_file_path)
 
 
     @staticmethod
-    def create_upload(url: str, user: str, password: str, collection_id: str, \
+    def create_upload(conn_info: S3Info, collection_id: str, \
                             comment: str, timestamp: datetime.datetime, file_count: int) -> tuple:
         """ Creates an upload folder on the server and returns the path
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             collection_id: the ID of the collection to create the upload in
             comment: user comment on this upload
             timestamp: the timestamp to use when creating the path
@@ -1079,17 +1087,17 @@ class S3Connection:
         Return:
             The bucket name and the path of the upload folder on the S3 instance
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         bucket = SPARCD_PREFIX + collection_id
-        upload_folder = timestamp.strftime('%Y.%m.%d.%H.%M.%S') + '_' + user
+        upload_folder = timestamp.strftime('%Y.%m.%d.%H.%M.%S') + '_' + conn_info.access_key
         new_path = make_s3_path(('Collections',collection_id,'Uploads',upload_folder))
 
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
 
         with open(temp_file[1], 'w', encoding='utf-8') as o_file:
-            json.dump({'uploadUser':user,
+            json.dump({'uploadUser':conn_info.access_key,
                         'uploadDate': {
                             'date':
                                 {'year':timestamp.year,'month':timestamp.month,'day':timestamp.day},
@@ -1115,53 +1123,45 @@ class S3Connection:
 
 
     @staticmethod
-    def upload_file(url: str, user: str, password: str, bucket: str, path: str, \
-                                                                            localname:str) -> None:
+    def upload_file(conn_info: S3Info, bucket: str, path: str, localname:str) -> None:
         """ Uploads the data from the file to the specified bucket in the specified
             object path
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             bucket: the bucket to upload to
             path: path under the bucket to the object data
             localname: the local filename of the file to upload
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         minio.fput_object(bucket, path, localname)
 
     @staticmethod
-    def upload_file_data(url: str, user: str, password: str, bucket: str, path: str, \
+    def upload_file_data(conn_info: S3Info, bucket: str, path: str, \
                             data: str, content_type: str='text/plain') -> None:
         """ Uploads the data to the specified bucket in the specified object path
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             bucket: the bucket to upload to
             path: path under the bucket to the object data
             data: the data to upload
             content_type: the content type of the upload
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         minio.put_object(bucket, path, BytesIO(data.encode()), len(data), content_type=content_type)
 
     @staticmethod
-    def get_camtrap_file(url: str, user: str, password: str, bucket: str, \
-                                                                    path: str) -> Optional[tuple]:
+    def get_camtrap_file(conn_info: S3Info, bucket: str, path: str) -> Optional[tuple]:
         """ Loads the CAMTRAP CSV and returns a tuple containing the row data as tuples
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             bucket: the bucket to upload to
             path: path under the bucket to the camtrap data
         Return:
             Returns the loaded data or None
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
@@ -1180,13 +1180,10 @@ class S3Connection:
         return camtrap_data
 
     @staticmethod
-    def upload_camtrap_data(url: str, user: str, password: str, bucket: str, \
-                                                        path: str, data: tuple) -> None:
+    def upload_camtrap_data(conn_info: S3Info, bucket: str, path: str, data: tuple) -> None:
         """ Uploads camtrap data as a CSV file to the specified path
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             bucket: the bucket to upload to
             path: path under the bucket to the camtrap data
             data: a tuple of camtrap data containing tuples of each row's data
@@ -1199,18 +1196,15 @@ class S3Connection:
             for one_row in data:
                 csv_writer.writerow(one_row)
 
-        S3Connection.upload_file(url, user, password, bucket, path, temp_file[1])
+        S3Connection.upload_file(conn_info, bucket, path, temp_file[1])
 
         os.unlink(temp_file[1])
 
     @staticmethod
-    def save_collection_info(url: str, user: str, password: str, bucket: str, \
-                                                                        coll_info: object) -> None:
+    def save_collection_info(conn_info: S3Info, bucket: str, coll_info: object) -> None:
         """ Saves the collection information on the S3 server
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             bucket: the bucket to upload to
             coll_info: the collection information to save
         """
@@ -1219,7 +1213,7 @@ class S3Connection:
                                                                     COLLECTION_JSON_FILE_NAME))
 
         # Upload the data making sure to only update what's expected
-        S3Connection.upload_file_data(url, user, password, bucket, coll_info_path,
+        S3Connection.upload_file_data(conn_info, bucket, coll_info_path,
                                     json.dumps(
                                         {'nameProperty': coll_info['name'],
                                          'organizationProperty':  coll_info['organization'],
@@ -1232,13 +1226,10 @@ class S3Connection:
 
 
     @staticmethod
-    def save_collection_permissions(url: str, user: str, password: str,  bucket: str, \
-                                                                        perm_info: tuple) -> None:
+    def save_collection_permissions(conn_info: S3Info, bucket: str, perm_info: tuple) -> None:
         """ Saves the permissions information on the S3 server
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             bucket: the bucket to upload to
             perm_info: the tuple of permissions information
         """
@@ -1247,7 +1238,7 @@ class S3Connection:
                                                                         PERMISSIONS_JSON_FILE_NAME))
 
         # Upload the data making sure to only update what's expected
-        S3Connection.upload_file_data(url, user, password, bucket, perms_info_path,
+        S3Connection.upload_file_data(conn_info, bucket, perms_info_path,
                                             json.dumps(
                                                 [
                                                  {'usernameProperty': one_perm['usernameProperty'],
@@ -1261,19 +1252,16 @@ class S3Connection:
                                             content_type='application/json')
 
     @staticmethod
-    def add_collection(url: str, user: str, password: str, coll_info: object, \
-                                                                perm_info: tuple) -> Optional[str]:
+    def add_collection(conn_info: S3Info, coll_info: object, perm_info: tuple) -> Optional[str]:
         """ Adds a new collection to the S3 server
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             coll_info: the collection information to save
             perm_info: the tuple of permissions information
         Return:
             The name of the newly created bucket
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         # Try hard to create a collections bucket
         collection_bucket = create_new_bucket(minio, SPARCD_PREFIX)
@@ -1286,28 +1274,26 @@ class S3Connection:
 
         # Save the information
         coll_id = collection_bucket[len(SPARCD_PREFIX):]    # pylint: disable=unsubscriptable-object
-        S3Connection.save_collection_info(url, user, password, collection_bucket,
+        S3Connection.save_collection_info(conn_info, collection_bucket,
                             coll_info | {'idProperty':coll_id, 'bucketProperty':collection_bucket} )
-        S3Connection.save_collection_permissions(url, user, password, collection_bucket, perm_info)
+        S3Connection.save_collection_permissions(conn_info, collection_bucket, perm_info)
 
         return collection_bucket
 
 
     @staticmethod
-    def update_upload_metadata_image_species(url: str, user: str, password: str, bucket: str, \
+    def update_upload_metadata_image_species(conn_info: S3Info, bucket: str, \
                                                         upload_path: str, new_count: int) -> bool:
         """ Update the upload's metadata on the S3 instance with a new species count
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             bucket: the bucket to upload to
             upload_path: path under the bucket to the metadata
             new_count: the new count of images with species
         Return:
             Returns True if no problem was found and False otherwise
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
@@ -1338,19 +1324,16 @@ class S3Connection:
 
 
     @staticmethod
-    def upload_recalculate_image_count(url: str, user: str, password: str, bucket: str, \
-                                                                        upload_name: str) -> bool:
+    def upload_recalculate_image_count(conn_info: S3Info, bucket: str, upload_name: str) -> bool:
         """ Update the upload's metadata on the S3 instance with the actual image count
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             bucket: the bucket to upload to
             upload_name: the name of the upload path
         Return:
             Returns True if no problem was found and False otherwise
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         coll_id = bucket[len(SPARCD_PREFIX):]
 
@@ -1392,13 +1375,11 @@ class S3Connection:
 
 
     @staticmethod
-    def update_upload_metadata(url: str, user: str, password: str, bucket: str, upload_path: str, \
+    def update_upload_metadata(conn_info: S3Info, bucket: str, upload_path: str, \
                                     new_comment: str=None, images_species_count: int=None) -> tuple:
         """ Update the upload's metadata on the S3 instance with a new count
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             bucket: the bucket to upload to
             upload_path: path under the bucket to the metadata
             new_comment: the comment to add to the metadata
@@ -1407,7 +1388,7 @@ class S3Connection:
             Returns a tuple of: True if no problem was found and False otherwise, and the updated
             upload information if True is the first element
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
@@ -1440,13 +1421,11 @@ class S3Connection:
         return True, data
 
     @staticmethod
-    def needs_repair(url: str, user: str, password: str) -> tuple:
+    def needs_repair(conn_info: S3Info) -> tuple:
         """ Checks if the S3 endpoint needs repair by looking for buckets and
             certain files
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
         Return:
             Returns a tuple for if the install is broken, and if the install appears intact.
             The first element contains True if the S3 endpoint has collections, or a settings
@@ -1456,7 +1435,7 @@ class S3Connection:
             none of the elements are there (the first element indicated if only some elements are
             there). None is returned if the install needs repair
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         settings_bucket = find_settings_bucket(minio)
 
@@ -1491,17 +1470,15 @@ class S3Connection:
                 else None
 
     @staticmethod
-    def check_new_install_possible(url: str, user: str, password: str) -> tuple:
+    def check_new_install_possible(conn_info: S3Info) -> tuple:
         """ Checks to see if we can create buckets, upload files, and download files
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
         Return:
             A tuple with True is returned if the checks pass and False otherwise, and the
             name of the test bucket if it couldn't be removed
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         tries = 0
         max_tries = 5
@@ -1577,17 +1554,15 @@ class S3Connection:
         return success is True, created_bucket
 
     @staticmethod
-    def create_sparcd(url: str, user: str, password: str, settings_folder: str) -> bool:
+    def create_sparcd(conn_info: S3Info, settings_folder: str) -> bool:
         """ Creates the remote instance of SPARCd
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             settings_folder: the path of the folder to find the settings files in
         Return:
             True is returned if the instance was created and False otherwise
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         # Check that there isn't a settings bucket and create one if there isn't one
         if find_settings_bucket(minio) is not None:
@@ -1616,17 +1591,15 @@ class S3Connection:
         return uploaded_count == len(CONFIGURATION_FILES_LIST)
 
     @staticmethod
-    def repair_sparcd(url: str, user: str, password: str, settings_folder: str) -> bool:
+    def repair_sparcd(conn_info: S3Info, settings_folder: str) -> bool:
         """ Repairs the remote instance of SPARCd
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             settings_folder: the path of the folder to find the settings files in
         Return:
             True is returned if the instance was could be repaired and False otherwise
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         # Check if we need and new settings bucket and create one if we do
         settings_bucket = find_settings_bucket(minio)
@@ -1659,19 +1632,16 @@ class S3Connection:
         return upload_count + len(found_files) == len(CONFIGURATION_FILES_LIST)
 
     @staticmethod
-    def check_incomplete_uploads(url: str, user: str, password: str, \
-                                                                buckets: tuple) -> Optional[tuple]:
+    def check_incomplete_uploads(conn_info: S3Info, buckets: tuple) -> Optional[tuple]:
         """ Checks for incomplete uploads in the requested buckets
         Arguments:
-            url: the URL to the s3 instance
-            user: the name of the user to use when connecting
-            password: the user's password
+            conn_info: the connection information for the S3 endpoint
             buckets: tuple of buckets to check
         Return:
             Information on failed uploads is returned upon success with an empty tuple possible.
             None is returned if a problem is found
         """
-        minio = s3_connect(url, access_key=user, secret_key=password)
+        minio = s3_connect(conn_info)
 
         found_incomplete = []
         if len(buckets) > 1:

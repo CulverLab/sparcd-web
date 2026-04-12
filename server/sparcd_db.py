@@ -440,17 +440,29 @@ class SPARCdDatabase:
 
 
     def sandbox_file_uploaded(self, username: str, upload_id: str, filename: str, \
-                                                                    mimetype: str) -> Optional[str]:
+                                    mimetype: str, timestamp: str) -> Optional[str]:
         """ Marks the file as upload as uploaded
         Arguments:
             username: the name of the person starting the upload
             upload_id: the ID of the upload
             filename: the name of the uploaded file to mark as uploaded
             mimetype: the mimetype of the file uploaded
+            timestamp: the timestamp associated with this file
         Return:
             Returns the ID of the updated file
         """
-        return self._db.sandbox_file_uploaded(username, upload_id, filename, mimetype)
+        return self._db.sandbox_file_uploaded(username, upload_id, filename, mimetype, timestamp)
+
+    def sandbox_file_rename(self, username: str, upload_id: str, original_name: str, \
+                            new_name: str) -> None:
+        """ Renames an upload filename to a new name
+        Arguments:
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+            original_name: the original name of the upload file
+            new_name: the replacement name
+        """
+        return self._db.sandbox_file_rename(username, upload_id, original_name, new_name)
 
     def sandbox_files_not_uploaded(self, username: str, upload_id: str) -> tuple:
         """ Returns the list of known files that haven't been uploaded yet
@@ -494,6 +506,21 @@ class SPARCdDatabase:
         return {'idProperty': res[0], 'nameProperty': res[1], 'latProperty':res[2], \
                                                 'lngProperty': res[3], 'elevationProperty': res[4]}
 
+    def get_files_renamed(self, username: str, upload_id: str) -> Optional[tuple]:
+        """ Returns the list of new and old file names for files that were renamed
+        Arguments:
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+        Return:
+            Returns a tuple containing tuples of old name and the new name
+        """
+        res = self._db.get_files_renamed(username, upload_id)
+
+        if not res or len(res) < 1:
+            return ()
+
+        return ((one_row[0], one_row[1]) for one_row in res)
+
     def get_file_mimetypes(self, username: str, upload_id: str) -> Optional[tuple]:
         """ Returns the file paths and mimetypes for an upload
         Arguments:
@@ -503,6 +530,21 @@ class SPARCdDatabase:
             Returns a tuple containing tuples of the found file paths and mimetypes
         """
         res = self._db.get_file_mimetypes(username, upload_id)
+
+        if not res or len(res) < 1:
+            return ()
+
+        return ((one_row[0], one_row[1]) for one_row in res)
+
+    def get_file_created_timestamp(self, username: str, upload_id: str) -> Optional[tuple]:
+        """ Returns the file paths and created timestamp for an upload
+        Arguments:
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+        Return:
+            Returns a tuple containing tuples of the found file paths and the created timestamp
+        """
+        res = self._db.get_file_created_timestamp(username, upload_id)
 
         if not res or len(res) < 1:
             return ()

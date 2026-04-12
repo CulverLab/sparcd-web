@@ -1318,13 +1318,14 @@ class SPDSQLite:
         cursor.close()
 
     def sandbox_file_uploaded(self, username: str, upload_id: str, filename: str, \
-                                                                    mimetype: str) -> Optional[str]:
+                                                    mimetype: str, timestamp: str) -> Optional[str]:
         """ Marks the file as upload as uploaded
         Arguments:
             username: the name of the person starting the upload
             upload_id: the ID of the upload
             filename: the name of the uploaded file to mark as uploaded
             mimetype: the mimetype of the file uploaded
+            timestamp: the timestamp associted with this file
         Return:
             Returns the ID of the updated file
         """
@@ -1351,14 +1352,66 @@ class SPDSQLite:
             return None
 
         # Update the file's mimetype
-        cursor.execute('UPDATE sandbox_files SET uploaded=TRUE, mimetype=? WHERE '\
-                            'sandbox_files.filename=? AND id=?',
-                                                        (mimetype, filename, sandbox_file_id))
+        cursor.execute('UPDATE sandbox_files SET uploaded=TRUE, mimetype=?, created_timestamp=? '\
+                            'WHERE sandbox_files.filename=? AND id=?',
+                                                (mimetype, timestamp, filename, sandbox_file_id))
 
         self._conn.commit()
         cursor.close()
 
         return sandbox_file_id
+
+    def sandbox_file_rename(self, username: str, upload_id: str, original_name: str, \
+                            new_name: str) -> Optional[str]:
+        """ Renames an upload filename to a new name
+        Arguments:
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+            original_name: the original name of the upload file
+            new_name: the replacement name
+        Return:
+            The ID of the updated file
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to rename a file upload in the database ' \
+                                                                                'before connecting')
+
+        # Get the file's ID
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT id, source_path FROM sandbox_files WHERE '\
+                            'sandbox_files.filename=(?) AND sandbox_id in ' \
+                       '(SELECT id FROM sandbox WHERE name=? AND upload_id=?) LIMIT 1',
+                                                        (original_name, username, upload_id))
+
+        res = cursor.fetchall()
+        if not res or len(res) < 1:
+            return None
+
+        if len(res[0]) < 2:
+            return None
+
+        sandbox_file_id = res[0][0]
+        sandbox_source_path = res[0][1]
+        if sandbox_file_id is None:
+            return None
+
+        # Update the source path
+        idx = sandbox_source_path.index(original_name)
+        sandbox_source_path = sandbox_source_path[:idx] + new_name
+
+        # Change the name. We check the name again in case it was changed since we received the ID
+        cursor = self._conn.cursor()
+        cursor.execute('UPDATE sandbox_files SET filename=?, source_path=?, original_filename=? ' \
+                                                                        'WHERE filename=? AND id=?',
+                                    (new_name, sandbox_source_path, original_name,
+                                     original_name, sandbox_file_id)
+                      )
+
+        self._conn.commit()
+        cursor.close()
+
+        return sandbox_file_id
+
 
     def sandbox_add_file_info(self, file_id: str, species: tuple, location: dict, \
                                                                         timestamp: str) -> None:
@@ -1421,6 +1474,30 @@ class SPDSQLite:
 
         return res
 
+    def get_files_renamed(self, username: str, upload_id: str) -> Optional[tuple]:
+        """ Returns the original and new names of renamed files
+        Arguments:
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+        Return:
+            Returns a tuple containing tuples of the original name and new name
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get renamed files from the database '\
+                                                                                'before connecting')
+
+        # Get the file mime type
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT original_filename, filename FROM sandbox_files ' \
+                        'WHERE original_filename NOT NULL AND sandbox_id IN '\
+                            '(SELECT id FROM sandbox WHERE name=? AND upload_id=?)',
+                                                                            (username, upload_id))
+
+        res = cursor.fetchall()
+        cursor.close()
+
+        return res
+
     def get_file_mimetypes(self, username: str, upload_id: str) -> Optional[tuple]:
         """ Returns the file paths and mimetypes for an upload
         Arguments:
@@ -1436,6 +1513,29 @@ class SPDSQLite:
         # Get the file mime type
         cursor = self._conn.cursor()
         cursor.execute('SELECT source_path, mimetype FROM sandbox_files WHERE sandbox_id IN '\
+                        '(SELECT id FROM sandbox WHERE name=? AND upload_id=?)',
+                                                                            (username, upload_id))
+
+        res = cursor.fetchall()
+        cursor.close()
+
+        return res
+
+    def get_file_created_timestamp(self, username: str, upload_id: str) -> Optional[tuple]:
+        """ Returns the file paths and created timestamp for an upload
+        Arguments:
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+        Return:
+            Returns a tuple containing tuples of the found file paths and created timestamp
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get upload mimetypes from the database '\
+                                                                                'before connecting')
+
+        # Get the file mime type
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT source_path, created_timestamp FROM sandbox_files WHERE sandbox_id IN '\
                         '(SELECT id FROM sandbox WHERE name=? AND upload_id=?)',
                                                                             (username, upload_id))
 

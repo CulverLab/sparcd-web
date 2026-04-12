@@ -6,11 +6,18 @@ import * as React from 'react';
 import BorderColorOutlinedIcon from '@mui/icons-material/BorderColorOutlined';
 import Box from '@mui/material/Box';
 import CardMedia from '@mui/material/CardMedia';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
+import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
+import EditNoteIcon from '@mui/icons-material/EditNote';
 import Grid from '@mui/material/Grid';
+import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
 import IconButton from '@mui/material/IconButton';
+import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBox';
+import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
@@ -18,7 +25,10 @@ import PropTypes from 'prop-types';
 
 import { AddMessageContext, TokenExpiredFuncContext, LocationsInfoContext, NarrowWindowContext, SizeContext, 
           SpeciesInfoContext, TokenContext, UploadEditContext, UserSettingsContext } from './serverInfo';
+import AdjustImageTimestamp, { EDIT_FIELD as ADJUST_TIMESTAMP_FIELDS } from './tagging/AdjustImageTimestamp';
 import ImageEdit from './tagging/ImageEdit';
+import ImageListHeader, { SORT_DIR } from './tagging/ImageListHeader';
+import ImageListItem from './tagging/ImageListItem';
 import ImageTile from './tagging/ImageTile';
 import { Level } from './components/Messages';
 import LocationSelection from './tagging/LocationSelection';
@@ -35,6 +45,14 @@ const EDITING_STATES = {
   'none':0,
   'listImages':2,
   'editImage': 3
+};
+
+// Sort field constants
+const SORT_FIELDS = {
+  NAME: 'name',
+  TYPE: 'type',
+  TIMESTAMP: 'timestamp',
+  SPECIES_COUNT: 'speciesCount',
 };
 
 /**
@@ -65,12 +83,14 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
   const checkChangesCalledRef = React.useRef(false);            // Used to prevent multiple server calls
   const curLocationFetchIdxRef = React.useRef(-1);              // Keeping track of which tooltip is getting fetched
   const [changesMade, setChangesMade] = React.useState(false);  // Used to see if there have been changes made
+  const [checkedNames, setCheckedNames] = React.useState(new Set());  // Active sort field and direction
   const [checkedServerChanges, setCheckedServerChanges] = React.useState(false); // Used for checking the server for changes
   const [curEditState, setCurEditState] = React.useState(EDITING_STATES.none); // Working page state
   const [curImageEdit, setCurImageEdit] = React.useState(null);         // The image to edit
   const [curImageModified, setCurImageModified] = React.useState(false);// The image being edited was changed
   const [displayLocation, setDisplayLocation] = React.useState(null);   // The location associated with upload to display
   const [editingLocation, setEditingLocation] = React.useState(true);   // Changing collection locations flag
+  const [editingTimestamp, setEditingTimestamp] = React.useState(false);   // Changing image timestamp flag
   const [lastSpeciesRequestId, setLastSpeciesRequestId] = React.useState(null);  // Use to keep track of what was sent to the server
   const [maxTilesDisplay, setMaxTilesDisplay] = React.useState(40);     // Set the maximum number of tiles to display
   // TODO: Replace navigationRedraw with another state update
@@ -79,9 +99,12 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
   const [observerActive, setObserverActive] = React.useState(null);    // Used to indicate that we've set the observer
   const [pendingMessage, setPendingMessage] = React.useState(null);     // Used to display a pending message on the UI
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
+  const [showGrid, setShowGrid] = React.useState(true);              // Show grid or list view
   const [sidebarWidthLeft, setSidebarWidthLeft] = React.useState(150);  // Width of left sidebar
   const [sidebarHeightTop, setSidebarHeightTop] = React.useState(50);   // Height of top sidebar
   const [sidebarHeightSpecies, setSidebarHeightSpecies] = React.useState(0);   // Height of species sidebar when on top
+  const [sortDir, setSortDir] = React.useState(SORT_DIR.ASC);
+  const [sortField, setSortField] = React.useState(SORT_FIELDS.NAME);
   const [speciesKeybindName, setSpeciesKeybindName] = React.useState(null); // Name of species for assigning new keybind
   // TODO: Replace speciesRedraw with another state update
   const [speciesRedraw, setSpeciesRedraw] = React.useState(null);       // Force redraw when new species added to image
@@ -90,6 +113,12 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
   const [workspaceWidth, setWorkspaceWidth] = React.useState(150);  // The subtracted value is initial sidebar width
   const [totalHeight, setTotalHeight] = React.useState(null);       // Total available height of workspace
   const [tooltipData, setTooltipData] = React.useState(null);       // Data for tooltip
+
+  // Clear selection whenever the upload changes or we switch views
+  React.useEffect(() => {
+    setCheckedNames(new Set());
+  }, [curUpload, showGrid]);
+
 
   // Update the display location as needed
   React.useLayoutEffect(() => {
@@ -109,6 +138,112 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                       }
                   };
   }, []);
+  /**
+   * Handles a click on a sortable column header.
+   * Toggles direction if the field is already active; otherwise switches to that field ascending.
+   * @function
+   * @param {string} field The SORT_FIELDS value to sort by
+   */
+  const handleSortChange = React.useCallback((field) => {
+    if (field === sortField) {
+      setSortDir(prev => prev === SORT_DIR.ASC ? SORT_DIR.DESC : SORT_DIR.ASC);
+    } else {
+      setSortField(field);
+      setSortDir(SORT_DIR.ASC);
+    }
+  }, [sortField]);
+
+  /**
+   * Returns a sorted copy of the image array according to the current sortField and sortDir.
+   * Does not mutate the original array.
+   * @function
+   * @param {Array} images The raw images array from curUpload
+   * @returns {Array} Sorted image array
+   */
+  const getSortedImages = React.useCallback((images) => {
+    if (!images) return [];
+    return [...images].sort((a, b) => {
+      let aVal, bVal;
+      switch (sortField) {
+        case SORT_FIELDS.TYPE:
+          aVal = a.type || '';
+          bVal = b.type || '';
+          break;
+        case SORT_FIELDS.SPECIES_COUNT:
+          aVal = a.species ? a.species.length : 0;
+          bVal = b.species ? b.species.length : 0;
+          break;
+        case SORT_FIELDS.TIMESTAMP:
+          // We return here instead of passing through
+          aVal = a.timestamp ? a.timestamp : new Date();
+          bVal = b.timestamp ? b.timestamp : new Date();
+          return aVal === bVal ? 0 : aVal < bVal ? -1 : 1;
+        case SORT_FIELDS.NAME:
+        default:
+          aVal = a.name || '';
+          bVal = b.name || '';
+          break;
+      }
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDir === SORT_DIR.ASC ? aVal - bVal : bVal - aVal;
+      }
+      const cmp = String(aVal).localeCompare(String(bVal));
+      return sortDir === SORT_DIR.ASC ? cmp : -cmp;
+    });
+  }, [sortField, sortDir]);
+  /**
+   * Toggles the checked state for a single image by name
+   * @function
+   * @param {string} name    Image name
+   * @param {bool}   checked New checked state
+   */
+  const handleCheckChange = React.useCallback((name, checked) => {
+    setCheckedNames(prev => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(name);
+      } else {
+        next.delete(name);
+      }
+      return next;
+    });
+  }, []);
+
+  /**
+   * Selects all currently visible (sorted + sliced) images
+   * @function
+   */
+  const handleSelectAll = React.useCallback(() => {
+    if (!curUpload || !curUpload.images) return;
+    setCheckedNames(new Set(curUpload.images.map(i => i.name)));
+  }, [curUpload]);
+
+  /**
+   * Clears the entire selection
+   * @function
+   */
+  const handleDeselectAll = React.useCallback(() => {
+    setCheckedNames(new Set());
+  }, []);
+
+  /**
+   * Returns the current array of checked image names. Use this wherever you need
+   * to act on the selection (e.g. bulk delete, bulk tag, export, etc.)
+   * @function
+   * @returns {string[]} Array of selected image names
+   */
+  const getCheckedNames = React.useCallback(() => {
+    return [...checkedNames];
+  }, [checkedNames]);
+
+  /**
+   * Function to return the images associated with the checked names
+   * @function
+   * @returns {Array} The array of checked names mapped to images
+   */
+  const getCheckedNamedImages = React.useCallback(() => {
+    return getCheckedNames()?.map((item) => curUpload.images?.find((imgItem) => imgItem.name === item));
+  }, [getCheckedNames, curUpload]);
 
   /**
    * Calculates the total available height for the workspace
@@ -191,7 +326,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
     if (!success) {
       addMessage(Level.Error, 'An unknown problem occurred while updating the image species');
     }
-  }, [addMessage, curUpload, editToken, serverURL, speciesItems, setCurImageModified]);
+  }, [addMessage, curUpload, editToken, serverURL, speciesItems, setCurImageModified, setTokenExpired]);
 
   /**
    * Common add a species to the current image function
@@ -317,7 +452,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
     if (!success) {
       failureFunc('An unknown problem occurred while updating the stored image with these changes');
     }
-  }, [addMessage, editToken, serverURL]);
+  }, [addMessage, editToken, serverURL, setTokenExpired]);
 
   /**
    * Updates the currently edited image with any changes made
@@ -640,7 +775,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
     setCurEditState(EDITING_STATES.listImages);
     setEditingLocation(false);
     searchSetup('Image Name', handleImageSearch);
-  }, [addMessage, curUpload, editToken, handleImageSearch, searchSetup, serverURL])
+  }, [addMessage, curUpload, editToken, handleImageSearch, searchSetup, serverURL, setTokenExpired])
 
   /**
    * Setting the drag information when drag starts
@@ -865,7 +1000,49 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
         // Fail silently - no tooltip for this entry for now
       }
     }
-  }, [editToken, locationItems, serverURL, setTooltipData]);
+  }, [editToken, locationItems, serverURL, setTooltipData, setTokenExpired]);
+
+  /**
+   * Handles sending the updates to the server to make timestamp changes
+   * @function
+   * @param {Array} adjustedFields The adjustment values to make to the checked images
+   * @param {function} [onSuccess] Function to call upon success
+   * @param {function} [onFailure] Function to call upon failure
+   */
+  const handleImageTimestampUpdates = React.useCallback((adjustedFields, onSuccess, onFailure) => {
+    onSuccess ||= () => {};
+    onFailure ||= () => {};
+
+    const toChange = getCheckedNamedImages();
+    if (!toChange || toChange.length <= 0) {
+      onSuccess();
+      return;
+    }
+
+    const success = Server.imagesAdjustTimestamp(serverURL, editToken,
+                          curUpload.collectionId,
+                          curUpload.uploadId,
+                          toChange,
+                          adjustedFields[ADJUST_TIMESTAMP_FIELDS.YEAR],
+                          adjustedFields[ADJUST_TIMESTAMP_FIELDS.MONTH],
+                          adjustedFields[ADJUST_TIMESTAMP_FIELDS.DAY],
+                          adjustedFields[ADJUST_TIMESTAMP_FIELDS.HOUR],
+                          adjustedFields[ADJUST_TIMESTAMP_FIELDS.MINUTE],
+                          adjustedFields[ADJUST_TIMESTAMP_FIELDS.SECOND],
+                          setTokenExpired,
+                          (respData) => {   // Success
+                            onSuccess(respData);
+                          },
+                          (err) => {   // Failure
+                            onFailure(err);
+                          }
+                      );
+
+    if (!success) {
+      onFailure('An unknown error ocurred while adjusting the image timestamps');
+    }
+
+  }, [checkedNames, curUpload, editToken, getCheckedNamedImages, serverURL, setTokenExpired]);
 
   /**
    * Clears tooltip information when no longer needed. Ensures only the working tooltip is cleared
@@ -904,6 +1081,75 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
     }
   }, [curUpload, searchSetup]);
 
+  /**
+   * Handles the user wanting to see the images as a list
+   * @function
+   */
+  const handleListViewClick = React.useCallback(() => {
+    setShowGrid(false);
+  }, []);
+  /**
+   * Handles the user wanting to see the images as a grid
+   * @function
+   */
+  const handleGridViewClick = React.useCallback(() => {
+    handleDeselectAll();
+    setShowGrid(true);
+  }, [handleDeselectAll]);
+
+  /**
+   * Handle the user wanting to edit the timestamp of images
+   * @function
+   */
+  const handleTimestampEdit = React.useCallback(() => {
+    if (checkedNames.size > 0) {
+      setEditingTimestamp(true);
+    }
+  }, [checkedNames]);
+
+  /**
+   * Function to handle closing the timestamp adjustment UI
+   * @function
+   */
+  const handleAdjustTimestampClose = React.useCallback(() => {
+    setEditingTimestamp(false);
+  }, []);
+
+  /**
+   * Function to handle adjusting the image timestamp
+   * @function
+   * @param {Array} adjustedFields An array of the adjustments for each field
+   */
+  const handleAdjustTimestamp = React.useCallback((adjustedFields) => {
+    // Make sure something has changed
+    const changed = adjustedFields?.filter((item) => item !== 0);
+    if (!changed || changed.length <= 0) {
+      handleAdjustTimestampClose();
+      addMessage(Level.Information, 'No updates were specified. Not timestamps were adjusted');
+      return;
+    }
+
+    setPendingMessage('Updating timestamps' + (getCheckedNamedImages().length > 5 ? '. This may take a while' : ''))
+
+    // Make the server call
+    handleImageTimestampUpdates(adjustedFields,
+                                (respData) => {     // Success
+                                    handleAdjustTimestampClose();
+                                    setPendingMessage(null);
+                                    addMessage(Level.Information, 'Image timestamps successfully adjusted');
+                                },
+                                (err) => {
+                                    setPendingMessage(null);
+                                    if (typeof(err) === 'string') {
+                                      addMessage(Level.Error, err)
+                                    } else {
+                                      addMessage(Level.Error, 'An error ocurred while trying to adjust image timestamps');
+                                    }
+                                }
+  );
+
+  }, [addMessage, handleAdjustTimestampClose, handleImageTimestampUpdates]);
+
   // Variables to help with generating the UI
   const curHeight = totalHeight;
   const curStart = workingTop;
@@ -926,7 +1172,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
         workingImages.map((item) => {
           return (
             <Grid size={{ xs: 12, sm: 4, md:3 }} key={item.name}>
-              <ImageTile name={item.name} type={item.type} species={item.species} onClick={() => clickHandler(item.name)} />
+              <ImageTile name={item.name} type={item.type} timestamp={item.timestamp} species={item.species} onClick={() => clickHandler(item.name)} />
             </Grid>
           )}
         )
@@ -951,9 +1197,137 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
     );
   }, [curUpload, maxTilesDisplay]);
 
+  /**
+   * Generates the sortable list view with checkboxes.
+   * Applies current sort order before slicing to maxTilesDisplay.
+   * @function
+   * @param {number}   totalImages     Total number of images in the upload
+   * @param {function} clickHandler Handler called with (imageName) when a row body is clicked
+   * @returns {object} The rendered list UI
+   */
+  const generateImageList = React.useCallback((totalImages, clickHandler) => {
+    const count = checkedNames.size;
+    const sortedImages = getSortedImages(curUpload.images);
+    const maxItems = Math.min(maxTilesDisplay, sortedImages.length);
+    const workingImages = sortedImages.slice(0, maxItems);
+    const allSelected = count === totalImages && totalImages > 0;
+    const someSelected = count > 0 && !allSelected;
+
+    return (
+      <React.Fragment>
+        {/* ── Column header row ── */}
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1}
+          sx={{
+            px: 1,
+            py: 0.5,
+            mb: 0.5,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            position: curEditState === EDITING_STATES.editImage ? 'revert' : 'sticky',
+            top: 0,
+            backgroundColor: 'background.paper',
+            zIndex: 1,
+            flexShrink: 0,
+          }}
+        >
+          {/* Indeterminate / all checkbox */}
+          <Tooltip title={allSelected ? 'Deselect all' : 'Select all'} arrow>
+            <IconButton size="small" onClick={allSelected ? handleDeselectAll : handleSelectAll} sx={{ padding: '2px' }}>
+              {allSelected
+                ? <CheckBoxIcon fontSize="small" sx={{color:'DarkSlateGray'}} />
+                : someSelected
+                  ? <IndeterminateCheckBoxIcon fontSize="small" sx={{color:'DarkSlateGray'}} />
+                  : <CheckBoxOutlineBlankIcon fontSize="small" sx={{color:'DimGrey'}}/>}
+            </IconButton>
+          </Tooltip>
+
+          {/* Type column */}
+          <ImageListHeader
+            label="Type"
+            field={SORT_FIELDS.TYPE}
+            sortField={sortField}
+            sortDir={sortDir}
+            onSort={handleSortChange}
+            sx={{ minWidth: 52, flexShrink: 0 }}
+          />
+
+          {/* Name column — takes remaining space */}
+          <ImageListHeader
+            label="Name"
+            field={SORT_FIELDS.NAME}
+            sortField={sortField}
+            sortDir={sortDir}
+            onSort={handleSortChange}
+            sx={{ flexGrow: 1 }}
+          />
+
+          {/* Timestamp column */}
+          <ImageListHeader
+            label="Date Taken"
+            field={SORT_FIELDS.SPECIES_COUNT}
+            sortField={sortField}
+            sortDir={sortDir}
+            onSort={handleSortChange}
+            sx={{ minWidth:'160px', maxWidth:'160px', flexShrink:0, justifyContent:'flex-end' }}
+          />
+
+          {/* Species column */}
+          <ImageListHeader
+            label="Species - Count"
+            field={SORT_FIELDS.SPECIES_COUNT}
+            sortField={sortField}
+            sortDir={sortDir}
+            onSort={handleSortChange}
+            sx={{ minWidth:'130px', maxWidth:'130px', flexShrink: 0, justifyContent: 'flex-end' }}
+          />
+        </Stack>
+
+        {/* ── Row list ── */}
+        {workingImages && workingImages.length > 0
+          ? (
+            <Stack direction="column" spacing={0.5}>
+              {workingImages.map((item) => (
+                <ImageListItem
+                  key={item.name}
+                  name={item.name}
+                  type={item.type}
+                  timestamp={item.timestamp}
+                  species={item.species}
+                  checked={checkedNames.has(item.name)}
+                  onCheck={handleCheckChange}
+                  onClick={() => clickHandler(item.name)}
+                />
+              ))}
+            </Stack>
+          )
+          : (
+            <Container sx={{ border: '1px solid grey', borderRadius: '5px', color: 'darkslategrey', background: '#E0F0E0', mt: 1 }}>
+              <Typography variant="body" sx={{ color: 'text.secondary' }}>No images are available</Typography>
+            </Container>
+          )
+        }
+
+        {/* Infinite scroll sentinel (reuses same observer as grid view) */}
+        {workingImages && maxItems < sortedImages.length &&
+          <Grid id='upload-edit-observer' size={{ xs: 12 }}>
+            <Container sx={{ border: 0, color: 'transparent' }}>
+              <div style={{ height: '10px', width: '100px' }} />
+            </Container>
+          </Grid>
+        }
+      </React.Fragment>
+    );
+  }, [checkedNames, curEditState, curUpload, getSortedImages, handleCheckChange, handleDeselectAll, 
+      handleSelectAll, handleSortChange, maxTilesDisplay, sortDir, sortField]);
+
+
   // TODO: Make species bar on top when narrow screen
   const topbarVisibility = curEditState === EDITING_STATES.editImage || curEditState === EDITING_STATES.listImages ? true : false;
   const imageVisibility = (curEditState === EDITING_STATES.editImage || curEditState === EDITING_STATES.listImages) && !editingLocation ? true : false;
+  const totalImages = curUpload && curUpload.images ? curUpload.images.length : 0;
   // Return the rendered page
   return (
     <Stack id="upload-edit" direction={{xs:'column', md:"row"}} sx={{ flexGrow: 1, top:curStart+'px', height: uiSizes.workspace.height+'px', width: uiSizes.workspace.width+'px' }} >
@@ -969,18 +1343,68 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
           <Grid id='upload-edit-top-sidebar' ref={sidebarTopRef} container direction='row' alignItems='center' justifyContent='space-between' rows='1'
               style={{ ...theme.palette.top_sidebar, minWidth:(workspaceWidth-workplaceStartX)+'px', maxWidth:(workspaceWidth-workplaceStartX)+'px',
                        position:'sticky', verticalAlignment:'middle' }} >
-              <Typography variant="body" sx={{ paddingLeft: '10px'}}>
-                {curUpload.name}
-              </Typography>
-              <Typography variant="body2">
-                {(curUpload.images && curUpload.images.length ? curUpload.images.length : 0) + " Images available"}
-              </Typography>
-              <Typography variant="body" sx={{ paddingLeft: '10px', fontSize:'larger', marginRight:'20px'}}>
-                {displayLocation && displayLocation.nameProperty ? displayLocation.nameProperty : '<location>'}
-                <IconButton aria-label="edit" size="small" color={'lightgrey'} onClick={handleEditLocation}>
+            <Typography variant="body" sx={{ paddingLeft: '10px'}}>
+              {curUpload.name}
+            </Typography>
+            <Typography variant="body2">
+              {totalImages+ " Images available"}
+            </Typography>
+            <Grid container direction='row' alignItems="center" justifyContent="flex-start">
+              { checkedNames.size > 0 ? 
+                <React.Fragment>
+                  <Tooltip title={'Edit selected image\'s timestamp'} arrow>
+                    <IconButton size="small" color="black"
+                              sx={{padding:0
+                              }} >
+                      <EditNoteIcon fontSize="small" onClick={() => handleTimestampEdit()} sx={{
+                                '&:hover': {
+                                    transform: 'translate(-1px, -1px)',
+                                    cursor: 'pointer',
+                                },}}/>
+                    </IconButton>
+                  </Tooltip>
+                  <Typography sx={{borderRight:'1px solid black', marginRight:'5px'}}> &nbsp;
+                  </Typography>
+                </React.Fragment>
+                : <Box sx={{minWidth:'30px'}} />
+              }
+              <Tooltip title={'View images as a list'} arrow>
+                <ListAltOutlinedIcon fontSize="small" onClick={handleListViewClick}
+                          sx={{border:'1px solid gray', borderRadius:'3px', marginLeft:"auto",
+                                color:!showGrid ? 'grey' : 'black',
+                                backgroundColor:!showGrid ? 'Gainsboro' : 'transparent',
+                                '&:hover': {
+                                    boxShadow: showGrid ? '1px 1px 4px rgba(0, 0, 0, 0.3)' : 'none',
+                                    transform: showGrid ? 'translate(-1px, -1px)' : 'none',
+                                    cursor: showGrid ? 'pointer' : 'revert',
+                                },
+                          }} 
+                />
+              </Tooltip>
+              <Tooltip title={'View images a a grid'} arrow>
+                <GridViewOutlinedIcon fontSize="small" onClick={handleGridViewClick}
+                          sx={{border:'1px solid gray', borderRadius:'3px', marginLeft:'5px', 
+                                color:showGrid ? 'grey' : 'black',
+                                backgroundColor:showGrid ? 'Gainsboro' : 'transparent',
+                                '&:hover': {
+                                    boxShadow: !showGrid ? '1px 1px 4px rgba(0, 0, 0, 0.3)' : 'none',
+                                    transform: !showGrid ? 'translate(-1px, -1px)' : 'none',
+                                    cursor: !showGrid ? 'pointer' : 'revert',
+                                },
+                              }}
+                />
+              </Tooltip>
+              <Tooltip title={'Camera Location'} arrow>
+                <Typography variant="body" sx={{ paddingLeft: '10px', fontSize:'larger', marginLeft:'20px', marginRight:'20px'}}>
+                  {displayLocation && displayLocation.nameProperty ? displayLocation.nameProperty : '<location>'}
+                </Typography>
+              </Tooltip>
+              <Tooltip title={'Change Camera Location'} arrow>
+                <IconButton aria-label="edit" size="small" color={'lightgrey'} onClick={handleEditLocation} sx={{paddingRight:'10px'}}>
                   <BorderColorOutlinedIcon sx={{fontSize:'smaller'}}/>
                 </IconButton>
-              </Typography>
+              </Tooltip>
+            </Grid>
           </Grid>
         }
         { (curEditState === EDITING_STATES.listImages || curEditState === EDITING_STATES.editImage) && imageVisibility && 
@@ -996,7 +1420,10 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
                            width:(workspaceWidth-sidebarWidthLeft-(10*2))+'px', 
                            overflow:'scroll' }}
             >
-              {generateImageTiles(handleEditingImage)}
+            {showGrid ?
+              generateImageTiles(handleEditingImage) :
+              generateImageList(totalImages, handleEditingImage)
+            }
             </Box>
         }
       </Stack>
@@ -1105,6 +1532,12 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
               />
           </Grid>
         : null
+      }
+      { editingTimestamp && 
+            <AdjustImageTimestamp images={getCheckedNamedImages()} 
+                                  onUpdate={handleAdjustTimestamp}
+                                  onCancel={handleAdjustTimestampClose}
+            />
       }
       { pendingMessage && 
             <WorkspaceOverlay>

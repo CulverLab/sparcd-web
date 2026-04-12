@@ -5,48 +5,23 @@ from typing import Optional
 from .analysis import Analysis
 from .coordinate_utils import deg2utm_code, deg2utm, DEFAULT_UTM_ZONE
 
+from spd_types.s3info import S3Info
+
 # The default interval value
 DEFAULT_INTERVAL_MIN=0
 
 class Results:
     """ Contains the results of a query """
-    # pylint: disable=too-many-instance-attributes
-    # All the known species
-    _all_species = None
-    # Sorted images
-    _images = None
-    # Image interval
-    interval_minutes = DEFAULT_INTERVAL_MIN
-    # Sorted unique location ID
-    _locations = None
-    # Original results
-    _results = None
-    # Sorted unique species by nane
-    _species = None
-    # Sorted unique year
-    _years = None
-    # Images sorted by location
-    _location_images = None
-    # Images sorted by species
-    _species_images = None
-    # Images sorted by year
-    _year_images = None
-    # S3 connection information
-    _s3_info = None
-    # User settings
-    _user_settings = None
 
     def __init__(self, results: tuple, all_species: tuple, all_locations: tuple, \
-                 s3_url: str, s3_user: str, s3_pw: str, user_settings: dict, \
+                 s3_info: S3Info, user_settings: dict, \
                  interval_minutes:int=DEFAULT_INTERVAL_MIN):
         """ Initializer
         Arguments:
             results: the search results
             all_locations: all the known locations
             all_species: all the known species
-            s3_url: the URL of  the S3 instance
-            s3_user: the user name to connect to S3 with
-            S3_pw: the password for S3
+            s3_info: the information on the S3 instance
             user_settings: the user's settings
             interval_minutes: the number of minutes between images to discard
         """
@@ -62,11 +37,11 @@ class Results:
         self._locations = []
         self._species = []
         self._years = []
-        self._interval_minutes = []
+        self._interval_minutes = interval_minutes
         self._location_images = []
         self._species_images = []
         self._year_images = []
-        self._s3_info = {'url': s3_url, 'user': s3_user, 'pw': s3_pw}
+        self._s3_info = s3_info
         self._user_settings = user_settings
 
         # Check that we have results
@@ -105,26 +80,14 @@ class Results:
         self._locations = cur_locations
         self._species = cur_species
         self._years = cur_years
-        self._interval_minutes = interval_minutes
         self._location_images = by_location
         self._species_images = by_species
         self._year_images = by_year
-        self._s3_info = {'url': s3_url, 'user': s3_user, 'pw': s3_pw}
 
     @property
-    def s3_url(self):
-        """ Returns the S3 endpoint url """
-        return self._s3_info['url']
-
-    @property
-    def s3_user(self):
-        """ Returns the S3 user name """
-        return self._s3_info['user']
-
-    @property
-    def s3_password(self):
-        """ Returns the S3 password """
-        return self._s3_info['pw']
+    def s3_info(self):
+        """ Returns the S3 information """
+        return self._s3_info
 
     @property
     def user_settings(self):

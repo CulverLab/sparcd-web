@@ -1,6 +1,6 @@
 'use client'
 
-/** @module components/SpeciesSidebarItem */
+/** @module tagging/SpeciesSidebarItem */
 
 import * as React from 'react';
 import Button from '@mui/material/Button';

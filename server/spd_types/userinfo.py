@@ -5,21 +5,20 @@
 class UserInfo:
     """ Class containing user information
     """
-    __name = None
-    __email = None
-    __settings = None
-    __species = None
-    __admin = False
-    __url = None
-    __timestamp = None
-    __client_ip = None
-    __user_agent = None
 
     def __init__(self, name: str, admin: int=0):
         """ Initialize an instance
         """
         self.__name = name
         self.__admin = admin
+
+        self.__email = None
+        self.__settings = None
+        self.__species = None
+        self.__url = None
+        self.__timestamp = None
+        self.__client_ip = None
+        self.__user_agent = None
 
     def __str__(self):
         """ Return a string represenation

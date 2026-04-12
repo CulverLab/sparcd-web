@@ -8,6 +8,7 @@ import threading
 import time
 import zipfile
 
+from spd_types.s3info import S3Info
 from s3_access import S3Connection, SPARCD_PREFIX, S3_UPLOADS_PATH_PART
 
 
@@ -119,13 +120,11 @@ def get_zip_dl_info(file_str: str) -> tuple:
     return bucket, s3_path, target_path
 
 
-def generate_zip(url: str, user: str, password: str, s3_files: tuple, \
+def generate_zip(s3_info: S3Info, s3_files: tuple, \
                  							write_fd: int, done_sem: threading.Semaphore) -> None:
     """ Creates a gz file containing the images
     Arguments:
-        url: the URL to the S3 instance
-        user: the S3 user name
-        password: the S3 password
+        s3_info: the information on the S3 endpoint
         s3_files: the list of files to compress in the format of bucket:path
         write_pipe: the pipe to write the ZIP data to
         done_sem: the lock indicating the last file has been downloaded
@@ -143,7 +142,7 @@ def generate_zip(url: str, user: str, password: str, s3_files: tuple, \
                          )
     zip_thread.start()
 
-    S3Connection.download_images_cb(url, user, password,
+    S3Connection.download_images_cb(s3_info,
                                         [get_zip_dl_info(one_file) for one_file in s3_files],
                                         save_folder, gzip_cb,
                                         (downloaded_files, download_files_lock, done_sem))

@@ -1,11 +1,13 @@
 """ Collection functions for SPARCd server """
 
 import time
-from typing import Callable, Optional
+from typing import Optional
 
 from s3_access import S3Connection
 from sparcd_db import SPARCdDatabase
 import sparcd_utils as sdu
+
+from spd_types.s3info import S3Info
 
 # Collections information timeout length
 TIMEOUT_COLLECTIONS_SEC = 12 * 60 * 60
@@ -40,15 +42,11 @@ def __update_s3_from_db(s3_images, db_images) -> tuple:
     return [s3_dicts[one_key] for one_key in s3_dicts]
 
 
-def __get_loaded_collections(db: SPARCdDatabase, s3_id: str, s3_url: str, user_name: str, \
-                                                    fetch_password: Callable) -> Optional[tuple]:
+def __get_loaded_collections(db: SPARCdDatabase, s3_info: S3Info) -> Optional[tuple]:
     """ Loads the collections from S3 and saves them in the database
     Arguments:
         db: the database to access
-        s3_id: the unique ID of the S3 instance
-        s3_url: the URL to the S3 instance
-        user_name: the S3 user name
-        fetch_password: callable that returns the S3 password
+        s3_info: connection information for the S3 endpoint
     Return:
         Returns the collection information associated with the S3 ID
     """
@@ -63,13 +61,13 @@ def __get_loaded_collections(db: SPARCdDatabase, s3_id: str, s3_url: str, user_n
         if lock_id is not None:
             have_lock = True
 
-            all_collections = S3Connection.get_collections(s3_url, user_name, fetch_password())
+            all_collections = S3Connection.get_collections(s3_info)
 
             loaded_colls = []
             for one_coll in all_collections:
                 loaded_colls.append(sdu.normalize_collection(one_coll))
 
-            db.save_all_collections(s3_id, loaded_colls)
+            db.save_all_collections(s3_info.id, loaded_colls)
 
             db.release_lock('fetch_collection', lock_id)
             have_lock = False
@@ -82,7 +80,7 @@ def __get_loaded_collections(db: SPARCdDatabase, s3_id: str, s3_url: str, user_n
                 tries += 1
                 time.sleep(tries * COLL_FETCH_WAIT_INTERVAL_SEC)
 
-                loaded_colls = db.get_all_collections(s3_id, TIMEOUT_COLLECTIONS_SEC)
+                loaded_colls = db.get_all_collections(s3_info.id, TIMEOUT_COLLECTIONS_SEC)
                 if loaded_colls:
                     tries += MAX_COLL_FETCH_TRIES
     finally:
@@ -94,16 +92,13 @@ def __get_loaded_collections(db: SPARCdDatabase, s3_id: str, s3_url: str, user_n
 
 
 # pylint: disable=too-many-positional-arguments,too-many-arguments
-def load_collections(db: SPARCdDatabase, s3_id: str, admin: bool, s3_url: str=None, \
-                    user_name: str=None, fetch_password: Callable=None) -> Optional[tuple]:
+def load_collections(db: SPARCdDatabase, admin: bool, s3_info: S3Info) -> Optional[tuple]:
     """ Loads collections from the database or S3 endpoint
     Arguments:
         db: the database to access
         s3_id: the unique ID of the S3 instance
         admin: boolean value indicating admin privileges when set to True
-        s3_url: the URL to the S3 instance
-        user_name: the S3 user name
-        fetch_password: callable that returns the S3 password
+        s3_info: connection information for the S3 instance
     Return:
         Returns the collection information associated with the S3 ID
     Notes:
@@ -112,10 +107,10 @@ def load_collections(db: SPARCdDatabase, s3_id: str, admin: bool, s3_url: str=No
         If one of s3_url, user_name, or fetch_password is None then S3 will not be queried for
         collections
     """
-    loaded_colls = db.get_all_collections(s3_id, TIMEOUT_COLLECTIONS_SEC)
+    loaded_colls = db.get_all_collections(s3_info.id, TIMEOUT_COLLECTIONS_SEC)
 
-    if not loaded_colls and all(item for item in [s3_url, user_name, fetch_password]):
-        loaded_colls = __get_loaded_collections(db, s3_id, s3_url, user_name, fetch_password)
+    if not loaded_colls:
+        loaded_colls = __get_loaded_collections(db, s3_info)
 
     # Make sure we have something
     if loaded_colls is None:
@@ -135,7 +130,7 @@ def load_collections(db: SPARCdDatabase, s3_id: str, admin: bool, s3_url: str=No
             try:
                 for one_perm in one_coll['allPermissions']:
                     if one_perm and 'usernameProperty' in one_perm and \
-                                one_perm['usernameProperty'] == user_name:
+                                one_perm['usernameProperty'] == s3_info.access_key:
                         new_coll['permissions'] = one_perm
                         user_has_permissions = True
                         break
@@ -176,19 +171,16 @@ def collection_update(db: SPARCdDatabase, s3_id: str, collection: dict) -> None:
     db.collection_update(s3_id, collection, TIMEOUT_COLLECTIONS_SEC)
 
 
-def get_upload_images(db: SPARCdDatabase, s3_id: str, bucket:str, collection_id: str, \
-                    upload_name: str, s3_url: str, user_name: str, fetch_password: Callable, \
+def get_upload_images(db: SPARCdDatabase, bucket:str, collection_id: str, \
+                    upload_name: str, s3_info: S3Info, \
                     force_refresh: bool=False, keep_image_url: bool=False) -> tuple:
     """ Gets the images for the specied collection upload
     Arguments:
         db: the database to access
-        s3_id: the unique ID of the S3 instance
         bucket: the bucket on the S3 instance
         collection_id: the ID of the collection of the upload
         upload_name: the name of the upload to get images for
-        s3_url: the URL to the S3 instance
-        user_name: the S3 user name
-        fetch_password: callable that returns the S3 password
+        s3_info: the information on the S3 instance
         force_refresh: when True, will force a refresh of the upload
         keep_image_url: keeps the image's URLs to S3 (don't overwrite) when True
     Return:
@@ -205,13 +197,11 @@ def get_upload_images(db: SPARCdDatabase, s3_id: str, bucket:str, collection_id:
     s3_images = None
 
     if not force_refresh or (force_refresh and keep_image_url):
-        db_images = db.upload_images_get(s3_id, collection_id, upload_name, TIMEOUT_UPLOAD_SEC)
+        db_images = db.upload_images_get(s3_info.id, collection_id, upload_name, TIMEOUT_UPLOAD_SEC)
 
-    if (not db_images or force_refresh) and \
-                                        all(item for item in [s3_url, user_name, fetch_password]):
+    if (not db_images or force_refresh):
         # Get the upload information from the server
-        s3_images = S3Connection.get_images(s3_url, user_name, fetch_password(),
-                                                    collection_id, upload_name, not keep_image_url)
+        s3_images = S3Connection.get_images(s3_info, collection_id, upload_name, not keep_image_url)
 
     # Check if we're keeping the image URLs after loading all images from S3
     if db_images and keep_image_url:
@@ -221,7 +211,7 @@ def get_upload_images(db: SPARCdDatabase, s3_id: str, bucket:str, collection_id:
 
     # Save the images so we can reload them later
     if s3_images:
-        db.upload_images_save(s3_id, bucket, collection_id, upload_name, s3_images)
+        db.upload_images_save(s3_info.id, bucket, collection_id, upload_name, s3_images)
 
     return s3_images if s3_images else db_images, kept_urls
 

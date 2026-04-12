@@ -159,6 +159,8 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                 'source_path TEXT, ' \
                 'uploaded BOOLEAN DEFAULT FALSE, ' \
                 'mimetype TEXT DEFAULT NULL, ' \
+                'created_timestamp TEXT DEFAULT NULL,' """ """\
+                'original_filename TEXT DEFAULT NULL, ' \
                 'timestamp INTEGER)',
              'CREATE TABLE sandbox_species(id INTEGER PRIMARY KEY ASC, ' \
                 'sandbox_file_id INTEGER NOT NULL, ' \
@@ -233,17 +235,24 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                 'name TEXT NOT NULL, ' \
                 'value INTEGER DEFAULT NULL, ' \
                 'timestamp INTEGER)',
+            'CREATE TABLE sparcd(version TEXT)'
         )
+    version_stmt = 'INSERT INTO sparcd("1.0")';
     add_user_stmt = 'INSERT INTO users(name, email, s3_id, administrator, auto_added) '\
                                                                             'values(?, ?, ?, 1, 0)'
 
     with sqlite3.connect(path) as conn:
         cursor = conn.cursor()
+
+        # Run the pre-configured commands
         idx = 1
         for cmd in stmts:
             print(f'{idx}.',cmd)
             cursor.execute(cmd)
             idx = idx + 1
+
+        # Add the version information
+        cursor.execute(version_stmt)
 
         # If we have a administrator information, we add it to the users table
         if admin_info and len(admin_info) == 3:
@@ -252,6 +261,8 @@ def build_database(path: str, admin_info: tuple=None) -> None:
             print(f'Adding administrator {admin_info[0]}')
             cursor.execute(add_user_stmt, [admin_info[0], admin_info[1], hash2str(s3_url)])
 
+        conn.commit()
+        cursor.close()
 
 if __name__ == '__main__':
     database_path, force_overwrite, admin = get_arguments()

@@ -1,3 +1,4 @@
+/** @module tagging/LocationSelection */
 
 import * as React from 'react';
 import Autocomplete from '@mui/material/Autocomplete';
