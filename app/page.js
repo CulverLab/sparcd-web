@@ -1299,7 +1299,7 @@ export default function Home() {
             >
               <div style={{...theme.palette.login_checking}}>
                 <Grid container direction="column" alignItems="center" justifyContent="center" >
-                    <Typography gutterBottom variant="body2" color="grey">
+                    <Typography gutterBottom variant="body2" color="common.white">
                       Restoring previous session, please wait...
                     </Typography>
                     <CircularProgress variant="indeterminate" />

@@ -1717,7 +1717,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
       }
       { pendingMessage && 
             <WorkspaceOverlay>
-              <Typography gutterBottom variant="body2" color="lightgrey">
+              <Typography gutterBottom variant="body2" color="common.white">
                 {pendingMessage}
               </Typography>
               <CircularProgress variant="indeterminate" />

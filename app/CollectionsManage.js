@@ -482,7 +482,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
       <Grid id='collection-manage-workspace' container direction='row' alignItems='start' justifyContent='start' sx={{ width:'100vw' }} columns={48}>
         <div id='collection-manage-workspace-collections-wrapper' 
                 style={{minWidth:'calc(100vw - 460px)', maxWidth:'calc(100vw - 460px)', maxHeight:curHeight, paddingLeft:'10px', overflowY:'scroll'}}>
-          <Grid id='collection-manage-workspace-collections-details' container direction="row" >
+          <Grid id='collection-manage-workspace-collections-details' container direction="row" sx={{gap:'12px'}} >
             { collectionsItems && collectionsItems.map((item, idx) =>
               <Grid key={'collection-'+item.name+'-'+idx} >
                     <Grid display='flex' justifyContent='left' size='grow' >
@@ -490,14 +490,22 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                             onClick={(event) => onCollectionChange(event, item.bucket, item.id)}
                             variant="outlined"
                             data-active={selectionIndex === idx ? '' : undefined}
-                            sx={{border:'2px solid rgba(128, 128, 185, 0.5)', borderRadius:'15px', minWidth:'400px', maxWidth:'400px',
-                                  backgroundColor:'rgba(218, 232,242,0.7)',
-                                  '&[data-active]': {borderColor:'rgba(155, 175, 202, 0.85)'},
-                                  '&:hover':{backgroundColor:'rgba(185, 185, 185, 0.25)'}
+                            sx={{border:'1px solid', borderColor:'#7f8c96', borderRadius:'6px', minWidth:'400px', maxWidth:'400px',
+                                  backgroundColor:'#f6f7f8',
+                                  color:'text.primary',
+                                  '&[data-active]': {borderColor:'#4f6274', backgroundColor:'#e8ecef'},
+                                  '&:hover':{backgroundColor:'#eeeeee'}
                                 }}
                       >
                         <CardActionArea data-active={selectionIndex === idx ? '' : undefined}
-                          sx={{height: '100%',  '&[data-active]': {backgroundColor:'rgba(64, 64, 64, 0.23)'} }}
+                          sx={{height: '100%',
+                               color:'inherit',
+                               '&[data-active]': {backgroundColor:'transparent'},
+                               '&.Mui-focusVisible': {
+                                 outline:'2px solid #1565c0',
+                                 outlineOffset:'-2px',
+                               },
+                          }}
                         >
                           <CardContent>
                             <Grid container direction="column" spacing={1}>
@@ -543,7 +551,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
           </Grid>
         </div>
         <div id='collection-manage-workspace-uploads-wrapper' style={{minWidth:'460px', maxWidth:'460px', maxHeight:curHeight, paddingRight:'10px', overflowY:"scroll"}}>
-          <Grid id='collection-manage-workspace-uploads-details' container direction="column" alignItems='start' justifyContent="start">
+          <Grid id='collection-manage-workspace-uploads-details' container direction="column" alignItems='start' justifyContent="start" sx={{gap:'8px'}}>
             { filteredUploads && 
               <Grid container direction="row" alignItems="center" justifyContent="flex-end"
                     onClick={uploadFiltering ? null : handlesUploadFiltering}

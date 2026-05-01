@@ -168,12 +168,28 @@ export default function QueryFilters({actionsRef, workingWidth, workingHeight, f
                  }
                />
               <CardContent sx={{position:'relative'}}>
-                <List sx={{backgroundColor:'silver', border:'1px solid grey', borderRadius:'7px', maxHeight:'200px', overflow:'auto'}} >
+                <List sx={{backgroundColor:'background.paper', border:'1px solid', borderColor:'divider', borderRadius:'4px', maxHeight:'200px', overflow:'auto'}} >
                   { filterNames.map((item) => 
                       <ListItem disablePadding key={"query-filter-sel-" + item}>
                           <ListItemButton data-filter={item}
                                           selected={item === filterSelected}
-                                          sx={{padding:'0 8px'}}
+                                          sx={{padding:'0 8px',
+                                               color:'text.primary',
+                                               '&:hover': {
+                                                 backgroundColor:'#eeeeee',
+                                               },
+                                               '&.Mui-selected': {
+                                                 backgroundColor:'#d9d9d9',
+                                               },
+                                               '&.Mui-selected:hover': {
+                                                 backgroundColor:'#d0d0d0',
+                                               },
+                                               '&.Mui-focusVisible': {
+                                                 outline:'2px solid #1565c0',
+                                                 outlineOffset:'-2px',
+                                                 backgroundColor:'#eeeeee',
+                                               },
+                                          }}
                                           onClick={handleFilterSelected}
                                           onDoubleClick={handleFilterDoubleClicked}
                           >

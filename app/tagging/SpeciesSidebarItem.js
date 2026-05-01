@@ -60,7 +60,7 @@ export default function SpeciesSidebarItem({id, species, size, onKeybindClick, o
   // Render the UI
   return (
     <Grid id={id} draggable='true' display='flex' justifyContent='left' size='grow' spacing={1} sx={cardSx}>
-      <Card sx={{ ...theme.palette.species_sidebar_item }} >
+      <Card sx={{ ...theme.palette.species_sidebar_item, '& .MuiCardMedia-root': { borderRadius: 0 } }} >
         <div style={{position:'relative', display:'inline-block', cursor:'pointer'}}  onClick={(event)=>onZoomClick(event)}>
           <CardMedia
             sx={{...mediaSx}}
