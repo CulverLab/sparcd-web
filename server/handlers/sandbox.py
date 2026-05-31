@@ -445,7 +445,7 @@ def __update_observations_csv(db: SPARCdDatabase,
 
     if file_species:
         obs_info = ctu.update_observations(target.s3_path, obs_info, file_species,
-                                    deployment_info[camtrap.CAMTRAP_DEPLOYMENT_ID_IDX])
+                                    deployment_info[0][camtrap.CAMTRAP_DEPLOYMENT_ID_IDX])
 
     row_groups = (obs_info[one_key] for one_key in obs_info)
     S3UploadConnection.upload_camtrap_data(target.s3_info,

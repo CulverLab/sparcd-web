@@ -537,9 +537,9 @@ def handle_location_update(db:SPARCdDatabase, user_info: UserInfo, s3_info: S3In
     # Make sure this is OK to do by finding the location
     if params.coords.old_lat and params.coords.old_lng:
         found_match = [one_location for one_location in cur_locations if \
-                                one_location['idProperty'] == params.loc_id and
-                                float(one_location['latProperty']) == params.coords.old_lat and
-                                float(one_location['lngProperty']) == params.coords.old_lng]
+                            one_location['idProperty'] == params.loc_id and
+                            float(one_location['latProperty']) == float(params.coords.old_lat) and
+                            float(one_location['lngProperty']) == float(params.coords.old_lng)]
 
         # If we're replacing, we should have found the entry
         if not found_match or len(found_match) <= 0:
@@ -547,9 +547,9 @@ def handle_location_update(db:SPARCdDatabase, user_info: UserInfo, s3_info: S3In
                         f'with Lat/Lon {params.coords.old_lat}, {params.coords.old_lng}'}
     else:
         found_match = [one_location for one_location in cur_locations if \
-                                one_location['idProperty'] == params.loc_id and
-                                float(one_location['latProperty']) == params.coords.new_lat and
-                                float(one_location['lngProperty']) == params.coords.new_lng]
+                            one_location['idProperty'] == params.loc_id and
+                            float(one_location['latProperty']) == float(params.coords.new_lat) and
+                            float(one_location['lngProperty']) == float(params.coords.new_lng)]
 
         # If we're not replacing, we should NOT find the entry
         if found_match and len(found_match) > 0:
@@ -563,16 +563,18 @@ def handle_location_update(db:SPARCdDatabase, user_info: UserInfo, s3_info: S3In
     # Convert UTM to Lat/Lon if needed
     if params.coords.coordinate == 'UTM':
         params.coords.new_lat, params.coords.new_lng = \
-                                    utm2deg(params.coords.utm.utm_x,
-                                            params.coords.utm.utm_y,
+                                    utm2deg(float(params.coords.utm.utm_x),
+                                            float(params.coords.utm.utm_y),
                                             params.coords.utm.utm_zone,
                                             params.coords.utm.utm_letter)
         utm_code = params.coords.utm.utm_zone+params.coords.utm.utm_letter
     else:
         params.coords.utm.utm_x, params.coords.utm.utm_y = \
-                                            deg2utm(params.coords.new_lat, params.coords.new_lng)
-        utm_code = ''.join([str(one_item) for one_item in deg2utm_code(params.coords.new_lat,
-                                                                       params.coords.new_lng)
+                                            deg2utm(float(params.coords.new_lat),
+                                                    float(params.coords.new_lng))
+        utm_code = ''.join([str(one_item) for one_item in \
+                                    deg2utm_code(float(params.coords.new_lat),
+                                                 float(params.coords.new_lng))
                             ])
 
     # Put the change in the DB
@@ -588,8 +590,8 @@ def handle_location_update(db:SPARCdDatabase, user_info: UserInfo, s3_info: S3In
                           params.coords.new_lng,
                           params.description):
 
-        return_lat = round(params.coords.new_lat, 3)
-        return_lng = round(params.coords.new_lng, 3)
+        return_lat = round(float(params.coords.new_lat), 3)
+        return_lng = round(float(params.coords.new_lng), 3)
         return_utm_x, return_utm_y = deg2utm(return_lat, return_lng)
         return {'success': True, 'message': f'Successfully updated location {params.loc_name}',
                 'data':{'nameProperty': params.loc_name, 'idProperty': params.loc_id, \
