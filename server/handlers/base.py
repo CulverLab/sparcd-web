@@ -89,7 +89,7 @@ def __get_new_login(db: SPARCdDatabase, s3_info: S3Info, params: LoginParams,
         minio = s3_connect(s3_info)
         _ = minio.list_buckets()
     except MinioException as ex:
-        print(f'WARNING: Failed login attempt: {context.url} {context.user}',flush=True)
+        print(f'WARNING: Failed login attempt: {params.url} {params.user}',flush=True)
         print('S3 exception caught:', ex, flush=True)
         return None
 
