@@ -1388,6 +1388,7 @@ class SPDSQLite:
                                                         (original_name, username, upload_id))
 
         res = cursor.fetchall()
+        cursor.close()
         if not res or len(res) < 1:
             return None
 
