@@ -213,6 +213,8 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                                                                             'values(?, ?, ?, 1, 0)'
 
     with sqlite3.connect(path) as conn:
+        conn.execute('PRAGMA journal_mode=WAL')
+        conn.execute('PRAGMA busy_timeout=10000')
         cursor = conn.cursor()
 
         # Run the pre-configured commands
@@ -253,6 +255,7 @@ def build_sandbox_database(path: str) -> None:
                 'location_lat REAL DEFAULT NULL, ' \
                 'location_lon REAL DEFAULT NULL, ' \
                 'location_ele REAL DEFAULT NULL, ' \
+                'completion_status INTEGER DEFAULT 0', \
                 'recovered INT DEFAULT 0, ' \
                 'timestamp INTEGER, ' \
                 'upload_id TEXT DEFAULT NULL)',
@@ -262,7 +265,7 @@ def build_sandbox_database(path: str) -> None:
                 'source_path TEXT, ' \
                 'uploaded BOOLEAN DEFAULT FALSE, ' \
                 'mimetype TEXT DEFAULT NULL, ' \
-                'created_timestamp TEXT DEFAULT NULL,' """ """\
+                'created_timestamp TEXT DEFAULT NULL,' \
                 'original_filename TEXT DEFAULT NULL, ' \
                 'timestamp INTEGER)',
              'CREATE TABLE sandbox_species(id INTEGER PRIMARY KEY ASC, ' \
@@ -281,6 +284,9 @@ def build_sandbox_database(path: str) -> None:
     version_stmt = f'INSERT INTO sparcd(version) VALUES({DB_VERSION})'
 
     with sqlite3.connect(path) as conn:
+        conn.execute('PRAGMA journal_mode=WAL')
+        conn.execute('PRAGMA synchronous=NORMAL')
+        conn.execute('PRAGMA busy_timeout=10000')
         cursor = conn.cursor()
 
         # Run the pre-configured commands

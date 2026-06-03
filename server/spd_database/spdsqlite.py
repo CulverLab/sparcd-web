@@ -1,13 +1,13 @@
 """This script contains the SQLite database interface for the SPARCd Web app
 """
 
+from contextlib import contextmanager
 import datetime
 import hashlib
 import logging
 import sqlite3
 from time import sleep
-from typing import Optional
-import uuid
+from typing import Generator, Optional
 
 class SPDSQLite:
     """Class handling access connections to the database
@@ -28,9 +28,28 @@ class SPDSQLite:
     def __del__(self):
         """Handles closing the connection and other cleanup
         """
-        if self._conn is not None:
-            self._conn = None
+        self.close()
 
+    @contextmanager
+    def transaction(self) -> Generator:
+        """Context manager for atomic database transactions
+        Yields:
+            The active database connection
+        Raises:
+            RuntimeError: If called before connecting to the database
+        Usage:
+            with self.transaction():
+                cursor.execute(...)
+                cursor.execute(...)
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to start a transaction before connecting')
+        try:
+            yield self._conn
+            self._conn.commit()
+        except Exception:           # pylint: disable=broad-exception-caught
+            self._conn.rollback()
+            raise
 
     def hash2str(self, text: str) -> str:
         """ Returns the hash of the passed in string
@@ -66,12 +85,21 @@ class SPDSQLite:
                 self._logger.info(f'Connecting to the database {print_params}')
             # We disable thread checking since we're using thread-safe Sqlite
             self._conn = sqlite3.connect(database_path, check_same_thread=False)
+            self._conn.execute('PRAGMA journal_mode=WAL')
+            self._conn.execute('PRAGMA busy_timeout=5000')
 
     def reconnect(self) -> None:
         """Attempts a reconnection if we're not connected
         """
         if self._conn is None:
             self.connect()
+
+    def close(self) -> None:
+        """ Closes the connection to the database
+        """
+        if self._conn:
+            self._conn.close()
+            self._conn = None
 
     def is_connected(self) -> bool:
         """ Returns whether this class instance is connected (true), or not (false)
@@ -215,7 +243,7 @@ class SPDSQLite:
         except sqlite3.IntegrityError as ex:
             # If the user already exists, we ignore the error and continue
             if not ex.sqlite_errorcode == sqlite3.SQLITE_CONSTRAINT_UNIQUE:
-                raise ex
+                raise
         finally:
             cursor.close()
 
@@ -275,7 +303,7 @@ class SPDSQLite:
 
         return res
 
-    def save_collections(self, s3_id: str, collections: tuple) -> None:
+    def save_collections(self, s3_id: str, collections: tuple) -> bool:
         """ Saves the collections into the database
         Arguments:
             s3_id: the endpoint ID to save collections under
@@ -293,53 +321,22 @@ class SPDSQLite:
         insert_data = [(s3_id, self.hash2str(s3_id+one_coll['id']), one_coll['name'], \
                                     one_coll['id'], one_coll['json']) for one_coll in collections]
 
-        # Get the cursor to work with
-        cursor = self._conn.cursor()
-
-        # First try to remove all the current entries
-        tries = 0
-        while tries < 10:
-            try:
-                cursor.execute('DELETE FROM collections WHERE s3_id=?', (s3_id,))
-                break
-            except sqlite3.Error as ex:
-                if ex.sqlite_errorcode == sqlite3.SQLITE_BUSY:
-                    tries = tries + 1
-                    sleep(1)
-                else:
-                    print(f'Save collections clearing sqlite error detected: {ex.sqlite_errorcode}')
-                    print('    Not processing request further: delete')
-                    print('   ',ex)
-                    tries = 10
-        if tries >= 10:
-            try:
-                self._conn.rollback()
-            except sqlite3.Error:
-                pass
-            finally:
-                cursor.close()
-            return False
-
-        # Next insert all the new records
-        success = False
+        # Run the queries
         try:
-            cursor.executemany(insert_sql, insert_data)
-            success = True
-        except sqlite3.Error as ex:
-            print(f'Unable to update all collections: {ex.sqlite_errorcode}')
+            with self.transaction():
+                cursor = self._conn.cursor()
 
-        # Handle the results of the insert
-        if success is False:
-            try:
-                self._conn.rollback()
-            except sqlite3.Error:
-                pass
-            finally:
+                # First try to remove all the current entries
+                cursor.execute('DELETE FROM collections WHERE s3_id=?', (s3_id,))
+
+                # Next insert all the new records
+                cursor.executemany(insert_sql, insert_data)
                 cursor.close()
+        except sqlite3.Error as ex:
+            print(f'Save collections clearing sqlite error detected: {ex.sqlite_errorcode}')
+            print('    Not processing request further: delete')
+            print('   ',ex)
             return False
-
-        self._conn.commit()
-        cursor.close()
 
         return True
 
@@ -438,83 +435,34 @@ class SPDSQLite:
         upload_ids = [one_row[0] for one_row in res]
 
         # First try to remove all the current upload entries
-        cursor = self._conn.cursor()
-        tries = 0
-        while tries < 10:
-            try:
-                cursor.execute('DELETE FROM uploads WHERE hash_id=?', (hash_id,))
-                break
-            except sqlite3.Error as ex:
-                if ex.sqlite_errorcode == sqlite3.SQLITE_BUSY:
-                    tries = tries + 1
-                    sleep(1)
-                else:
-                    print('Save upload clearing sqlite error detected: ' \
-                                                                        f'{ex.sqlite_errorcode}')
-                    print('    Not processing request further: delete')
-                    print('   ',ex)
-                    tries = 10
-        if tries >= 10:
-            try:
-                self._conn.rollback()
-            except sqlite3.Error:
-                pass
-            finally:
-                cursor.close()
-            return False
-
-        # Second, remove all images associated with this upload
-        if upload_ids and len(upload_ids) > 0:
-            tries = 0
-            while tries < 10:
-                try:
-                    cursor.executemany('DELETE FROM upload_images WHERE uploads_id=?',
-                                                                                    (upload_ids,))
-                    break
-                except sqlite3.Error as ex:
-                    if ex.sqlite_errorcode == sqlite3.SQLITE_BUSY:
-                        tries = tries + 1
-                        sleep(1)
-                    else:
-                        print('Save upload clearing dependent images sqlite error detected: ' \
-                                                                        f'{ex.sqlite_errorcode}')
-                        print('    Not processing request further: delete')
-                        print('   ',ex)
-                        tries = 10
-        if tries >= 10:
-            try:
-                self._conn.rollback()
-            except sqlite3.Error:
-                pass
-            finally:
-                cursor.close()
-            return False
-
-        # Add the new entry
-        success = None
+        last_row_id = None
         try:
-            cursor.execute('INSERT INTO uploads(s3_id, bucket, hash_id, name, json, timestamp) ' \
-                                            'VALUES(?, ?, ?, ?, ?, strftime("%s", "now"))',
-                                        (s3_id, bucket, hash_id, upload_name, upload_json))
-            success = True
-        except sqlite3.Error as ex:
-            print(f'upload_save: Unable to update upload: {ex.sqlite_errorcode}')
-            print(ex)
+            with self.transaction():
+                cursor = self._conn.cursor()
 
-        # Handle the results of the insert
-        if success is False:
-            try:
-                self._conn.rollback()
-            except sqlite3.Error:
-                pass
-            finally:
+                # First try to remove all the current upload entries
+                cursor.execute('DELETE FROM uploads WHERE hash_id=?', (hash_id,))
+
+                # Second, remove all images associated with this upload
+                if upload_ids:
+                    cursor.executemany('DELETE FROM upload_images WHERE uploads_id=?',
+                                                                [(uid,) for uid in upload_ids])
+
+                cursor.execute('INSERT INTO uploads(s3_id, bucket, hash_id, name, json, ' \
+                                        'timestamp) VALUES(?, ?, ?, ?, ?, strftime("%s", "now"))',
+                                        (s3_id, bucket, hash_id, upload_name, upload_json))
+
+                last_row_id = cursor.lastrowid
+
                 cursor.close()
+        except sqlite3.Error as ex:
+            print('Save upload clearing sqlite error detected: ' \
+                                                                f'{ex.sqlite_errorcode}')
+            print('    Not processing request further: delete')
+            print('   ',ex)
             return False
 
-        self._conn.commit()
-        cursor.close()
-
-        return cursor.lastrowid
+        return last_row_id
 
     def upload_get(self, s3_id: str, collection_id: str, upload_name: str) -> tuple:
         """ Returns the json and elapsed time associated with the upload
@@ -573,33 +521,7 @@ class SPDSQLite:
         if self._conn is None:
             raise RuntimeError('Attempting to get an upload\'s images from the database '\
                                                                                 'before connecting')
-        # Get the cursor
-        cursor = self._conn.cursor()
 
-        # First try to remove all the current upload entries
-        tries = 0
-        while tries < 10:
-            try:
-                cursor.execute('DELETE FROM upload_images WHERE uploads_id=?', (upload_id,))
-                break
-            except sqlite3.Error as ex:
-                if ex.sqlite_errorcode == sqlite3.SQLITE_BUSY:
-                    tries = tries + 1
-                    sleep(1)
-                else:
-                    print('Save upload images clearing sqlite error detected: ' \
-                                                                        f'{ex.sqlite_errorcode}')
-                    print('    Not processing request further: delete')
-                    print('   ',ex)
-                    tries = 10
-        if tries >= 10:
-            try:
-                self._conn.rollback()
-            except sqlite3.Error:
-                pass
-            finally:
-                cursor.close()
-            return False
 
         # Prepare for the insert
         insert_query = 'INSERT INTO upload_images(uploads_id, hash_id, name, key, json, ' \
@@ -608,27 +530,25 @@ class SPDSQLite:
                             one_image['name'], one_image['key'], one_image['json']] \
                                                                         for one_image in images)
 
-        # Run the query
-        success = None
+        # Run the SQL
         try:
-            cursor.executemany(insert_query, insert_values)
-            success = True
-        except sqlite3.Error as ex:
-            print(f'Unable to update upload images: {ex.sqlite_errorcode}')
-            print(ex)
+            with self.transaction():
+                # Get the cursor
+                cursor = self._conn.cursor()
 
-        # Handle the results of the insert
-        if success is False:
-            try:
-                self._conn.rollback()
-            except sqlite3.Error:
-                pass
-            finally:
+                # First try to remove all the current upload entries
+                cursor.execute('DELETE FROM upload_images WHERE uploads_id=?', (upload_id,))
+
+                # Insert the records
+                cursor.executemany(insert_query, insert_values)
+
                 cursor.close()
+        except sqlite3.Error as ex:
+            print('Save upload images clearing sqlite error detected: ' \
+                                                                f'{ex.sqlite_errorcode}')
+            print('    Not processing request further: delete')
+            print('   ',ex)
             return False
-
-        self._conn.commit()
-        cursor.close()
 
         return True
 
@@ -658,37 +578,6 @@ class SPDSQLite:
 
         return res
 
-    def get_sandbox(self, s3_id: str) -> Optional[tuple]:
-        """ Returns the sandbox items
-        Arguments:
-            s3_id: the id of the s3 instance to fetch for
-        Returns:
-            A tuple containing the field indexes of the return data, the row tuples of the s3_path,
-            bucket, the base upload path, and location ID
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to get sandbox information from the database before ' \
-                                                                                    'connecting')
-
-        # Indexes of return values
-        indexes = { 'user': 0,
-                    'path': 1,
-                    'bucket': 2,
-                    's3_path': 3,
-                    'location_id': 4,
-                    'recovered': 5
-                    }
-
-        # Get the Sandbox information
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT name, path, bucket, s3_base_path, location_id, recovered '\
-                                                                    'FROM sandbox WHERE s3_id=?',
-                        (s3_id,))
-        res = cursor.fetchall()
-
-        cursor.close()
-
-        return indexes, res
 
     def get_uploads(self, s3_id: str, bucket: str, timeout_sec: int) -> Optional[tuple]:
         """ Returns the uploads for this collection from the database
@@ -735,71 +624,47 @@ class SPDSQLite:
         if self._conn is None:
             raise RuntimeError('Attempting to access database before connecting')
 
-        cursor = self._conn.cursor()
+        try:
+            with self.transaction():
+                cursor = self._conn.cursor()
 
-        tries = 0
-        while tries < 10:
-            try:
-                cursor.execute('DELETE FROM uploads where s3_id=? AND bucket=?',
-                                                                                (s3_id, bucket))
-                break
-            except sqlite3.Error as ex:
-                if ex.sqlite_errorcode == sqlite3.SQLITE_BUSY:
-                    tries += 1
-                    sleep(1)
-                else:
-                    print(f'Save uploads delete sqlite error detected: {ex.sqlite_errorcode}')
-                    print('    Not processing request further: delete')
-                    print(ex)
-                    tries = 10
-        if tries >= 10:
-            try:
-                self._conn.rollback()
-            except sqlite3.Error:
-                pass
-            finally:
+                # Clean up old records
+                cursor.execute('DELETE FROM uploads where s3_id=? AND bucket=?', (s3_id, bucket))
+
+                # Insert new records
+                for one_upload in uploads:
+                    cursor.execute('INSERT INTO uploads(s3_id, bucket, name, json, timestamp) ' \
+                                    'values(?, ?, ?, ?, strftime("%s", "now"))', \
+                                            (s3_id, bucket, one_upload['name'], one_upload['json']))
+
                 cursor.close()
-            return False
-
-        tries = 0
-        for one_upload in uploads:
-            try:
-                cursor.execute('INSERT INTO uploads(s3_id, bucket, name, json, timestamp) ' \
-                                'values(?, ?, ?, ?, strftime("%s", "now"))', \
-                                        (s3_id, bucket, one_upload['name'], one_upload['json']))
-                tries += 1
-            except sqlite3.Error as ex:
-                print(f'Unable to update uploads: {ex.sqlite_errorcode} {one_upload}')
-                print(ex)
-                break
-
-        if tries < len(uploads):
-            try:
-                self._conn.rollback()
-            except sqlite3.Error:
-                pass
-            finally:
-                cursor.close()
+        except sqlite3.Error as ex:
+            print(f'Save uploads delete sqlite error detected: {ex.sqlite_errorcode}')
+            print('    Not processing request further: delete')
+            print(ex)
             return False
 
         # Update the timeout table for uploads and do some cleanup if needed
+        cursor = self._conn.cursor()
         cursor.execute('SELECT COUNT(1) FROM table_timeout WHERE name=(?)', (s3_id+bucket,))
         res = cursor.fetchone()
-
-        count = int(res[0]) if res and len(res) > 0 else 0
-        if count > 1:
-            # Remove multiple old entries
-            cursor.execute('DELETE FROM table_timeout WHERE name=(?)', (s3_id+bucket,))
-            count = 0
-        if count <= 0:
-            cursor.execute('INSERT INTO table_timeout(name,timestamp) ' \
-                                'VALUES (?,strftime("%s", "now"))', (s3_id+bucket,))
-        else:
-            cursor.execute('UPDATE table_timeout SET timestamp=strftime("%s", "now") ' \
-                                'WHERE name=(?)', (s3_id+bucket,))
-
-        self._conn.commit()
         cursor.close()
+
+        with self.transaction():
+            cursor = self._conn.cursor()
+            count = int(res[0]) if res and len(res) > 0 else 0
+            if count > 1:
+                # Remove multiple old entries
+                cursor.execute('DELETE FROM table_timeout WHERE name=(?)', (s3_id+bucket,))
+                count = 0
+            if count <= 0:
+                cursor.execute('INSERT INTO table_timeout(name,timestamp) ' \
+                                    'VALUES (?,strftime("%s", "now"))', (s3_id+bucket,))
+            else:
+                cursor.execute('UPDATE table_timeout SET timestamp=strftime("%s", "now") ' \
+                                    'WHERE name=(?)', (s3_id+bucket,))
+
+            cursor.close()
 
         return True
 
@@ -838,6 +703,8 @@ class SPDSQLite:
         cursor.execute('SELECT id, path FROM queries WHERE token=(?)', (token,))
 
         res = cursor.fetchall()
+        cursor.close()
+
         if not res or len(res) < 1:
             return []
 
@@ -845,27 +712,17 @@ class SPDSQLite:
         return_paths = [row[1] for row in res]
 
         # Clean up the queries
-        tries = 0
-        while tries < 10:
-            try:
+        try:
+            with self.transaction():
+                cursor = self._conn.cursor()
                 cursor.execute('DELETE FROM queries where id in (' + \
                                                     ','.join(['?'] * len(path_ids)) + ')', path_ids)
-                break
-            except sqlite3.Error as ex:
-                if ex.sqlite_errorcode == sqlite3.SQLITE_BUSY:
-                    tries += 1
-                    sleep(1)
-                else:
-                    print(f'Saved queries delete sqlite error detected: {ex.sqlite_errorcode}')
-                    print('    Not processing request further: delete')
-                    print('   ',ex)
-                    tries = 10
-        if tries >= 10:
-            self._conn.rollback()
-            # We give up for now
-        else:
-            self._conn.commit()
-        cursor.close()
+                cursor.close()
+        except sqlite3.Error as ex:
+            print(f'Saved queries delete sqlite error detected: {ex.sqlite_errorcode}')
+            print('    Not processing request further: delete')
+            print('   ',ex)
+            # We give up for now and don't do anything
 
         return return_paths
 
@@ -885,698 +742,6 @@ class SPDSQLite:
                                     'WHERE token=(?) ORDER BY elapsed_sec DESC LIMIT 1', (token,))
 
         res = cursor.fetchone()
-        cursor.close()
-
-        return res
-
-    def sandbox_exists(self, s3_id: str, bucket: str, username: str, s3_path: str) -> bool:
-        """ Checks if the sandbox entry exists
-        Arguments:
-            s3_id: the ID of the s3 instance
-            bucket: the bucket to match
-            username: the user that uploaded images
-            s3_path: the path to the upload folder
-        Return:
-            Returns True if an active upload matches the parameter. Fals if the upload is
-            not found
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to check if sandbox entry in the database before ' \
-                                                                                    'connecting')
-
-        # Find the upload
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT count(1) FROM sandbox WHERE s3_id=? AND bucket=? AND name=? AND ' \
-                                                            's3_base_path=? AND path IS NOT NULL',
-                        (s3_id, bucket, username, s3_path))
-
-        res = cursor.fetchone()
-        cursor.close()
-
-        if not res or len(res) <= 0:
-            return 0
-
-        return int(res[0]) > 0
-
-    def sandbox_add_recovered(self, s3_id: str, bucket: str, username: str, s3_path: str, \
-                                                                timestamp: datetime) -> bool:
-        """ Adds a recovered sandbox entry to the database
-        Arguments:
-            s3_id: the ID of the s3 instance
-            bucket: the bucket to match
-            username: the user that uploaded images
-            s3_path: the path to the upload folder
-            timestamp: the timestamp of the upload
-        Return:
-            Returns True if an active upload matches the parameter. Fals if the upload is
-            not found
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to add a recovered sandbox entry to the database ' \
-                                                                                'before connecting')
-
-        # Add the upload
-        cursor = self._conn.cursor()
-        cursor.execute('INSERT INTO sandbox(s3_id, path, bucket, name, s3_base_path, timestamp, ' \
-                                    'upload_id, recovered) ' \
-                            'VALUES(?, "", ?, ?, ?, time(?), ?, 1)',
-                        (s3_id, bucket, username, s3_path, timestamp.isoformat(), uuid.uuid4().hex))
-
-        self._conn.commit()
-        cursor.close()
-
-    def sandbox_set_recovered(self, s3_id: str, bucket: str, username: str, s3_path: str, \
-                                                                timestamp: datetime) -> bool:
-        """ Sets a sandbox entry as recovered in the database
-        Arguments:
-            s3_id: the ID of the s3 instance
-            bucket: the bucket to match
-            username: the user that uploaded images
-            s3_path: the path to the upload folder
-            timestamp: the timestamp of the upload
-        Return:
-            Returns True if an active upload matches the parameter. Fals if the upload is
-            not found
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to add a recovered sandbox entry to the database ' \
-                                                                                'before connecting')
-
-        # Add the upload
-        cursor = self._conn.cursor()
-        cursor.execute('UPDATE sandbox SET recovered=1,timestamp=?,upload_id=? WHERE ' \
-                                            's3_id=? AND bucket=? AND name=? AND s3_base_path=?',
-                        (timestamp.isoformat(), uuid.uuid4().hex, s3_id, bucket, username, s3_path))
-
-        self._conn.commit()
-        cursor.close()
-
-    def sandbox_get_upload(self, s3_id: str, username: str, path: str) -> Optional[tuple]:
-        """ Gets the upload associated with the url , user, and upload path
-        Arguments:
-            s3_id: the ID to the s3 instance to look for
-            username: the user associated with the upload
-            path: the source path of the uploads
-        Returns:
-            Returns a tuple containing the sandbox unique ID, the upload ID, and the elapsed seconds
-            for the upload
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to get sandbox uploads from the database before ' \
-                                                                                    'connecting')
-
-        # Find the upload
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT id, upload_id, (strftime("%s", "now")-timestamp) AS elapsed_sec ' \
-                        'FROM sandbox WHERE s3_id=? AND name=? AND path=? LIMIT 1',
-                                                                        (s3_id, username, path))
-
-        res = cursor.fetchone()
-        cursor.close()
-
-        return res
-
-    def sandbox_get_upload_files(self, sandbox_id: str) -> Optional[tuple]:
-        """ Returns the files that are associated with the sandbox_id
-        Arguments:
-            sandbox_id: the ID of the sandbox to get the files for
-        Returns:
-            Returns a tuple of rows containing a tuple of the file information
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to get sandbox uploads from the database before ' \
-                                                                                    'connecting')
-
-        # Get all the uploaded files
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT source_path FROM sandbox_files WHERE sandbox_id=? AND ' \
-                                                                    'uploaded=TRUE', (sandbox_id,))
-        res = cursor.fetchall()
-
-        cursor.close()
-
-        return res
-
-    def sandbox_new_upload_id(self, upload_id: str) -> str:
-        """ Returns a newly assigned upload ID
-        Arguments:
-            upload_id: the old upload ID to swap for a new one
-        Return:
-            Returns the new upload ID
-        """
-
-        # Update the upload ID if requested
-        new_upload_id = uuid.uuid4().hex
-        cursor = self._conn.cursor()
-        cursor.execute('UPDATE sandbox SET upload_id=? WHERE upload_id=?',
-                                                            (new_upload_id, upload_id))
-        self._conn.commit()
-        cursor.close()
-
-        return new_upload_id
-
-    def sandbox_new_upload(self, s3_id: str, username: str, path: str, files: tuple, \
-                                            s3_bucket: str, s3_path: str, location_id: str, \
-                                            location_name: str, location_lat: float, \
-                                            location_lon: float, location_ele: float) -> str:
-        """ Adds new sandbox upload entries
-        Arguments:
-            s3_id: the ID to the s3 instance the upload is for
-            username: the name of the person starting the upload
-            path: the source path of the images
-            files: the list of filenames (or partial paths) that's to be uploaded
-            s3_bucket: the S3 bucket to load into
-            s3_path: the base path of the S3 upload
-            location_id: the ID of the location associated with the upload
-            location_name: the name of the location
-            location_lat: the latitude of the location
-            location_lon: the longitude of the location
-            location_ele: the elevation of the location
-        Return:
-            Returns the upload ID if entries are added to the database
-        """
-        # pylint: disable=too-many-arguments,too-many-positional-arguments
-        if self._conn is None:
-            raise RuntimeError('Attempting to add a new sandbox upload to the database before ' \
-                                                                                    'connecting')
-
-        # Create the upload
-        upload_id = uuid.uuid4().hex
-        cursor = self._conn.cursor()
-        cursor.execute('INSERT INTO sandbox(s3_id, name, path, bucket, s3_base_path, ' \
-                                            'location_id, location_name, location_lat, ' \
-                                            'location_lon, location_ele, '\
-                                            'timestamp, upload_id) ' \
-                                    'VALUES(?,?,?,?,?,?,?,?,?,?,strftime("%s", "now"),?)', 
-                            (s3_id, username, path, s3_bucket, s3_path, location_id, \
-                                location_name, location_lat, location_lon, location_ele, upload_id))
-
-        sandbox_id = cursor.lastrowid
-
-        for one_file in files:
-            cursor.execute('INSERT INTO sandbox_files(sandbox_id, filename, source_path, ' \
-                                                                                    'timestamp) ' \
-                                    'VALUES(?,?,?,strftime("%s", "now"))',
-                            (sandbox_id, one_file, one_file))
-
-        self._conn.commit()
-        cursor.close()
-
-        return upload_id
-
-    def sandbox_upload_recovery_update(self, s3_id: str, username: str, bucket: str, \
-                                    upload_key: str, source_path: str, \
-                                    location_id: str, location_name: str, location_lat: float, \
-                                    location_lon: float, location_ele: float) -> Optional[tuple]:
-        """ Updates the database with an upload recovery information
-        Arguments:
-            s3_id: the ID of the S3 instance
-            username: the name of the user associated with this upload recovery
-            bucket: the bucket of the upload
-            upload_key: the key of the upload
-            source_path: the path that the images are being uploaded from
-            location_id: the ID of the location associated with the upload
-            location_name: the name of the location
-            location_lat: the latitude of the location
-            location_lon: the longitude of the location
-            location_ele: the elevation of the location
-        Return:
-            When successful, returns a tuple containing the the upload ID and a list of file names
-            that failed upload. None is returned upon failure
-        """
-        # pylint: disable=too-many-arguments,too-many-positional-arguments
-        if self._conn is None:
-            raise RuntimeError('Attempting to add a new sandbox upload to the database before ' \
-                                                                                    'connecting')
-
-        # Make sure we have a recovery upload by getting the sandbox ID
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT id FROM SANDBOX WHERE name=? AND s3_id=? AND ' \
-                                            'bucket=? AND s3_base_path like ? AND ' \
-                                            '( recovered=1 OR (path != "" AND path is not NULL))',
-                        (username, s3_id, bucket, '%'+upload_key+'%'))
-        res = cursor.fetchone()
-        cursor.close()
-
-        if not res or len(res) <= 0:
-            return None
-
-        sandbox_id = res[0]
-
-        # Update the upload
-        upload_id = uuid.uuid4().hex
-        cursor = self._conn.cursor()
-        cursor.execute('UPDATE sandbox SET path=?, location_id=?, location_name=?, '\
-                                'location_lat=?, location_lon=?, location_ele=?, recovered=0, ' \
-                                'upload_id=? ' \
-                            'WHERE s3_id=? AND name=? AND bucket=? AND s3_base_path like ?', 
-                        (source_path, location_id, location_name, location_lat, location_lon, \
-                            location_ele, upload_id, s3_id,username, bucket, "%"+upload_key+"%"))
-        self._conn.commit()
-        cursor.close()
-
-        # Add in the files
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT filename FROM sandbox_files WHERE sandbox_id=? AND uploaded=0',
-                                    (sandbox_id,))
-
-        res = cursor.fetchall()
-        cursor.close()
-
-        if not res or len(res) <= 0:
-            return None
-
-        return upload_id, [oneFile[0] for oneFile in res]
-
-    def sandbox_get_s3_info(self, username: str, upload_id: str) -> tuple:
-        """ Returns the bucket and path associated with the sandbox
-        Arguments:
-            username: the name of the person starting the upload
-            upload_id: the ID of the upload
-        Return:
-            Returns a tuple containing bucket and upload path of the S3 instance
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to get sandbox S3 information from the database before '\
-                                                                                    'connecting')
-
-        # Get the S3 information from the sandbox
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT bucket, s3_base_path FROM sandbox WHERE name=? AND upload_id=?',
-                                                                    (username, upload_id))
-
-        res = cursor.fetchone()
-        cursor.close()
-
-        return res
-
-    def sandbox_upload_counts(self, username: str, upload_id: str) -> tuple:
-        """ Returns the total and uploaded count of the files
-        Arguments:
-            username: the name of the person starting the upload
-            upload_id: the ID of the upload
-        Return:
-            Returns a tuple with the number of files marked as uploaded and the total
-            number of files
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to count sandbox uploaded files in the database '\
-                                                                                'before connecting')
-
-        # Return the sandbox upload count
-        cursor = self._conn.cursor()
-        cursor.execute('WITH '\
-                'upid AS ' \
-                    '(SELECT id FROM sandbox ' \
-                                    'WHERE name=? AND upload_id=? AND path <> ""),' \
-                'uptot AS ' \
-                    '(SELECT sandbox_id,count(1) AS tot FROM sandbox_files,upid WHERE ' \
-                                                                    'sandbox_id=upid.id),' \
-                ' uphave AS ' \
-                    '(SELECT sandbox_id,count(1) AS have FROM sandbox_files,upid WHERE ' \
-                                        'sandbox_id = upid.id AND sandbox_files.uploaded=TRUE)' \
-                'SELECT uptot.tot,uphave.have FROM uptot LEFT JOIN uphave ON '\
-                                                    'uptot.sandbox_id=uphave.sandbox_id LIMIT 1',
-                                                                            (username, upload_id))
-
-        res = cursor.fetchone()
-        cursor.close()
-
-        return res
-
-
-    def sandbox_files_not_uploaded(self, username: str, upload_id: str) -> Optional[tuple]:
-        """ Gets the list of file names of any files not yet marked as uploaded
-        Arguments:
-            username: the name of the person starting the upload
-            upload_id: the ID of the upload
-        Return:
-            Returns the list of files that are waiting to be uploaded
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to get files not uploaded to the database '\
-                                                                                'before connecting')
-
-        # Return the list of IDs for files not loaded
-        cursor = self._conn.cursor()
-        cursor.execute('WITH upid AS ' \
-                    '(SELECT id FROM sandbox ' \
-                                    'WHERE name=? AND upload_id=? AND path <> "")' \
-                'SELECT filename FROM sandbox_files, upid WHERE ' \
-                                                        'sandbox_id = upid.id AND uploaded = 0',
-                                                                            (username, upload_id))
-
-        res = cursor.fetchall()
-        cursor.close()
-
-        if not res or len(res) <= 0:
-            return None
-
-        return res
-
-    def sandbox_reset_upload(self, username: str, upload_id: str, files: tuple) -> Optional[str]:
-        """ Resets an upload for another attempt
-        Arguments:
-            username: the name of the person starting the upload
-            upload_id: the ID of the upload
-            files: the list of filenames (or partial paths) that's to be uploaded
-        Return:
-            Returns the upload ID if entries are added to the database, and None otherwise
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to add a new sandbox upload to the database before ' \
-                                                                                    'connecting')
-
-        # Get the sandbox ID
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT id FROM sandbox WHERE name=? AND upload_id=?',
-                                                                            (username, upload_id))
-        res = cursor.fetchone()
-        cursor.close()
-
-        if not res or len(res) < 1:
-            return None
-
-        sandbox_id = res[0]
-        if sandbox_id is None:
-            return None
-
-        # Clear the old files and add the new ones
-        cursor = self._conn.cursor()
-
-        cursor.execute('DELETE FROM sandbox_files WHERE sandbox_id=?', (sandbox_id, ))
-
-        for one_file in files:
-            cursor.execute('INSERT INTO sandbox_files(sandbox_id, filename, source_path, ' \
-                                                                                    'timestamp) ' \
-                                    'VALUES(?,?,?,strftime("%s", "now"))',
-                            (sandbox_id, one_file, one_file))
-
-        self._conn.commit()
-        cursor.close()
-
-        return upload_id
-
-    def sandbox_upload_complete(self, username: str, upload_id: str) -> None:
-        """ Marks the sandbox upload as completed by resetting the path
-        Arguments:
-            username: the name of the person starting the upload
-            upload_id: the ID of the upload
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to complete sandbox upload in the database '\
-                                                                                'before connecting')
-
-        # Update the sandbox
-        cursor = self._conn.cursor()
-        cursor.execute('UPDATE sandbox SET path="", recovered=0  WHERE name=? AND upload_id=?',
-                                                                            (username, upload_id))
-
-        self._conn.commit()
-        cursor.close()
-
-    def sandbox_upload_complete_by_info(self, s3_id: str, username: str, bucket: str, \
-                                                                        upload_name: str) -> None:
-        """ Marks the sandbox upload as completed
-        Arguments:
-            s3_id: the ID of the S3 instance
-            username: the name of the person associated with the upload
-            bucket: the bucket of the upload
-            upload_name: the name of the upload
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to complete repair sandbox upload in the database '\
-                                                                                'before connecting')
-
-        # Mark the sandbox as complete
-        cursor = self._conn.cursor()
-        query = 'UPDATE sandbox SET path="", recovered=0 WHERE name=? AND s3_id=? AND ' \
-                                                                'bucket=? AND s3_base_path like ?'
-        params = (username, s3_id, bucket, '%'+upload_name+'%')
-        cursor.execute(query, params)
-
-        self._conn.commit()
-        cursor.close()
-
-    def sandbox_file_uploaded(self, username: str, upload_id: str, filename: str, \
-                                                    mimetype: str, timestamp: str) -> Optional[str]:
-        """ Marks the file as upload as uploaded
-        Arguments:
-            username: the name of the person starting the upload
-            upload_id: the ID of the upload
-            filename: the name of the uploaded file to mark as uploaded
-            mimetype: the mimetype of the file uploaded
-            timestamp: the timestamp associted with this file
-        Return:
-            Returns the ID of the updated file
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to mark file as uploaded in the database ' \
-                                                                                'before connecting')
-
-        # Get the file's ID
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT id FROM sandbox_files WHERE '\
-                            'sandbox_files.filename=(?) AND sandbox_id in ' \
-                       '(SELECT id FROM sandbox WHERE name=? AND upload_id=?) LIMIT 1',
-                                                        (filename, username, upload_id))
-
-        res = cursor.fetchall()
-        cursor.close()
-
-        if not res or len(res) < 1:
-            return None
-
-        if len(res[0]) < 1:
-            return None
-
-        sandbox_file_id = res[0][0]
-        if sandbox_file_id is None:
-            return None
-
-        # Update the file's mimetype
-        cursor = self._conn.cursor()
-        cursor.execute('UPDATE sandbox_files SET uploaded=TRUE, mimetype=?, created_timestamp=? '\
-                            'WHERE sandbox_files.filename=? AND id=?',
-                                                (mimetype, timestamp, filename, sandbox_file_id))
-
-        self._conn.commit()
-        cursor.close()
-
-        return sandbox_file_id
-
-    def sandbox_file_rename(self, username: str, upload_id: str, original_name: str, \
-                            new_name: str) -> Optional[str]:
-        """ Renames an upload filename to a new name
-        Arguments:
-            username: the name of the person starting the upload
-            upload_id: the ID of the upload
-            original_name: the original name of the upload file
-            new_name: the replacement name
-        Return:
-            The ID of the updated file
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to rename a file upload in the database ' \
-                                                                                'before connecting')
-
-        # Get the file's ID
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT id, source_path FROM sandbox_files WHERE '\
-                            'sandbox_files.filename=(?) AND sandbox_id in ' \
-                       '(SELECT id FROM sandbox WHERE name=? AND upload_id=?) LIMIT 1',
-                                                        (original_name, username, upload_id))
-
-        res = cursor.fetchall()
-        cursor.close()
-        if not res or len(res) < 1:
-            return None
-
-        if len(res[0]) < 2:
-            return None
-
-        sandbox_file_id = res[0][0]
-        sandbox_source_path = res[0][1]
-        if sandbox_file_id is None:
-            return None
-
-        # Update the source path
-        idx = sandbox_source_path.index(original_name)
-        sandbox_source_path = sandbox_source_path[:idx] + new_name
-
-        # Change the name. We check the name again in case it was changed since we received the ID
-        cursor = self._conn.cursor()
-        cursor.execute('UPDATE sandbox_files SET filename=?, source_path=?, original_filename=? ' \
-                                                                        'WHERE filename=? AND id=?',
-                                    (new_name, sandbox_source_path, original_name,
-                                     original_name, sandbox_file_id)
-                      )
-
-        self._conn.commit()
-        cursor.close()
-
-        return sandbox_file_id
-
-
-    def sandbox_add_file_info(self, file_id: str, species: tuple, location: dict, \
-                                                                        timestamp: str) -> None:
-        """ Marks the file as upload as uploaded
-        Arguments:
-            file_id: the ID of the uploaded file add species and location to
-            species: a tuple containing tuples of species common and scientific names, and counts
-            location: a dict containing name, id, and elevation information
-            timestamp: the timestamp associated with the entries
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to add species and location to an upload file in the ' \
-                                                                    'database before connecting')
-
-        if not species or species is None or not location or location is None:
-            print('INFO: No species or location specified for updating uploaded file ',
-                        f'{file_id}', flush=True)
-            return
-
-        cursor = self._conn.cursor()
-        if species:
-            cursor.executemany('INSERT INTO ' \
-                                    'sandbox_species(sandbox_file_id, obs_date, obs_common,' \
-                                                                    'obs_scientific, obs_count) ' \
-                                    'VALUES (?,?,?,?,?)',
-                    ((file_id,timestamp,one_species['common'],one_species['scientific'], \
-                                    int(one_species['count'])) \
-                            for one_species in species) )
-
-        if location:
-            cursor.execute('INSERT INTO sandbox_locations(sandbox_file_id, loc_name, loc_id, ' \
-                                                                                'loc_elevation) ' \
-                                    'VALUES (?,?,?,?)', 
-                        (file_id, location['name'], location['id'], \
-                                                                float(location['elevation'])) )
-
-        self._conn.commit()
-        cursor.close()
-
-    def sandbox_get_location(self, username: str, upload_id: str) -> Optional[tuple]:
-        """ Returns a tuple of the upload location information
-        Arguments:
-            username: the name of the person starting the upload
-            upload_id: the ID of the upload
-        Return:
-            Returns a tuple containing the location ID, name, latitude, longitude, and elevation
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to get sandbox location information from the database '\
-                                                                                'before connecting')
-
-        # Get the location
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT location_id, location_name, location_lat, location_lon, ' \
-                                        'location_ele FROM sandbox WHERE name=? AND upload_id=?',
-                            (username, upload_id))
-
-        res = cursor.fetchone()
-        cursor.close()
-
-        return res
-
-    def get_files_renamed(self, username: str, upload_id: str) -> Optional[tuple]:
-        """ Returns the original and new names of renamed files
-        Arguments:
-            username: the name of the person starting the upload
-            upload_id: the ID of the upload
-        Return:
-            Returns a tuple containing tuples of the original name and new name
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to get renamed files from the database '\
-                                                                                'before connecting')
-
-        # Get the file mime type
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT original_filename, filename FROM sandbox_files ' \
-                        'WHERE original_filename NOT NULL AND sandbox_id IN '\
-                            '(SELECT id FROM sandbox WHERE name=? AND upload_id=?)',
-                                                                            (username, upload_id))
-
-        res = cursor.fetchall()
-        cursor.close()
-
-        return res
-
-    def get_file_mimetypes(self, username: str, upload_id: str) -> Optional[tuple]:
-        """ Returns the file paths and mimetypes for an upload
-        Arguments:
-            username: the name of the person starting the upload
-            upload_id: the ID of the upload
-        Return:
-            Returns a tuple containing tuples of the found file paths and mimetypes
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to get upload mimetypes from the database '\
-                                                                                'before connecting')
-
-        # Get the file mime type
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT source_path, mimetype FROM sandbox_files WHERE sandbox_id IN '\
-                        '(SELECT id FROM sandbox WHERE name=? AND upload_id=?)',
-                                                                            (username, upload_id))
-
-        res = cursor.fetchall()
-        cursor.close()
-
-        return res
-
-    def get_file_created_timestamp(self, username: str, upload_id: str) -> Optional[tuple]:
-        """ Returns the file paths and created timestamp for an upload
-        Arguments:
-            username: the name of the person starting the upload
-            upload_id: the ID of the upload
-        Return:
-            Returns a tuple containing tuples of the found file paths and created timestamp
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to get upload mimetypes from the database '\
-                                                                                'before connecting')
-
-        # Get the file mime type
-        cursor = self._conn.cursor()
-        cursor.execute('SELECT source_path, created_timestamp FROM sandbox_files WHERE sandbox_id '\
-                        'IN (SELECT id FROM sandbox WHERE name=? AND upload_id=?)',
-                                                                            (username, upload_id))
-
-        res = cursor.fetchall()
-        cursor.close()
-
-        return res
-
-
-    def get_file_species(self, username: str, upload_id: str) -> Optional[tuple]:
-        """ Returns the file species information for an upload
-        Arguments:
-            username: the name of the person starting the upload
-            upload_id: the ID of the upload
-        Return:
-            Returns a tuple containing a tuple for each species entry of the upload. Each row
-            tuple has the filename, timestamp, scientific name, count, common name, and location id
-        """
-        if self._conn is None:
-            raise RuntimeError('Attempting to get upload mimetypes from the database '\
-                                                                                'before connecting')
-
-        # Return the files species
-        cursor = self._conn.cursor()
-        query = \
-            'WITH loc AS (SELECT id, location_id as loc_id ' \
-                                                'FROM sandbox WHERE name=? AND upload_id=?),' \
-                    'files AS (SELECT loc.loc_id AS loc_id,sf.id AS id, sf.filename ' \
-                                        'FROM sandbox_files sf,loc WHERE sf.sandbox_id=loc.id) ' \
-                'SELECT files.loc_id, files.filename, ssp.obs_date, ssp.obs_common, ' \
-                                                            'ssp.obs_scientific, ssp.obs_count ' \
-                            'FROM sandbox_species ssp, files WHERE ssp.sandbox_file_id=files.id'
-
-        cursor.execute(query, (username, upload_id))
-
-        res = cursor.fetchall()
         cursor.close()
 
         return res
@@ -2031,7 +1196,7 @@ class SPDSQLite:
 
         cursor = self._conn.cursor()
         cursor.execute('UPDATE collection_edits SET updated=1 WHERE s3_id=? AND username=? AND ' \
-                            'bucket=? AND s3_base_path=? AND timeout=strftime("%s", "now")',
+                            'bucket=? AND s3_base_path=? AND edit_timestamp=strftime("%s", "now")',
                         (s3_id, username, bucket, base_path))
 
         self._conn.commit()
@@ -2096,7 +1261,7 @@ class SPDSQLite:
 
         cursor = self._conn.cursor()
         cursor.execute('UPDATE collection_edits SET updated=1 ' \
-                                        'WHERE s3_id=? username=? AND bucket=? AND s3_base_path=?',
+                                    'WHERE s3_id=? AND username=? AND bucket=? AND s3_base_path=?',
                         (collection_info['s3_url'], username, collection_info['bucket'], \
                                                                     collection_info['base_path']))
 
@@ -2116,7 +1281,7 @@ class SPDSQLite:
             raise RuntimeError('Attempting to mark file edits as updated in the database '\
                                                                                 'before connecting')
 
-        # Prepare to process the data in batches
+        # Prepare to process the data in batches. We don't use a transaction with rollback for this
         cur_idx = 0
         count = 0
         cursor = self._conn.cursor()
@@ -2171,6 +1336,7 @@ class SPDSQLite:
         cursor.close()
 
         # Attempt to update or insert the lock information
+        # We loop here for a more robust handling than the connection's loop timeout feature
         cursor = self._conn.cursor()
         tries = 0
         while True:
