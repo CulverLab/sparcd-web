@@ -4,8 +4,9 @@ from flask import Blueprint, jsonify, request
 from flask_cors import cross_origin
 
 import handlers.query as hquery
-from sparcd_config import ALLOWED_ORIGINS, QUERY_RESULTS_TIMEOUT_SEC, authenticated_route, \
+from sparcd_config import QUERY_RESULTS_TIMEOUT_SEC, authenticated_route, \
                           temp_species_filename
+from sparcd_env import ALLOWED_ORIGINS
 
 query_bp = Blueprint('query', __name__)
 

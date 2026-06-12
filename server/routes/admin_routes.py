@@ -8,8 +8,9 @@ from flask_cors import cross_origin
 
 import handlers.admin as hadmin
 from spd_types.userinfo import UserInfo
-from sparcd_config import ALLOWED_ORIGINS, authenticated_route, make_handler_response, \
+from sparcd_config import authenticated_route, make_handler_response, \
                           temp_species_filename
+from sparcd_env import ALLOWED_ORIGINS
 import sparcd_utils as sdu
 
 admin_bp = Blueprint('admin', __name__)

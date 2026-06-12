@@ -8,11 +8,12 @@ from spd_types.s3info import S3Info
 import sparcd_utils as sdu
 
 
-def make_authenticated_route(db_path: str, session_expire_seconds: int,
+def make_authenticated_route(db_path: str, db_sandbox_path: str, session_expire_seconds: int,
                              get_s3_info: Callable[[str, SPARCdDatabase, UserInfo], S3Info]):
     """ Factory function that returns a route authentication decorator.
     Args:
         db_path: path to the SPARCd database
+        db_sandbox_path: path to the SPARCD Sandbox database
         session_expire_seconds: number of seconds before a session expires
         get_s3_info: callable that returns S3Info for the current user
     Returns:
@@ -46,7 +47,7 @@ def make_authenticated_route(db_path: str, session_expire_seconds: int,
                     Returns the result of calling the function, or error codes
                     upon failure
                 """
-                db = SPARCdDatabase(db_path)
+                db = SPARCdDatabase(db_path, db_sandbox_path)
                 token = request.args.get('t')
                 token_valid, user_info = sdu.token_user_valid(db, request, token,
                                                               session_expire_seconds)

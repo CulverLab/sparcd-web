@@ -24,6 +24,7 @@ class SPDSQLiteSandbox:
         self._path = db_path
         self._verbose = verbose
         self._logger = logger
+        self._savepoint_counter = 0
 
     def __del__(self):
         """Handles closing the connection and other cleanup
@@ -44,11 +45,27 @@ class SPDSQLiteSandbox:
         """
         if self._conn is None:
             raise RuntimeError('Attempting to start a transaction before connecting')
+
+        # Use a savepoint if a transaction is already active
+        in_transaction = self._conn.in_transaction
+        savepoint = None
+
         try:
+            if in_transaction:
+                self._savepoint_counter += 1
+                savepoint = f'sp_{self._savepoint_counter}'
+                self._conn.execute(f'SAVEPOINT {savepoint}')
             yield self._conn
-            self._conn.commit()
-        except Exception:           # pylint: disable=broad-exception-caught
-            self._conn.rollback()
+            if in_transaction:
+                self._conn.execute(f'RELEASE SAVEPOINT {savepoint}')
+            else:
+                self._conn.commit()
+        except Exception:  # pylint: disable=broad-exception-caught
+            if in_transaction:
+                self._conn.execute(f'ROLLBACK TO SAVEPOINT {savepoint}')
+                self._conn.execute(f'RELEASE SAVEPOINT {savepoint}')
+            else:
+                self._conn.rollback()
             raise
 
     def hash2str(self, text: str) -> str:
@@ -101,11 +118,6 @@ class SPDSQLiteSandbox:
         if self._conn:
             self._conn.close()
             self._conn = None
-
-    def is_connected(self) -> bool:
-        """ Returns whether this class instance is connected (true), or not (false)
-        """
-        return self._conn is not None
 
     def get_sandbox(self, s3_id: str) -> Optional[tuple]:
         """ Returns the sandbox items
@@ -260,7 +272,7 @@ class SPDSQLiteSandbox:
         # Get all the uploaded files
         cursor = self._conn.cursor()
         cursor.execute('SELECT source_path FROM sandbox_files WHERE sandbox_id=? AND ' \
-                                                                    'uploaded=TRUE', (sandbox_id,))
+                                                            'completion_status=2', (sandbox_id,))
         res = cursor.fetchall()
 
         cursor.close()
@@ -322,13 +334,15 @@ class SPDSQLiteSandbox:
                                                 'timestamp, upload_id) ' \
                                         'VALUES(?,?,?,?,?,?,?,?,?,?,strftime("%s", "now"),?)', 
                                 (s3_id, username, path, s3_bucket, s3_path, location_id, \
-                                    location_name, location_lat, location_lon, location_ele, upload_id))
+                                    location_name, location_lat, location_lon, location_ele,\
+                                    upload_id)
+                          )
 
             sandbox_id = cursor.lastrowid
 
             for one_file in files:
                 cursor.execute('INSERT INTO sandbox_files(sandbox_id, filename, source_path, ' \
-                                                                                        'timestamp) ' \
+                                                                                    'timestamp) ' \
                                         'VALUES(?,?,?,strftime("%s", "now"))',
                                 (sandbox_id, one_file, one_file))
 
@@ -387,7 +401,8 @@ class SPDSQLiteSandbox:
                         location_ele, upload_id, s3_id,username, bucket, "%"+upload_key+"%"))
 
             # Get all the files with the changes
-            cursor.execute('SELECT filename FROM sandbox_files WHERE sandbox_id=? AND uploaded=0',
+            cursor.execute('SELECT filename FROM sandbox_files WHERE sandbox_id=? AND ' \
+                                                                            'completion_status=0',
                                         (sandbox_id,))
 
             res = cursor.fetchall()
@@ -444,7 +459,7 @@ class SPDSQLiteSandbox:
                                                                     'sandbox_id=upid.id),' \
                 ' uphave AS ' \
                     '(SELECT sandbox_id,count(1) AS have FROM sandbox_files,upid WHERE ' \
-                                        'sandbox_id = upid.id AND sandbox_files.uploaded=TRUE)' \
+                                    'sandbox_id = upid.id AND sandbox_files.completion_status=2)' \
                 'SELECT uptot.tot,uphave.have FROM uptot LEFT JOIN uphave ON '\
                                                     'uptot.sandbox_id=uphave.sandbox_id LIMIT 1',
                                                                             (username, upload_id))
@@ -473,7 +488,7 @@ class SPDSQLiteSandbox:
                     '(SELECT id FROM sandbox ' \
                                     'WHERE name=? AND upload_id=? AND path <> "")' \
                 'SELECT filename FROM sandbox_files, upid WHERE ' \
-                                                        'sandbox_id = upid.id AND uploaded = 0',
+                                                'sandbox_id = upid.id AND completion_status = 0',
                                                                             (username, upload_id))
 
         res = cursor.fetchall()
@@ -540,7 +555,7 @@ class SPDSQLiteSandbox:
         with self.transaction():
             cursor = self._conn.cursor()
             cursor.execute('UPDATE sandbox SET path="", recovered=0  WHERE name=? AND upload_id=?',
-                                                                                (username, upload_id))
+                                                                            (username, upload_id))
 
             cursor.close()
 
@@ -596,8 +611,8 @@ class SPDSQLiteSandbox:
 
             if res and len(res) >= 1 and len(res[0]) >= 1 and res[0][0] is not None:
                 sandbox_file_id = res[0][0]
-    
-                cursor.execute('UPDATE sandbox_files SET uploaded=TRUE, mimetype=?, '\
+
+                cursor.execute('UPDATE sandbox_files SET completion_status=1, mimetype=?, '\
                                 'created_timestamp=? WHERE sandbox_files.filename=? AND id=?',
                                                 (mimetype, timestamp, filename, sandbox_file_id))
 
@@ -666,6 +681,7 @@ class SPDSQLiteSandbox:
         if not species and not location:
             print('INFO: No species or location specified for updating uploaded file ',
                         f'{file_id}', flush=True)
+            self.sandbox_file_processing_complete(file_id)
             return
 
         with self.transaction():
@@ -673,7 +689,7 @@ class SPDSQLiteSandbox:
             if species:
                 cursor.executemany('INSERT INTO ' \
                                         'sandbox_species(sandbox_file_id, obs_date, obs_common,' \
-                                                                        'obs_scientific, obs_count) ' \
+                                                                    'obs_scientific, obs_count) ' \
                                         'VALUES (?,?,?,?,?)',
                         ((file_id,timestamp,one_species['common'],one_species['scientific'], \
                                         int(one_species['count'])) \
@@ -681,11 +697,12 @@ class SPDSQLiteSandbox:
 
             if location:
                 cursor.execute('INSERT INTO sandbox_locations(sandbox_file_id, loc_name, loc_id, ' \
-                                                                                    'loc_elevation) ' \
+                                                                                'loc_elevation) ' \
                                         'VALUES (?,?,?,?)', 
                             (file_id, location['name'], location['id'], \
                                                                     float(location['elevation'])) )
 
+            cursor.execute('UPDATE sandbox_files SET completion_status=2 WHERE id=?', (file_id,))
             cursor.close()
 
     def sandbox_get_location(self, username: str, upload_id: str) -> Optional[tuple]:
@@ -757,6 +774,20 @@ class SPDSQLiteSandbox:
         cursor.close()
 
         return res
+
+    def sandbox_file_processing_complete(self, file_id: str) -> None:
+        """ Marks the file as fully processed by setting completion_status to 2
+        Arguments:
+            file_id: the ID of the sandbox file to mark as complete
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to mark file processing complete in the database '
+                               'before connecting')
+
+        with self.transaction():
+            cursor = self._conn.cursor()
+            cursor.execute('UPDATE sandbox_files SET completion_status=2 WHERE id=?', (file_id,))
+            cursor.close()
 
     def get_file_created_timestamp(self, username: str, upload_id: str) -> Optional[tuple]:
         """ Returns the file paths and created timestamp for an upload

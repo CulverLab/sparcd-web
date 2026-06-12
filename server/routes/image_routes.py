@@ -7,8 +7,9 @@ from flask import Blueprint, jsonify, request
 from flask_cors import cross_origin
 
 import handlers.image as himage
-from sparcd_config import ALLOWED_ORIGINS, WORKING_PASSCODE, authenticated_route, \
+from sparcd_config import WORKING_PASSCODE, authenticated_route, \
                           make_handler_response, temp_species_filename
+from sparcd_env import ALLOWED_ORIGINS
 import sparcd_utils as sdu
 import spd_crypt as crypt
 

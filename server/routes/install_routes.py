@@ -4,8 +4,8 @@ from flask import Blueprint
 from flask_cors import cross_origin
 
 import handlers.install as hinstall
-from sparcd_config import ALLOWED_ORIGINS, DEFAULT_SETTINGS_PATH, authenticated_route, \
-                          make_handler_response
+from sparcd_config import authenticated_route, make_handler_response
+from sparcd_env import ALLOWED_ORIGINS, DEFAULT_SETTINGS_PATH
 
 install_bp = Blueprint('install', __name__)
 

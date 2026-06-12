@@ -157,8 +157,8 @@ def update_admin_species(s3_info: S3Info, changes: dict,
                                      'speciesIconURL': one_change[changes['sp_icon_url']],
                                      'keyBinding': one_change[changes['sp_keybind']]}
 
-
-    s3u.save_sparcd_config(all_species.values(), SPECIES_JSON_FILE_NAME,
+    ret_species = tuple(all_species.values())
+    s3u.save_sparcd_config(ret_species, SPECIES_JSON_FILE_NAME,
                                         species_temp_filename,
                                         s3_info)
-    return tuple(all_species.values())
+    return ret_species

@@ -1,15 +1,19 @@
 """This script contains the database interface for the SPARCd Web app
 """
 
+from contextlib import contextmanager
 import datetime
 import json
 import logging
 import os
 from typing import Optional
 
+from sparcd_env import SESSION_EXPIRE_SECONDS
+from spd_types.dataclasses import UploadResult
 from spd_types.message import Message, Priority
 from spd_types.userinfo import UserInfo
 from spd_database.spdsqlite import SPDSQLite
+from spd_database.spdsqlite_sandbox import SPDSQLiteSandbox
 
 # Maximum number of expired tokens to keep around on a per-user basis
 MAX_ALLOWED_EXPIRED_TOKENS_PER_USER = 1
@@ -21,18 +25,50 @@ class SPARCdDatabase:
     """Class handling access connections to the database
     """
 
-    _db = None
-
-    def __init__(self, db_path: str, logger: logging.Logger=None, verbose: bool=False):
+    def __init__(self, db_path: str, db_sandbox_path: str, logger: logging.Logger=None, \
+                                                                            verbose: bool=False):
         """Initialize an instance
         """
         self._db = SPDSQLite(db_path, logger, verbose)
+        self._sandbox_db = SPDSQLiteSandbox(db_sandbox_path, logger, verbose)
+        self._main_depth = 0
+        self._sandbox_depth = 0
 
     def __del__(self):
         """Handles closing the connection and other cleanup
         """
         if self._db is not None:
             del self._db
+            self._db = None
+        if self._sandbox_db is not None:
+            del self._sandbox_db
+            self._sandbox_db = None
+
+    @contextmanager
+    def _main(self):
+        """ Context manager for main database
+        """
+        self._main_depth += 1
+        self._db.reconnect()
+        try:
+            yield self
+        finally:
+            self._main_depth -= 1
+            if self._main_depth == 0:
+                self._db.close()
+
+    @contextmanager
+    def _sandbox(self):
+        """ Context manager for sandbox database
+        """
+        self._sandbox_depth += 1
+        self._sandbox_db.reconnect()
+        try:
+            yield self
+        finally:
+            self._sandbox_depth -= 1
+            if self._sandbox_depth == 0:
+                self._sandbox_db.close()
 
     def database_info(self) -> tuple:
         """ Returns information on the database as a tuple of strings
@@ -42,22 +78,16 @@ class SPARCdDatabase:
 
         return ('Not defined yet',)
 
-    def connect(self, database_path: str = None) -> None:
-        """Performs the actual connection to the database
-        Arguments:
-            database_path: the database to connect to
+    def connect(self) -> None:
+        """Performs the actual connection to the databases
         """
-        self._db.connect(database_path)
+        self._db.connect()
+        self._sandbox_db.connect()
 
     def reconnect(self) -> None:
         """Attempts a reconnection if we're not connected
         """
         self.connect()
-
-    def is_connected(self) -> bool:
-        """ Returns whether this class instance is connected (true), or not (false)
-        """
-        return self._db.is_connected()
 
     def add_token(self, token: str, user: str, password: str, client_ip: str,
                                 user_agent: str, s3_url: str, s3_id: str,
@@ -74,23 +104,29 @@ class SPARCdDatabase:
             token_timeout_sec: timeout for cleaning up expired tokens from the table
         """
         # pylint: disable=too-many-arguments, too-many-positional-arguments
-        self._db.add_token(token, user, password, client_ip, user_agent, s3_url, s3_id)
+        with self._main():
+            self._db.add_token(token, user, password, client_ip, user_agent, s3_url, s3_id)
 
-        self._db.clean_expired_tokens(user, token_timeout_sec)
+            if token_timeout_sec is None:
+                token_timeout_sec = SESSION_EXPIRE_SECONDS
+
+            self._db.clean_expired_tokens(user, token_timeout_sec)
 
     def update_token_timestamp(self, token: str) -> None:
         """Updates the token's timestamp to the database's now
         Arguments:
             token: the token to update
         """
-        self._db.update_token_timestamp(token)
+        with self._main():
+            self._db.update_token_timestamp(token)
 
     def remove_token(self, token: str) -> None:
         """ Attempts to remove the token from the database
         Arguments:
             token: the token to remove
         """
-        self._db.remove_token(token)
+        with self._main():
+            self._db.remove_token(token)
 
     def get_token_user_info(self, token: str) -> Optional[UserInfo]:
         """ Looks up token and user information
@@ -100,7 +136,8 @@ class SPARCdDatabase:
             The a tuple of UserInfo and the elapsed seconds when the user is found and None
             otherwise
         """
-        res = self._db.get_user_by_token(token)
+        with self._main():
+            res = self._db.get_user_by_token(token)
 
         if res and len(res) >= 10:
             user_info = UserInfo(res[0], res[4]) # name and admin
@@ -124,7 +161,9 @@ class SPARCdDatabase:
         Returns:
             A dict containing the user's name, email, settings, and admin level.
         """
-        res = self._db.get_user_by_name(s3_id, username)
+        with self._main():
+            res = self._db.get_user_by_name(s3_id, username)
+
         if res and len(res) >= 4:
             user_info = UserInfo(res[0], res[4])  # Name and admin
             user_info.email = res[1]
@@ -150,8 +189,10 @@ class SPARCdDatabase:
             already exists in the database - however, the user's email won't be updated if the
             user already exists.
         """
-        self._db.auto_add_user(s3_id, username, species, email)
-        return self.get_user(s3_id, username)
+        with self._main():
+            self._db.auto_add_user(s3_id, username, species, email)
+
+            return self.get_user(s3_id, username)
 
     def get_password(self, token: str) -> str:
         """ Returns the password associated with the token
@@ -160,7 +201,8 @@ class SPARCdDatabase:
         Return:
             Returns the associated password, or an empty string if the token is not found
         """
-        res = self._db.get_password(token)
+        with self._main():
+            res = self._db.get_password(token)
 
         if res and len(res) >= 1:
             return res[0]
@@ -175,7 +217,8 @@ class SPARCdDatabase:
             settings: the new settings to set
             email: the updated email address
         """
-        self._db.update_user_settings(s3_id, username, settings, email)
+        with self._main():
+            self._db.update_user_settings(s3_id, username, settings, email)
 
     def get_sandbox(self, s3_id: str) -> Optional[tuple]:
         """ Returns the sandbox items
@@ -184,7 +227,8 @@ class SPARCdDatabase:
         Returns:
             A tuple containing the known sandbox items
         """
-        indexes, res = self._db.get_sandbox(s3_id)
+        with self._sandbox():
+            indexes, res = self._sandbox_db.get_sandbox(s3_id)
 
         if not res or len(res) < 1:
             return tuple()
@@ -209,7 +253,8 @@ class SPARCdDatabase:
         Return:
             Returns the loaded tuple of upload names and data
         """
-        res = self._db.get_uploads(s3_id, bucket, timeout_sec)
+        with self._main():
+            res = self._db.get_uploads(s3_id, bucket, timeout_sec)
 
         if not res or len(res) < 1:
             return None
@@ -226,7 +271,8 @@ class SPARCdDatabase:
         Return:
             Returns True if the data was saved and False if something went wrong
         """
-        return self._db.save_uploads(s3_id, bucket, uploads)
+        with self._main():
+            return self._db.save_uploads(s3_id, bucket, uploads)
 
     def save_query_path(self, token: str, file_path: str) -> bool:
         """ Stores the specified query file path in the database
@@ -236,7 +282,8 @@ class SPARCdDatabase:
         Return:
             True is returned if the path is saved and False if a problem occurrs
         """
-        return self._db.save_query_path(token, file_path)
+        with self._main():
+            return self._db.save_query_path(token, file_path)
 
     def get_clear_queries(self, token: str) -> tuple:
         """ Returns a tuple of saved query paths associated with this token and removes
@@ -246,7 +293,8 @@ class SPARCdDatabase:
         Return:
             Returns a tuple of the saved query paths
         """
-        return self._db.get_clear_queries(token)
+        with self._main():
+            return self._db.get_clear_queries(token)
 
     def get_query(self, token: str) -> tuple:
         """ Returns a tuple of saved query paths associated with this token
@@ -255,7 +303,8 @@ class SPARCdDatabase:
         Return:
             A tuple of the path and elapsed seconds of any associated query
         """
-        res = self._db.get_query(token)
+        with self._main():
+            res = self._db.get_query(token)
 
         if not res or len(res) < 2:
             return []
@@ -275,23 +324,24 @@ class SPARCdDatabase:
             containing the files that have been uploaded, and a new upload ID if upload exists or
             None if new_upload_id is False or the upload doesn't exist
         """
-        res = self._db.sandbox_get_upload(s3_id, username, path)
+        with self._sandbox():
+            res = self._sandbox_db.sandbox_get_upload(s3_id, username, path)
 
-        if not res or len(res) < 3:
-            return None, None, None, None
+            if not res or len(res) < 3:
+                return None, None, None, None
 
-        sandbox_id = res[0]
-        old_upload_id = res[1]
-        elapsed_sec = res[2]
+            sandbox_id = res[0]
+            old_upload_id = res[1]
+            elapsed_sec = res[2]
 
-        # Update the upload ID if requested
-        if new_upload_id is not False:
-            upload_id = self._db.sandbox_new_upload_id(old_upload_id)
-        else:
-            upload_id = old_upload_id
+            # Update the upload ID if requested
+            if new_upload_id is not False:
+                upload_id = self._sandbox_db.sandbox_new_upload_id(old_upload_id)
+            else:
+                upload_id = old_upload_id
 
-        # Get all the uploaded files (used to filter down the remaining files that need uploading)
-        res = self._db.sandbox_get_upload_files(sandbox_id)
+            # Get all the uploaded files (used to filter down remaining files which need uploading)
+            res = self._sandbox_db.sandbox_get_upload_files(sandbox_id)
 
         if not res or len(res) < 1:
             return elapsed_sec, [], upload_id, old_upload_id
@@ -321,9 +371,10 @@ class SPARCdDatabase:
             Returns the upload ID if entries are added to the database
         """
         # pylint: disable=too-many-arguments, too-many-positional-arguments
-        return self._db.sandbox_new_upload(s3_id, username, path, files, s3_bucket, s3_path,
-                                            location_id, location_name, location_lat, location_lon,
-                                            location_ele)
+        with self._sandbox():
+            return self._sandbox_db.sandbox_new_upload(s3_id, username, path, files, s3_bucket,
+                                            s3_path, location_id, location_name, location_lat,
+                                            location_lon, location_ele)
 
     def sandbox_new_incomplete_uploads(self, s3_id: str, incomplete: tuple) -> None:
         """ Adds new incomplete entries to the database
@@ -331,24 +382,25 @@ class SPARCdDatabase:
             s3_id: the ID of the s3 instance
             incomplete: the known information on the incomplete uploads
         """
-        for one_item in incomplete:
-            up_dt = datetime.datetime(year=int(one_item['date']['date']['year']),
-                                  month=int(one_item['date']['date']['month']),
-                                  day=int(one_item['date']['date']['day']),
-                                  hour=int(one_item['date']['time']['hour']),
-                                  minute=int(one_item['date']['time']['minute']),
-                                  second=int(one_item['date']['time']['second']),
-                                )
+        with self._sandbox():
+            for one_item in incomplete:
+                up_dt = datetime.datetime(year=int(one_item['date']['date']['year']),
+                                      month=int(one_item['date']['date']['month']),
+                                      day=int(one_item['date']['date']['day']),
+                                      hour=int(one_item['date']['time']['hour']),
+                                      minute=int(one_item['date']['time']['minute']),
+                                      second=int(one_item['date']['time']['second']),
+                                    )
 
-            if not self._db.sandbox_exists(s3_id, one_item['bucket'], one_item['upload_user'],
-                                                                            one_item['s3_path']):
-                # Not found, add it
-                self._db.sandbox_add_recovered(s3_id, one_item['bucket'], one_item['upload_user'],
-                                                        one_item['s3_path'], up_dt)
-            else:
-                # Found, update it
-                self._db.sandbox_set_recovered(s3_id, one_item['bucket'], one_item['upload_user'],
-                                                        one_item['s3_path'], up_dt)
+                if not self._sandbox_db.sandbox_exists(s3_id, one_item['bucket'],
+                                                    one_item['upload_user'], one_item['s3_path']):
+                    # Not found, add it
+                    self._sandbox_db.sandbox_add_recovered(s3_id, one_item['bucket'],
+                                                one_item['upload_user'], one_item['s3_path'], up_dt)
+                else:
+                    # Found, update it
+                    self._sandbox_db.sandbox_set_recovered(s3_id, one_item['bucket'],
+                                                one_item['upload_user'], one_item['s3_path'], up_dt)
 
     def sandbox_get_s3_info(self, username: str, upload_id: str) -> tuple:
         """ Returns the bucket and path associated with the sandbox
@@ -359,7 +411,8 @@ class SPARCdDatabase:
             Returns a tuple of the bucket and upload path of the S3 instance. If the user and path
             aren't found, None is returned for both items
         """
-        res= self._db.sandbox_get_s3_info(username, upload_id)
+        with self._sandbox():
+            res = self._sandbox_db.sandbox_get_s3_info(username, upload_id)
 
         if not res or len(res) < 2:
             return None, None
@@ -375,7 +428,8 @@ class SPARCdDatabase:
             Returns a tuple with the number of files marked as uploaded and the total
             number of files
         """
-        res = self._db.sandbox_upload_counts(username, upload_id)
+        with self._sandbox():
+            res = self._sandbox_db.sandbox_upload_counts(username, upload_id)
 
         if not res or len(res) < 2:
             return 0, 0
@@ -391,7 +445,8 @@ class SPARCdDatabase:
         Return:
             Returns the upload ID if entries are added to the database
         """
-        return self._db.sandbox_reset_upload(username, upload_id, files)
+        with self._sandbox():
+            return self._sandbox_db.sandbox_reset_upload(username, upload_id, files)
 
     def sandbox_upload_recovery_update(self, s3_id: str, username: str, bucket: str, \
                                     upload_key: str, source_path: str, \
@@ -413,8 +468,9 @@ class SPARCdDatabase:
             When successful, returns a tuple containing the the upload ID and a list of file names
             that failed upload. None is returned upon failure
         """
-        return self._db.sandbox_upload_recovery_update(s3_id, username, bucket, upload_key,
-                                                        source_path, location_id,
+        with self._sandbox():
+            return self._sandbox_db.sandbox_upload_recovery_update(s3_id, username, bucket,
+                                                        upload_key, source_path, location_id,
                                                         location_name, location_lat, location_lon,
                                                         location_ele)
 
@@ -425,7 +481,8 @@ class SPARCdDatabase:
             username: the name of the person starting the upload
             upload_id: the ID of the upload
         """
-        self._db.sandbox_upload_complete(username, upload_id)
+        with self._sandbox():
+            self._sandbox_db.sandbox_upload_complete(username, upload_id)
 
     def sandbox_upload_complete_by_info(self, s3_id: str, username: str, bucket: str, \
                                                                         upload_name: str) -> None:
@@ -436,7 +493,8 @@ class SPARCdDatabase:
             bucket: the bucket of the upload
             upload_name: the name of the upload
         """
-        self._db.sandbox_upload_complete_by_info(s3_id, username, bucket, upload_name)
+        with self._sandbox():
+            self._sandbox_db.sandbox_upload_complete_by_info(s3_id, username, bucket, upload_name)
 
 
     def sandbox_file_uploaded(self, username: str, upload_id: str, filename: str, \
@@ -451,7 +509,9 @@ class SPARCdDatabase:
         Return:
             Returns the ID of the updated file
         """
-        return self._db.sandbox_file_uploaded(username, upload_id, filename, mimetype, timestamp)
+        with self._sandbox():
+            return self._sandbox_db.sandbox_file_uploaded(username, upload_id, filename, mimetype,
+                                                                                        timestamp)
 
     def sandbox_file_rename(self, username: str, upload_id: str, original_name: str, \
                             new_name: str) -> None:
@@ -462,7 +522,9 @@ class SPARCdDatabase:
             original_name: the original name of the upload file
             new_name: the replacement name
         """
-        return self._db.sandbox_file_rename(username, upload_id, original_name, new_name)
+        with self._sandbox():
+            return self._sandbox_db.sandbox_file_rename(username, upload_id, original_name,
+                                                                                        new_name)
 
     def sandbox_files_not_uploaded(self, username: str, upload_id: str) -> tuple:
         """ Returns the list of known files that haven't been uploaded yet
@@ -472,7 +534,8 @@ class SPARCdDatabase:
         Return:
             Returns the list of file names that haven't been uploaded
         """
-        found = self._db.sandbox_files_not_uploaded(username, upload_id)
+        with self._sandbox():
+            found = self._sandbox_db.sandbox_files_not_uploaded(username, upload_id)
 
         if not found:
             return []
@@ -489,7 +552,8 @@ class SPARCdDatabase:
             location: a dict containing name, id, and elevation information
             timestamp: the timestamp associated with the entries
         """
-        self._db.sandbox_add_file_info(file_id, species, location, timestamp)
+        with self._sandbox():
+            self._sandbox_db.sandbox_add_file_info(file_id, species, location, timestamp)
 
     def sandbox_get_location(self, username: str, upload_id: str) -> Optional[dict]:
         """ Returns a dict of the upload location information
@@ -499,7 +563,9 @@ class SPARCdDatabase:
         Return:
             Returns a dict containing the location information
         """
-        res = self._db.sandbox_get_location(username, upload_id)
+        with self._sandbox():
+            res = self._sandbox_db.sandbox_get_location(username, upload_id)
+
         if not res or len(res) < 3:
             return None
 
@@ -514,12 +580,13 @@ class SPARCdDatabase:
         Return:
             Returns a tuple containing tuples of old name and the new name
         """
-        res = self._db.get_files_renamed(username, upload_id)
+        with self._sandbox():
+            res = self._sandbox_db.get_files_renamed(username, upload_id)
 
         if not res or len(res) < 1:
             return ()
 
-        return ((one_row[0], one_row[1]) for one_row in res)
+        return tuple((one_row[0], one_row[1]) for one_row in res)
 
     def get_file_mimetypes(self, username: str, upload_id: str) -> Optional[tuple]:
         """ Returns the file paths and mimetypes for an upload
@@ -529,12 +596,21 @@ class SPARCdDatabase:
         Return:
             Returns a tuple containing tuples of the found file paths and mimetypes
         """
-        res = self._db.get_file_mimetypes(username, upload_id)
+        with self._sandbox():
+            res = self._sandbox_db.get_file_mimetypes(username, upload_id)
 
         if not res or len(res) < 1:
             return ()
 
-        return ((one_row[0], one_row[1]) for one_row in res)
+        return tuple((one_row[0], one_row[1]) for one_row in res)
+
+    def sandbox_file_processing_complete(self, file_id: int) -> None:
+        """ Marks a file as being completely processed
+        Arguments:
+            file_id: the ID of the file to mark complete
+        """
+        with self._sandbox():
+            self._sandbox_db.sandbox_file_processing_complete(file_id)
 
     def get_file_created_timestamp(self, username: str, upload_id: str) -> Optional[tuple]:
         """ Returns the file paths and created timestamp for an upload
@@ -544,12 +620,13 @@ class SPARCdDatabase:
         Return:
             Returns a tuple containing tuples of the found file paths and the created timestamp
         """
-        res = self._db.get_file_created_timestamp(username, upload_id)
+        with self._sandbox():
+            res = self._sandbox_db.get_file_created_timestamp(username, upload_id)
 
         if not res or len(res) < 1:
             return ()
 
-        return ((one_row[0], one_row[1]) for one_row in res)
+        return tuple((one_row[0], one_row[1]) for one_row in res)
 
 
     def get_file_species(self, username: str, upload_id: str) -> Optional[tuple]:
@@ -561,18 +638,20 @@ class SPARCdDatabase:
             Returns a tuple containing a dict for each species entry of the upload. Each dict
             has the filename, timestamp, scientific name, count, common name, and location id
         """
-        res = self._db.get_file_species(username, upload_id)
+        with self._sandbox():
+            res = self._sandbox_db.get_file_species(username, upload_id)
 
         if not res or len(res) < 1:
             return ()
 
-        return ({'loc_id': one_row[0],
+        return tuple(
+                {'loc_id': one_row[0],
                  'filename': one_row[1],
                  'timestamp': one_row[2],
                  'common': one_row[3],
                  'scientific': one_row[4],
                  'count': one_row[5]
-                 } for one_row in res)
+                } for one_row in res)
 
     def add_collection_edit(self, s3_id: str, bucket: str, upload_path: str, username: str, \
                                 timestamp: str, loc_id: str, loc_name: str, loc_ele: float) -> None:
@@ -588,7 +667,8 @@ class SPARCdDatabase:
             loc_ele: the elevation of the new location
         """
         # pylint: disable=too-many-arguments, too-many-positional-arguments
-        self._db.add_collection_edit(s3_id, bucket, upload_path, username, timestamp, loc_id,
+        with self._main():
+            self._db.add_collection_edit(s3_id, bucket, upload_path, username, timestamp, loc_id,
                                      loc_name, loc_ele)
 
     def add_image_species_edit(self, s3_id: str, bucket: str, file_path: str, username: str, \
@@ -607,7 +687,8 @@ class SPARCdDatabase:
             request_id: distinct ID of the edit request
         """
         # pylint: disable=too-many-arguments, too-many-positional-arguments
-        self._db.add_image_species_edit(s3_id, bucket, file_path, username,  timestamp, common,
+        with self._main():
+            self._db.add_image_species_edit(s3_id, bucket, file_path, username,  timestamp, common,
                                         species, count, request_id)
 
     def save_user_species(self, s3_id: str, username: str, species: str) -> None:
@@ -617,7 +698,8 @@ class SPARCdDatabase:
             username: the name of the user to update
             species: the species information to save
         """
-        self._db.save_user_species(s3_id, username, species)
+        with self._main():
+            self._db.save_user_species(s3_id, username, species)
 
     def get_image_species_edits(self, s3_id: str, bucket: str, upload_path: str) -> dict:
         """ Returns all the saved edits for this bucket and upload path
@@ -630,7 +712,8 @@ class SPARCdDatabase:
             contains a dict with keys consisting of the file's S3 paths. The value associated with
             the file's paths is a tuple of tuples that contain the scientific name and the count
         """
-        res = self._db.get_image_species_edits(s3_id, bucket, upload_path)
+        with self._main():
+            res = self._db.get_image_species_edits(s3_id, bucket, upload_path)
 
         if not res or len(res) < 1:
             return {bucket + ':' + upload_path:tuple()}
@@ -653,7 +736,8 @@ class SPARCdDatabase:
         Return:
             Returns True if some image edits for this
         """
-        return self._db.have_upload_changes(s3_id, bucket, upload_name)
+        with self._main():
+            return self._db.have_upload_changes(s3_id, bucket, upload_name)
 
     def get_admin_edit_users(self, s3_id: str) -> tuple:
         """ Returns the user information for administrative editing
@@ -663,7 +747,8 @@ class SPARCdDatabase:
             Returns a tuple of name, email, administrator privileges, and if they were auto-added
             for each user
         """
-        return self._db.get_admin_edit_users(s3_id)
+        with self._main():
+            return self._db.get_admin_edit_users(s3_id)
 
     def update_user(self, s3_id: str, old_name: str, new_email: str, admin: bool=None) -> None:
         """ Updates the user in the database
@@ -673,7 +758,8 @@ class SPARCdDatabase:
             new_email: the new email to set for the user
             admin: if set to True the user as admin privileges, if None this permission is unchanged
         """
-        self._db.update_user(s3_id, old_name, new_email, admin)
+        with self._main():
+            self._db.update_user(s3_id, old_name, new_email, admin)
 
     def update_species(self, s3_id: str, username: str, old_scientific: str, new_scientific: str, \
                                         new_name: str, new_keybind: str, new_icon_url: str) -> bool:
@@ -690,8 +776,9 @@ class SPARCdDatabase:
             Returns True if no issues were found and False otherwise
         """
         # pylint: disable=too-many-arguments, too-many-positional-arguments
-        return self._db.update_species(s3_id, username, old_scientific, new_scientific, new_name,
-                                       new_keybind, new_icon_url)
+        with self._main():
+            return self._db.update_species(s3_id, username, old_scientific, new_scientific,
+                                       new_name, new_keybind, new_icon_url)
 
     def update_location(self, s3_id: str, username: str, loc_name: str, loc_id: str, \
                         loc_active: bool, loc_ele: float, loc_old_lat: float, loc_old_lng: float, \
@@ -714,7 +801,8 @@ class SPARCdDatabase:
             Returns True if no issues were found and False otherwise
         """
         # pylint: disable=too-many-arguments, too-many-positional-arguments
-        return self._db.update_location(s3_id, username, loc_name, loc_id, loc_active, loc_ele,
+        with self._main():
+            return self._db.update_location(s3_id, username, loc_name, loc_id, loc_active, loc_ele,
                                         loc_old_lat, loc_old_lng, loc_new_lat, loc_new_lng,
                                         description)
 
@@ -732,20 +820,23 @@ class SPARCdDatabase:
                          'loc_old_lat':4, 'loc_old_lng':5, 'loc_new_lat':6, 'loc_new_lng':7,
                          'loc_description': 8 }
 
-        res = self._db.get_admin_locations(s3_id, username)
-        if not res:
-            locations = []
-        else:
-            locations = res
+        with self._main():
+            res = self._db.get_admin_locations(s3_id, username)
 
-        species_idxs = {'sp_old_scientific':0, 'sp_new_scientific':1, 'sp_name':2, 'sp_keybind': 3,\
-                        'sp_icon_url':4}
+            if not res:
+                locations = []
+            else:
+                locations = res
 
-        res = self._db.get_admin_species(s3_id, username)
-        if not res:
-            species = []
-        else:
-            species = res
+            species_idxs = {'sp_old_scientific':0, 'sp_new_scientific':1, 'sp_name':2, \
+                            'sp_keybind': 3, 'sp_icon_url':4}
+
+            res = self._db.get_admin_species(s3_id, username)
+
+            if not res:
+                species = []
+            else:
+                species = res
 
         return {'locations': locations, 'species': species} | location_idxs | species_idxs
 
@@ -757,17 +848,18 @@ class SPARCdDatabase:
         Return:
             Returns a dict of 'locationsCount' and 'speciesCount'
         """
-        res = self._db.admin_location_counts(s3_id, username)
-        if not res or len(res) <= 0:
-            locations_count = 0
-        else:
-            locations_count = res[0]
+        with self._main():
+            res = self._db.admin_location_counts(s3_id, username)
+            if not res or len(res) <= 0:
+                locations_count = 0
+            else:
+                locations_count = res[0]
 
-        res = self._db.admin_species_counts(s3_id, username)
-        if not res or len(res) <= 0:
-            species_count = 0
-        else:
-            species_count = res[0]
+            res = self._db.admin_species_counts(s3_id, username)
+            if not res or len(res) <= 0:
+                species_count = 0
+            else:
+                species_count = res[0]
 
         return {'locationsCount': locations_count, 'speciesCount': species_count}
 
@@ -777,7 +869,8 @@ class SPARCdDatabase:
             s3_id: the ID to the S3 instance
             username: the name of the user to mark the locations for
         """
-        self._db.clear_admin_location_changes(s3_id, username)
+        with self._main():
+            self._db.clear_admin_location_changes(s3_id, username)
 
     def clear_admin_species_changes(self, s3_id: str, username: str) -> None:
         """ Cleans up the administration species changes for this use
@@ -785,7 +878,8 @@ class SPARCdDatabase:
             s3_id: the ID to the S3 instance
             username: the name of the user to mark the species for
         """
-        self._db.clear_admin_species_changes(s3_id, username)
+        with self._main():
+            self._db.clear_admin_species_changes(s3_id, username)
 
     def remove_location_and_edits(self, s3_id: str, location_id: str) -> None:
         """ Removes references to the location from the database where it's cached
@@ -794,7 +888,8 @@ class SPARCdDatabase:
             location_id: the ID of the location to clear
         """
         # Remove all editing references
-        self._db.remove_edit_locations(s3_id, location_id)
+        with self._main():
+            self._db.remove_edit_locations(s3_id, location_id)
 
     def get_next_upload_location(self, s3_id: str, username: str) -> Optional[dict]:
         """ Returns the next edit location for this user at the specified endpoint
@@ -806,9 +901,10 @@ class SPARCdDatabase:
             base_path (on S3), loc_id, loc_name, loc_ele (with loc_ele containing the elevation).
             None is returned if there are no location changes to process
         """
-        res = self._db.get_next_upload_location(s3_id, username)
+        with self._main():
+            res = self._db.get_next_upload_location(s3_id, username)
 
-        if not res or len(res) <= 0 or len(res[0]) < 5:
+        if not res or len(res) <= 0 or len(res) < 5:
             return None
 
         return {'s3_url': s3_id, 'bucket':res[0], 'base_path':res[1], \
@@ -823,7 +919,8 @@ class SPARCdDatabase:
             bucket: the bucket associated with the location change
             base_path: the upload path where the location was change
         """
-        self._db.complete_upload_location(s3_id, username, bucket, base_path)
+        with self._main():
+            self._db.complete_upload_location(s3_id, username, bucket, base_path)
 
     def get_next_files_info(self, s3_id: str, username: str, s3_path:str=None) -> Optional[tuple]:
         """ Returns the file editing information for a user, possibly for only one location
@@ -854,7 +951,6 @@ class SPARCdDatabase:
             and species. The species key contains a tuple of species common (name), 
             scientific (name), and the count. None is returned if there are no records
         """
-
         return self.common_get_next_files_info(s3_id, username, 1, upload_id=upload_id,
                                                                         allow_smaller_values=force)
 
@@ -878,7 +974,8 @@ class SPARCdDatabase:
             It's recommended that only one of the S3 path, or the upload ID, is specified, not both.
         """
         # pylint: disable=too-many-arguments, too-many-positional-arguments
-        res = self._db.get_next_files_info(s3_id, username, updated_value, s3_path, upload_id,
+        with self._main():
+            res = self._db.get_next_files_info(s3_id, username, updated_value, s3_path, upload_id,
                                                                             allow_smaller_values)
 
         res_dict = {}
@@ -916,7 +1013,8 @@ class SPARCdDatabase:
         Notes:
             See get_next_upload_location()
         """
-        self._db.complete_collection_edits(username, collection_info)
+        with self._main():
+            self._db.complete_collection_edits(username, collection_info)
 
     def complete_image_edits(self, username: str, files: tuple) -> None:
         """ Marks the passed in files as having completed their edits
@@ -949,7 +1047,8 @@ class SPARCdDatabase:
             old_updated: the old updated column value to look for
             new_updated: the new updated column value for entries that were found
         """
-        self._db.complete_image_edits(username, files, old_updated, new_updated)
+        with self._main():
+            self._db.complete_image_edits(username, files, old_updated, new_updated)
 
     def get_all_collections(self, s3_id: str, timeout_sec: int=None) -> Optional[tuple]:
         """ Gets all the collections associated with the collection
@@ -970,7 +1069,8 @@ class SPARCdDatabase:
                 raise RuntimeError('Invalid timeout seconds parameter when getting all ' \
                                                             f'collections: {timeout_sec}') from ex
 
-        all_coll = self._db.get_collections(s3_id)
+        with self._main():
+            all_coll = self._db.get_collections(s3_id)
 
         if not all_coll or len(all_coll) <= 0:
             return None
@@ -994,7 +1094,8 @@ class SPARCdDatabase:
             collections: a tuple of collection dicts containing the collection id
                 and other information
         """
-        self._db.save_collections(s3_id,
+        with self._main():
+            self._db.save_collections(s3_id,
                         [{'id': one_coll['id'], 'name': one_coll['name'], \
                                                             'json': json.dumps(one_coll)} \
                                     for one_coll in collections])
@@ -1019,11 +1120,13 @@ class SPARCdDatabase:
                                                             f'collections: {timeout_sec}') from ex
 
         # Check if this is an update and not a new instance
-        elapsed_sec = self._db.collection_elapsed_sec(s3_id, collection['id'])
-        if elapsed_sec is not None and elapsed_sec >= timeout_sec:
-            return self.collection_update(s3_id, collection, timeout_sec)
+        with self._main():
+            elapsed_sec = self._db.collection_elapsed_sec(s3_id, collection['id'])
 
-        self._db.collection_add(s3_id, collection['id'], collection['name'],
+            if elapsed_sec is not None and elapsed_sec >= timeout_sec:
+                return self.collection_update(s3_id, collection, timeout_sec)
+
+            self._db.collection_add(s3_id, collection['id'], collection['name'],
                                                                             json.dumps(collection))
         return True
 
@@ -1046,11 +1149,13 @@ class SPARCdDatabase:
                 raise RuntimeError('Invalid timeout seconds parameter when updating a ' \
                                                             f'collection: {timeout_sec}') from ex
 
-        elapsed_sec = self._db.collection_elapsed_sec(s3_id, collection['id'])
-        if elapsed_sec is None or elapsed_sec >= timeout_sec:
-            return False
+        with self._main():
+            elapsed_sec = self._db.collection_elapsed_sec(s3_id, collection['id'])
+            if elapsed_sec is None or elapsed_sec >= timeout_sec:
+                return False
 
-        self._db.collection_update(s3_id, collection['id'], json.dumps(collection))
+            self._db.collection_update(s3_id, collection['id'], json.dumps(collection))
+
         return True
 
     def get_lock(self, name: str, max_lock_sec: int=MAX_LOCK_WAIT_TIME_SEC) -> Optional[int]:
@@ -1062,10 +1167,11 @@ class SPARCdDatabase:
         Return:
             Returns the lock ID if the lock is available and None if it isn't
         """
-        if not name or max_lock_sec < 0 or max_lock_sec is None:
+        if max_lock_sec is None or not name or max_lock_sec < 0:
             raise RuntimeError(f'Invalid parameters for named lock "{name}": {max_lock_sec}')
 
-        return self._db.lock_get(name, max_lock_sec)
+        with self._main():
+            return self._db.lock_get(name, max_lock_sec)
 
     def release_lock(self, name: str, lock_id: int) -> None:
         """ Releases a named lock
@@ -1076,7 +1182,8 @@ class SPARCdDatabase:
         if not name or not lock_id:
             return
 
-        self._db.lock_release(name, lock_id)
+        with self._main():
+            self._db.lock_release(name, lock_id)
 
     def upload_images_get(self, s3_id: str, collection_id: str, upload_name: str, \
                                                                     timeout_sec: int=None) -> tuple:
@@ -1099,21 +1206,23 @@ class SPARCdDatabase:
                 raise RuntimeError('Invalid timeout seconds parameter when getting upload ' \
                                                                 f'images: {timeout_sec}') from ex
 
-        upload_res = self._db.upload_get(s3_id, collection_id, upload_name)
+        with self._main():
+            upload_res = self._db.upload_get(s3_id, collection_id, upload_name)
 
-        if not upload_res or len(upload_res) <= 0:
-            return None
-
-        try:
-            if int(upload_res[2]) >= timeout_sec:
+            if not upload_res or len(upload_res) <= 0:
                 return None
-        except ValueError:
-            # We have a problem that indicates the DB might be corrupted
-            print('Error: database returned an invalid timeout value when getting upload ' \
-                                                                                'images')
-            return None
 
-        return (json.loads(one_res[0]) for one_res in self._db.upload_images_get(upload_res[0]))
+            try:
+                if int(upload_res[2]) >= timeout_sec:
+                    return None
+            except ValueError:
+                # We have a problem that indicates the DB might be corrupted
+                print('Error: database returned an invalid timeout value when getting upload ' \
+                                                                                    'images')
+                return None
+
+            return tuple(json.loads(one_res[0]) for one_res in \
+                                                        self._db.upload_images_get(upload_res[0]))
 
     def upload_images_save(self, s3_id: str, bucket:str, collection_id: str, upload_name: str, \
                                                                             images: tuple) -> bool:
@@ -1127,11 +1236,12 @@ class SPARCdDatabase:
         Return:
             Returns True if the upload images were saved and False if not
         """
-        upload_id = self._db.upload_save(s3_id, bucket, collection_id, upload_name, None)
-        if upload_id is None:
-            return False
+        with self._main():
+            upload_id = self._db.upload_save(s3_id, bucket, collection_id, upload_name, None)
+            if upload_id is None:
+                return False
 
-        return self._db.upload_images_save(upload_id,
+            return self._db.upload_images_save(upload_id,
                                 [{'json':json.dumps(one_image)}|one_image for one_image in images])
 
     def get_image_data(self, s3_id: str, collection_id: str, upload_name: str, \
@@ -1145,7 +1255,8 @@ class SPARCdDatabase:
         Return:
             Returns the data for the found image or None if not found
         """
-        image_data = self._db.get_image_data(s3_id, collection_id, upload_name, image_key)
+        with self._main():
+            image_data = self._db.get_image_data(s3_id, collection_id, upload_name, image_key)
 
         if not image_data or len(image_data) <= 0:
             return None
@@ -1163,7 +1274,8 @@ class SPARCdDatabase:
             Returns True if there are known administrators for this S3 endpoint and False
             otherwise
         """
-        return self._db.count_admin(s3_id) > 0
+        with self._main():
+            return self._db.count_admin(s3_id) > 0
 
     def is_sole_user(self, s3_id: str, user: str) -> bool:
         """ Returns whether or not the user is the only known for for the S3 instance
@@ -1174,7 +1286,8 @@ class SPARCdDatabase:
             Returns True if this is the only user for this S3 endpoint and False
             otherwise
         """
-        return self._db.is_sole_user(s3_id, user)
+        with self._main():
+            return self._db.is_sole_user(s3_id, user)
 
     def user_names(self, s3_id: str) -> tuple:
         """ Gets the known user names
@@ -1184,7 +1297,8 @@ class SPARCdDatabase:
             A tuple of of the names of known users
         """
         # Get the users
-        res = self._db.user_names(s3_id)
+        with self._main():
+            res = self._db.user_names(s3_id)
 
         # Make sure we have something to work with
         if not res or len(res) <= 0:
@@ -1212,7 +1326,8 @@ class SPARCdDatabase:
             case 'urgent':
                 mapped_priority = Priority.URGENT
 
-        self._db.message_add(s3_id, sender, receiver, subject, message, mapped_priority)
+        with self._main():
+            self._db.message_add(s3_id, sender, receiver, subject, message, mapped_priority)
 
     def messages_get(self, s3_id: str, receiver: str, admin: bool=False) -> tuple:
         """ Gets the messages for the receiver
@@ -1226,7 +1341,8 @@ class SPARCdDatabase:
         messages = []
 
         # Get the messages
-        indexes, res = self._db.messages_get(s3_id, receiver, admin)
+        with self._main():
+            indexes, res = self._db.messages_get(s3_id, receiver, admin)
 
         # Make sure we have something to work with
         if not res or len(res) <= 0:
@@ -1256,7 +1372,8 @@ class SPARCdDatabase:
             username: the name of the recipient
             ids: a tuple of the IDs of the messages to mark as read
         """
-        self._db.messages_are_read(s3_id, receiver, ids)
+        with self._main():
+            self._db.messages_are_read(s3_id, receiver, ids)
 
     def messages_are_deleted(self, s3_id: str, receiver: str, ids: tuple) -> None:
         """ Marks messages as read
@@ -1265,7 +1382,8 @@ class SPARCdDatabase:
             username: the name of the recipient
             ids: a tuple of the IDs of the messages to mark as read
         """
-        self._db.messages_are_deleted(s3_id, receiver, ids)
+        with self._main():
+            self._db.messages_are_deleted(s3_id, receiver, ids)
 
     def message_count(self, s3_id: str, receiver: str) -> int:
         """ Returns the number of messages for this user
@@ -1275,4 +1393,37 @@ class SPARCdDatabase:
         Return:
             The number of messages for the user
         """
-        self._db.message_count(s3_id, receiver)
+        with self._main():
+            return self._db.message_count(s3_id, receiver)
+
+    def sandbox_record_uploaded_file(self, username: str, result: UploadResult) -> bool:
+        """ Records all database writes for a single uploaded file atomically
+        Arguments:
+            username: the name of the person uploading
+            result: the data to record
+        Return:
+            Returns True if the file was recorded successfully and False if the
+            file was not found in the database
+        """
+        with self._sandbox():
+            with self._sandbox_db.transaction():
+                if result.original_name != result.working_name:
+                    self._sandbox_db.sandbox_file_rename(username, result.upload_id,
+                                                         result.original_name, result.working_name)
+
+                file_id = self._sandbox_db.sandbox_file_uploaded(username, result.upload_id,
+                                                                            result.working_name,
+                                                                            result.working_mimetype,
+                                                                            result.timestamp)
+                if file_id is None:
+                    print(f'INFO: file {result.original_name} with upload ID {result.upload_id} '
+                          'was uploaded but not found in the database - database not updated')
+                    return False
+
+                if (result.species and result.timestamp) or result.location:
+                    self._sandbox_db.sandbox_add_file_info(file_id, result.species,
+                                                                result.location, result.timestamp)
+
+                self._sandbox_db.sandbox_file_processing_complete(file_id)
+
+        return True

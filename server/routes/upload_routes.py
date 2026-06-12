@@ -4,8 +4,9 @@ from flask import Blueprint, jsonify, request
 from flask_cors import cross_origin
 
 import handlers.upload as hupload
-from sparcd_config import ALLOWED_ORIGINS, WORKING_PASSCODE, \
+from sparcd_config import WORKING_PASSCODE, \
                           authenticated_route, temp_species_filename
+from sparcd_env import ALLOWED_ORIGINS
 from s3.s3_access_helpers import SPARCD_PREFIX
 
 upload_bp = Blueprint('upload', __name__)

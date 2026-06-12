@@ -5,8 +5,9 @@ from flask_cors import cross_origin
 
 import handlers.sandbox as hsand
 import sparcd_utils as sdu
-from sparcd_config import ALLOWED_ORIGINS, TEMP_UPLOAD_STATS_FILE_NAME_POSTFIX, \
+from sparcd_config import TEMP_UPLOAD_STATS_FILE_NAME_POSTFIX, \
                           TEMP_UPLOAD_STATS_FILE_TIMEOUT_SEC, authenticated_route
+from sparcd_env import ALLOWED_ORIGINS
 
 sandbox_bp = Blueprint('sandbox', __name__)
 

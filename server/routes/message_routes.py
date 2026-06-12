@@ -4,7 +4,8 @@ from flask import Blueprint, jsonify
 from flask_cors import cross_origin
 
 import handlers.message as hmessage
-from sparcd_config import ALLOWED_ORIGINS, authenticated_route, make_handler_response
+from sparcd_config import authenticated_route, make_handler_response
+from sparcd_env import ALLOWED_ORIGINS
 
 message_bp = Blueprint('message', __name__)
 

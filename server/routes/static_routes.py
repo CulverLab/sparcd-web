@@ -7,9 +7,10 @@ from flask import Blueprint, make_response, render_template, request, send_file,
 from flask_cors import cross_origin
 
 import handlers.next as hnext
-from sparcd_config import ALLOWED_ORIGINS, IMAGE_BROWSER_CACHE_TIMEOUT_SEC, \
+from sparcd_config import IMAGE_BROWSER_CACHE_TIMEOUT_SEC, \
                           LOGIN_PAGE_BROWSER_CACHE_TIMEOUT_SEC, REQEST_ALLOWED_FILE_EXTENSIONS, \
                           DEFAULT_TEMPLATE_PAGE, RESOURCE_START_PATH
+from sparcd_env import ALLOWED_ORIGINS
 
 static_bp = Blueprint('static', __name__)
 

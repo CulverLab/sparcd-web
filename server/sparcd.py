@@ -5,7 +5,7 @@ import tempfile
 
 from flask import Flask
 
-from sparcd_config import DEFAULT_DB_PATH
+from sparcd_env import DEFAULT_DB_PATH, DEFAULT_DB_SANDBOX_PATH
 from sparcd_db import SPARCdDatabase
 
 from routes.admin_routes import admin_bp
@@ -34,11 +34,11 @@ app.config.update(
 app.config.from_object(__name__)
 
 # Initialize and verify the database connection
-_db = SPARCdDatabase(DEFAULT_DB_PATH)
+_db = SPARCdDatabase(DEFAULT_DB_PATH, DEFAULT_DB_SANDBOX_PATH)
 _db.connect()
 del _db
 _db = None
-print(f'Using database at {DEFAULT_DB_PATH}', flush=True)
+print(f'Using database at {DEFAULT_DB_PATH, DEFAULT_DB_SANDBOX_PATH}', flush=True)
 print(f'Temporary folder at {tempfile.gettempdir()}', flush=True)
 
 # Register blueprints

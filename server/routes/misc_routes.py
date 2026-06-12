@@ -5,7 +5,8 @@ from flask_cors import cross_origin
 
 import sparcd_collections as sdc
 import sparcd_location_utils as sdlu
-from sparcd_config import ALLOWED_ORIGINS, authenticated_route
+from sparcd_config import authenticated_route
+from sparcd_env import ALLOWED_ORIGINS
 from s3.s3_collections import S3CollectionConnection
 
 misc_bp = Blueprint('misc', __name__)

@@ -8,10 +8,11 @@ import requests
 
 import handlers.base as hbase
 from sparcd_db import SPARCdDatabase
-from sparcd_config import ALLOWED_ORIGINS, WORKING_PASSCODE, DEFAULT_DB_PATH, \
-                          SESSION_EXPIRE_SECONDS, TEMP_SPECIES_FILE_NAME, \
+from sparcd_config import WORKING_PASSCODE, TEMP_SPECIES_FILE_NAME, \
                           IMAGE_BROWSER_CACHE_TIMEOUT_SEC, DEFAULT_IMAGE_FETCH_TIMEOUT_SEC, \
                           authenticated_route, get_s3_info, make_handler_response
+from sparcd_env import ALLOWED_ORIGINS, DEFAULT_DB_PATH, DEFAULT_DB_SANDBOX_PATH, \
+                       SESSION_EXPIRE_SECONDS
 import sparcd_utils as sdu
 import s3_utils as s3u
 import spd_crypt as crypt
@@ -90,7 +91,7 @@ def login_token():
         token is issued. The S3 ID is not yet known at login time so only the
         species file name without ID prefix is passed to the handler.
     """
-    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    db = SPARCdDatabase(DEFAULT_DB_PATH, DEFAULT_DB_SANDBOX_PATH)
     print('LOGIN', flush=True)
 
     result = hbase.handle_login(db,
@@ -121,7 +122,7 @@ def image():
         IP checking is deliberately skipped. The user agent is still validated
         as a basic sanity check on the request.
     """
-    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    db = SPARCdDatabase(DEFAULT_DB_PATH, DEFAULT_DB_SANDBOX_PATH)
     token = request.args.get('t')
     print('IMAGE', request, flush=True)
 

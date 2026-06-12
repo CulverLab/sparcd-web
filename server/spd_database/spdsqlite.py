@@ -24,6 +24,7 @@ class SPDSQLite:
         self._path = db_path
         self._verbose = verbose
         self._logger = logger
+        self._savepoint_counter = 0
 
     def __del__(self):
         """Handles closing the connection and other cleanup
@@ -44,11 +45,27 @@ class SPDSQLite:
         """
         if self._conn is None:
             raise RuntimeError('Attempting to start a transaction before connecting')
+
+        # Use a savepoint if a transaction is already active
+        in_transaction = self._conn.in_transaction
+        savepoint = None
+
         try:
+            if in_transaction:
+                self._savepoint_counter += 1
+                savepoint = f'sp_{self._savepoint_counter}'
+                self._conn.execute(f'SAVEPOINT {savepoint}')
             yield self._conn
-            self._conn.commit()
-        except Exception:           # pylint: disable=broad-exception-caught
-            self._conn.rollback()
+            if in_transaction:
+                self._conn.execute(f'RELEASE SAVEPOINT {savepoint}')
+            else:
+                self._conn.commit()
+        except Exception:  # pylint: disable=broad-exception-caught
+            if in_transaction:
+                self._conn.execute(f'ROLLBACK TO SAVEPOINT {savepoint}')
+                self._conn.execute(f'RELEASE SAVEPOINT {savepoint}')
+            else:
+                self._conn.rollback()
             raise
 
     def hash2str(self, text: str) -> str:
@@ -101,11 +118,6 @@ class SPDSQLite:
             self._conn.close()
             self._conn = None
 
-    def is_connected(self) -> bool:
-        """ Returns whether this class instance is connected (true), or not (false)
-        """
-        return self._conn is not None
-
     def add_token(self, token: str, user: str, password: str, client_ip: str, user_agent: str, \
                                                             s3_url: str, s3_id: str) -> None:
         """ Saves the token and associated user information
@@ -125,8 +137,8 @@ class SPDSQLite:
 
         with self.transaction():
             cursor = self._conn.cursor()
-            query = 'INSERT INTO tokens(token, name, password, s3_url, s3_id, timestamp, client_ip, ' \
-                    'user_agent) VALUES(?,?,?,?,?,strftime("%s", "now"),?, ?)'
+            query = 'INSERT INTO tokens(token, name, password, s3_url, s3_id, timestamp, ' \
+                    'client_ip, user_agent) VALUES(?,?,?,?,?,strftime("%s", "now"),?, ?)'
             cursor.execute(query, (token, user, password, s3_url, s3_id, client_ip, user_agent))
 
             cursor.close()
@@ -245,7 +257,7 @@ class SPDSQLite:
             # If the user already exists, we ignore the error and continue
             if not ex.sqlite_errorcode == sqlite3.SQLITE_CONSTRAINT_UNIQUE:
                 raise
-    
+
     def get_password(self, token: str) -> tuple:
         """ Returns the password associated with the token
         Arguments:
@@ -383,8 +395,8 @@ class SPDSQLite:
 
         with self.transaction():
             cursor = self._conn.cursor()
-            cursor.execute('INSERT INTO collections(s3_id, hash_id, name, coll_id, json, timestamp) ' \
-                                                        'VALUES(?, ?, ?, ?, ?, strftime("%s", "now"))',
+            cursor.execute('INSERT INTO collections(s3_id, hash_id, name, coll_id, json, ' \
+                                'timestamp) VALUES(?, ?, ?, ?, ?, strftime("%s", "now"))',
                             (s3_id, self.hash2str(s3_id+coll_id), coll_name, coll_id, coll_json))
 
             cursor.close()
@@ -822,7 +834,7 @@ class SPDSQLite:
         with self.transaction():
             cursor = self._conn.cursor()
             cursor.execute('UPDATE users SET species=? WHERE name=? AND s3_id=?',
-                                                                            (species, username, s3_id))
+                                                                        (species, username, s3_id))
 
             cursor.close()
 
@@ -1408,7 +1420,7 @@ class SPDSQLite:
         with self.transaction():
             cursor = self._conn.cursor()
             cursor.execute('UPDATE db_locks SET value=NULL,timestamp=NULL WHERE name=? AND value=?',
-                                                                                        (name, value))
+                                                                                    (name, value))
 
             cursor.close()
 
@@ -1572,7 +1584,7 @@ class SPDSQLite:
             cursor = self._conn.cursor()
             id_params = ','.join('?' * len(ids))
             query = 'UPDATE messages SET read_timestamp=strftime("%s", "now") WHERE s3_id=? AND ' \
-                                                            'receiver=? AND id IN (' + id_params + ')'
+                                                        'receiver=? AND id IN (' + id_params + ')'
             cursor.execute(query, (s3_id, username) + tuple(ids))
 
             cursor.close()
@@ -1595,7 +1607,7 @@ class SPDSQLite:
             cursor = self._conn.cursor()
             id_params = ','.join('?' * len(ids))
             query = 'UPDATE messages SET deleted=1 WHERE s3_id=? AND receiver=? AND ' \
-                                                                            'id IN (' + id_params + ')'
+                                                                        'id IN (' + id_params + ')'
             cursor.execute(query, (s3_id, username) + tuple(ids))
 
             cursor.close()

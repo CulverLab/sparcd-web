@@ -9,59 +9,12 @@ from flask import jsonify
 
 from route_decorators import make_authenticated_route
 from sparcd_db import SPARCdDatabase
+import sparcd_env as env
 from spd_types.userinfo import UserInfo
 from spd_types.s3info import S3Info
 import spd_crypt as crypt
 from s3.s3_access_helpers import SPARCD_PREFIX
 import s3_utils as s3u
-
-
-# =============================================================================
-# Environment variable names
-# =============================================================================
-
-# Environment variable name for allowed origins
-ENV_ALLOWED_ORIGINS = 'SPARCD_ALLOWED_ORIGINS'
-# Environment variable name for database
-ENV_NAME_DB = 'SPARCD_DB'
-# Environment variable name for passcode
-ENV_NAME_PASSCODE = 'SPARCD_CODE'
-# Environment variable name for session expiration timeout
-ENV_NAME_SESSION_EXPIRE = 'SPARCD_SESSION_TIMEOUT'
-# Environment variable name for default settings files
-ENV_DEFAULT_SETTINGS_PATH = 'SPARCD_DEFAULT_SETTINGS_PATH'
-# Environment variable name for default timezone offset
-ENV_DEFAULT_TIMEZONE_OFFSET = 'SPARCD_DEFAULT_TIMEZONE_OFFSET'
-
-
-# =============================================================================
-# Environment variable values
-# =============================================================================
-
-# The allowed origins
-DEFAULT_ALLOWED_ORIGINS = 'http://localhost:3000'
-ALLOWED_ORIGINS = os.environ.get(ENV_ALLOWED_ORIGINS, DEFAULT_ALLOWED_ORIGINS)
-
-# Working database storage path
-DEFAULT_DB_PATH = os.environ.get(ENV_NAME_DB, None)
-
-# Working passcode
-_CURRENT_PASSCODE = os.environ.get(ENV_NAME_PASSCODE, None)
-
-# Working amount of time after last action before session is expired
-SESSION_EXPIRE_DEFAULT_SEC = 10 * 60 * 60
-SESSION_EXPIRE_SECONDS = os.environ.get(ENV_NAME_SESSION_EXPIRE, SESSION_EXPIRE_DEFAULT_SEC)
-
-# Folder that has the template settings files used to setup a new SPARCd instance or repair one
-DEFAULT_SETTINGS_PATH = os.environ.get(ENV_DEFAULT_SETTINGS_PATH,
-                                       os.path.join(os.getcwd(), 'defaultSettings'))
-
-
-# Default timezone offset in seconds
-DEFAULT_TIMEZONE_OFFSET_HOUR = -7.00
-DEFAULT_TIMEZONE_OFFSET = int(float(os.environ.get(ENV_DEFAULT_TIMEZONE_OFFSET,
-                                                            DEFAULT_TIMEZONE_OFFSET_HOUR))*60*60)
-
 
 # =============================================================================
 # Timeout constants
@@ -129,15 +82,19 @@ DEFAULT_TEMPLATE_PAGE = 'index.html'
 # Startup validation
 # =============================================================================
 
-if not DEFAULT_DB_PATH or not os.path.exists(DEFAULT_DB_PATH):
-    sys.exit(f'Database not found. Set the {ENV_NAME_DB} environment variable to the full '
+if not env.DEFAULT_DB_PATH or not os.path.exists(env.DEFAULT_DB_PATH):
+    sys.exit(f'Database not found. Set the {env.ENV_NAME_DB} environment variable to the full '
              f'path of a valid file')
 
-if not _CURRENT_PASSCODE:
-    sys.exit(f'Passcode not found. Set the {ENV_NAME_PASSCODE} environment variable to a '
+if not env.DEFAULT_DB_SANDBOX_PATH or not os.path.exists(env.DEFAULT_DB_SANDBOX_PATH):
+    sys.exit(f'Sandbox database not found. Set the {env.ENV_NAME_DB_SANDBOX} environment variable '
+             f'to the full path of a valid file')
+
+if not env.CONFIGURED_PASSCODE:
+    sys.exit(f'Passcode not found. Set the {env.ENV_NAME_PASSCODE} environment variable to a '
              f'strong passcode (password)')
 
-WORKING_PASSCODE = crypt.get_fernet_key_from_passcode(_CURRENT_PASSCODE)
+WORKING_PASSCODE = crypt.get_fernet_key_from_passcode(env.CONFIGURED_PASSCODE)
 
 
 # =============================================================================
@@ -203,6 +160,7 @@ def temp_species_filename(s3_id: str) -> str:
 # Authenticated route decorator
 # =============================================================================
 
-authenticated_route = make_authenticated_route(DEFAULT_DB_PATH,
-                                               SESSION_EXPIRE_SECONDS,
+authenticated_route = make_authenticated_route(env.DEFAULT_DB_PATH,
+                                               env.DEFAULT_DB_SANDBOX_PATH,
+                                               env.SESSION_EXPIRE_SECONDS,
                                                get_s3_info)

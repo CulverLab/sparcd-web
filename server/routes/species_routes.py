@@ -7,11 +7,12 @@ from flask_cors import cross_origin
 
 import handlers.base as hbase
 import handlers.species as hspecies
-from sparcd_config import ALLOWED_ORIGINS, TEMP_OTHER_SPECIES_FILE_NAME_POSTFIX, \
+from sparcd_config import TEMP_OTHER_SPECIES_FILE_NAME_POSTFIX, \
                           SPECIES_STATS_EXCLUDE, TEMP_DIR, authenticated_route, \
                           temp_species_filename
 from sparcd_constants import TEMP_SPECIES_STATS_FILE_NAME_POSTFIX, \
                                 TEMP_SPECIES_STATS_FILE_TIMEOUT_SEC
+from sparcd_env import ALLOWED_ORIGINS
 import sparcd_stats_utils as sdstu
 
 species_bp = Blueprint('species', __name__)

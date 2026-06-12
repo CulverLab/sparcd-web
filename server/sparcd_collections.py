@@ -158,7 +158,6 @@ def collection_add(db: SPARCdDatabase, s3_id: str, collection: dict) -> None:
     db.collection_add(s3_id, collection, TIMEOUT_COLLECTIONS_SEC)
 
 
-
 def collection_update(db: SPARCdDatabase, s3_id: str, collection: dict) -> None:
     """ Updates the collection in the database if the collection data hasn't expired
     Arguments:
@@ -197,7 +196,8 @@ def get_upload_images(db: SPARCdDatabase, bucket:str, collection_id: str, \
     s3_images = None
 
     if not force_refresh or (force_refresh and keep_image_url):
-        db_images = db.upload_images_get(s3_info.id, collection_id, upload_name, TIMEOUT_UPLOAD_SEC)
+        db_images = db.upload_images_get(s3_info.id, collection_id, upload_name,
+                                                                                TIMEOUT_UPLOAD_SEC)
 
     if (not db_images or force_refresh):
         # Get the upload information from the server

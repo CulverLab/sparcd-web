@@ -20,6 +20,7 @@ import image_utils
 import sparcd_collections as sdc
 from sparcd_db import SPARCdDatabase
 import sparcd_file_utils as sdfu
+from spd_types.dataclasses import UploadResult
 from spd_types.userinfo import UserInfo
 from spd_types.s3info import S3Info
 import sparcd_location_utils as sdlu
@@ -114,17 +115,6 @@ class UploadCounts:
     num_month: int
     num_year: int
     num_total: int
-
-@dataclass
-class UploadResult:
-    """ Contains the result of preparing and uploading a single file """
-    working_name: str
-    working_mimetype: str
-    timestamp: Optional[str]
-    species: Optional[tuple]
-    location: Optional[dict]
-    upload_id: str
-    original_name: str
 
 
 def __compare_one_file(s3_info: S3Info, s3_bucket: str, s3_path: str,
@@ -358,33 +348,6 @@ def __prepare_and_upload(context: FileProcessContext) -> UploadResult:
             os.unlink(prepared_file.upload_path)
 
 
-def __record_uploaded_file(db: SPARCdDatabase,
-                            user_info: UserInfo,
-                            result: UploadResult) -> None:
-    """ Handles all database writes for an uploaded file
-    Arguments:
-        db: the database instance
-        user_info: the user information
-        result: the result from __prepare_and_upload
-    """
-    if result.original_name != result.working_name:
-        db.sandbox_file_rename(user_info.name, result.upload_id,
-                               result.original_name, result.working_name)
-
-    file_id = db.sandbox_file_uploaded(user_info.name,
-                                       result.upload_id,
-                                       result.working_name,
-                                       result.working_mimetype,
-                                       result.timestamp)
-    if file_id is None:
-        print(f'INFO: file {result.original_name} with upload ID {result.upload_id} '
-              'was uploaded but not found in the database - database not updated')
-        return
-
-    if (result.species and result.timestamp) or result.location:
-        db.sandbox_add_file_info(file_id, result.species, result.location, result.timestamp)
-
-
 def __update_media_csv(db: SPARCdDatabase,
                        user_info: UserInfo,
                        target: S3UploadTarget,
@@ -432,7 +395,7 @@ def __update_observations_csv(db: SPARCdDatabase,
     Return:
         Returns the number of files with species information
     """
-    file_species = db.get_file_species(user_info.name, upload_id)
+    file_species = tuple(db.get_file_species(user_info.name, upload_id))
     if not file_species and not renamed_files:
         return 0
 
@@ -564,7 +527,7 @@ def handle_sandbox_recovery_update(db: SPARCdDatabase,
         return False
 
     # Make sure this user has permissions to do this
-    if not is_admin and user_info.name == upload['uploadUser']:
+    if not is_admin and user_info.name != upload['uploadUser']:
         return False
 
     # Update the upload in the database
@@ -712,7 +675,7 @@ def handle_sandbox_file(db: SPARCdDatabase,
         }
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
-            __record_uploaded_file(db, user_info, result)
+            db.sandbox_record_uploaded_file(user_info.name, result)
 
 
 def handle_sandbox_completed(db: SPARCdDatabase,

@@ -8,7 +8,7 @@ import traceback
 from typing import Optional
 import dateutil.tz
 
-from sparcd_config import DEFAULT_TIMEZONE_OFFSET
+from sparcd_env import DEFAULT_TIMEZONE_OFFSET
 from sparcd_db import SPARCdDatabase
 from spd_types.s3info import S3Info
 from sparcd_stats_utils import list_uploads_thread

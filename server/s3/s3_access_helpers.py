@@ -242,7 +242,7 @@ def load_deployment_location(minio: Minio, bucket: str, upload_path: str,
 
     reader = csv.reader(StringIO(csv_data))
     for csv_info in reader:
-        if csv_info and len(csv_info) >= 23:
+        if csv_info and len(csv_info) >= 22:
             return {
                 'location': csv_info[camtrap.CAMTRAP_DEPLOYMENT_LOCATION_ID_IDX],
                 'elevation': csv_info[camtrap.CAMTRAP_DEPLOYMENT_CAMERA_HEIGHT_IDX],

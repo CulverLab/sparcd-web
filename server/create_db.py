@@ -88,7 +88,7 @@ def get_arguments() -> str:
     # We only need to check one admin parameter since we already checked for
     # admin parameter sameness
     base, ext = os.path.splitext(args.db_name)
-    sandbox_path = base + '_sandbox' + ext
+    sandbox_path = os.path.join(args.db_path, base + '_sandbox' + ext)
     return os.path.join(args.db_path, args.db_name), sandbox_path, args.overwrite, \
                             (args.admin, args.admin_email, args.admin_url) if args.admin else None
 
@@ -255,7 +255,7 @@ def build_sandbox_database(path: str) -> None:
                 'location_lat REAL DEFAULT NULL, ' \
                 'location_lon REAL DEFAULT NULL, ' \
                 'location_ele REAL DEFAULT NULL, ' \
-                'completion_status INTEGER DEFAULT 0', \
+                'completion_status INTEGER DEFAULT 0,' \
                 'recovered INT DEFAULT 0, ' \
                 'timestamp INTEGER, ' \
                 'upload_id TEXT DEFAULT NULL)',
@@ -263,7 +263,7 @@ def build_sandbox_database(path: str) -> None:
                 'sandbox_id INTEGER NOT NULL, '\
                 'filename TEXT NOT NULL, ' \
                 'source_path TEXT, ' \
-                'uploaded BOOLEAN DEFAULT FALSE, ' \
+                'completion_status INTEGER DEFAULT 0, ' \
                 'mimetype TEXT DEFAULT NULL, ' \
                 'created_timestamp TEXT DEFAULT NULL,' \
                 'original_filename TEXT DEFAULT NULL, ' \
@@ -304,7 +304,7 @@ def build_sandbox_database(path: str) -> None:
 
 if __name__ == '__main__':
     database_path, sandbox_db_path, force_overwrite, admin = get_arguments()
-    if not (os.path.exists(database_path) and os.path.exists(sandbox_db_path)) or force_overwrite:
+    if not (os.path.exists(database_path) or os.path.exists(sandbox_db_path)) or force_overwrite:
         if force_overwrite:
             print(f'{SCRIPT_NAME}: Forcing the overwrite of existing database files: ')
             print(f'        {database_path}')
