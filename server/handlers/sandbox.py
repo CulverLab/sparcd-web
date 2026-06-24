@@ -384,7 +384,7 @@ def __update_observations_csv(db: SPARCdDatabase,
                                user_info: UserInfo,
                                target: S3UploadTarget,
                                upload_id: str,
-                               renamed_files: tuple) -> int:
+                               renamed_files: tuple) -> None:
     """ Updates the observations CSV file with species information
     Arguments:
         db: the database instance
@@ -392,12 +392,10 @@ def __update_observations_csv(db: SPARCdDatabase,
         target: the S3 destination information
         upload_id: the ID of the upload
         renamed_files: tuple of renamed files
-    Return:
-        Returns the number of files with species information
     """
     file_species = tuple(db.get_file_species(user_info.name, upload_id))
     if not file_species and not renamed_files:
-        return 0
+        return
 
     deployment_info = ctu.load_camtrap_deployments(target.s3_info, target.s3_bucket,
                                                     target.s3_path)
@@ -415,8 +413,6 @@ def __update_observations_csv(db: SPARCdDatabase,
                                 target.s3_bucket,
                                 make_s3_path((target.s3_path, OBSERVATIONS_CSV_FILE_NAME)),
                                 [one_row for one_set in row_groups for one_row in one_set])
-
-    return len(obs_info)
 
 
 def handle_sandbox(db: SPARCdDatabase, user_info: UserInfo, s3_info: S3Info) -> tuple:
@@ -694,36 +690,48 @@ def handle_sandbox_completed(db: SPARCdDatabase,
     if not s3_bucket or not s3_path:
         return False
 
-    target = S3UploadTarget(s3_info=s3_info, s3_bucket=s3_bucket, s3_path=s3_path)
+    # Check where we left off — allows safe retry from any point
+    completion_status = db.sandbox_get_completion_status(user_info.name, upload_id)
+    if completion_status is None:
+        return False
 
+    # Already fully completed
+    if completion_status >= 3:
+        return True
+
+    target = S3UploadTarget(s3_info=s3_info, s3_bucket=s3_bucket, s3_path=s3_path)
     renamed_files = tuple(db.get_files_renamed(user_info.name, upload_id))
 
-    # Update the MEDIA csv file to include media types
-    __update_media_csv(db, user_info, target, upload_id, renamed_files)
-    num_files_with_species = __update_observations_csv(db, user_info, target,
-                                                       upload_id, renamed_files)
+    if completion_status < 1:
+        __update_media_csv(db, user_info, target, upload_id, renamed_files)
+        db.sandbox_set_completion_status(user_info.name, upload_id, 1)
 
-    # Clean up any temporary files we might have (created elsewhere, now obsolete)
+    if completion_status < 2:
+        __update_observations_csv(db, user_info, target, upload_id, renamed_files)
+        db.sandbox_set_completion_status(user_info.name, upload_id, 2)
+
+    # Always recalculate from the observations CSV — handles retry after crash
+    # between status 2 and 3 where metadata update may not have completed
+    obs_info = ctu.load_camtrap_observations(target.s3_info, target.s3_bucket, target.s3_path)
+    num_files_with_species = sum(1 for val in obs_info.values() if val) if obs_info else 0
+
+    # Clean up any temporary files
     for one_filename in [MEDIA_CSV_FILE_NAME, OBSERVATIONS_CSV_FILE_NAME]:
         del_path = os.path.join(tempfile.gettempdir(),
                     SPARCD_PREFIX+s3_bucket+'_'+os.path.basename(s3_path)+'_'+one_filename)
         if os.path.exists(del_path):
             os.unlink(del_path)
 
-    # Update the upload metadata with the count of files that have species
     if num_files_with_species > 0:
         S3UploadConnection.update_upload_metadata_image_species(s3_info, s3_bucket, s3_path,
-                                                                            num_files_with_species)
+                                                                num_files_with_species)
 
-    # Update the collection to reflect the new upload metadata
     updated_collection = S3CollectionConnection.get_collection_info(s3_info, s3_bucket)
     if updated_collection:
         updated_collection = sdupu.normalize_collection(updated_collection)
-
-        # Update the collection entry in the database
         sdc.collection_update(db, s3_info.id, updated_collection)
 
-    # Mark the upload as completed
+    # Sets completion_status=3 and resets path to ""
     db.sandbox_upload_complete(user_info.name, upload_id)
 
     return True

@@ -843,3 +843,23 @@ class SPDSQLiteSandbox:
         cursor.close()
 
         return res
+
+    def sandbox_get_incomplete(self) -> Optional[tuple]:
+        """ Returns all sandbox rows that are still in progress
+        Return:
+            Returns a tuple of rows containing name, s3_id, upload_id,
+            completion_status, and s3_base_path
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get incomplete sandbox entries from the '
+                               'database before connecting')
+
+        cursor = self._conn.cursor()
+        cursor.execute(
+            'SELECT name, s3_id, upload_id, completion_status, s3_base_path '
+            'FROM sandbox WHERE path != ""'
+        )
+        res = cursor.fetchall()
+        cursor.close()
+
+        return res

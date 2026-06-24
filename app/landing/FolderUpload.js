@@ -27,7 +27,7 @@ import { AddMessageContext, AllowedImageMime, AllowedMovieMime, BaseURLContext, 
           UserSettingsContext } from '../serverInfo';
 
 
-const MAX_FILE_SIZE = 80 * 1000 * 1024; // Number of bytes before a file is too large
+const MAX_FILE_SIZE = 200 * 1000 * 1024; // Number of bytes before a file is too large
 const MIN_COMMENT_LEN = 10; // Minimum allowable number of characters for a comment
 
 // Used to indicate the state of checking for a previous upload and what to do about it

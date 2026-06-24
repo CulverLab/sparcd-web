@@ -1427,3 +1427,17 @@ class SPARCdDatabase:
                 self._sandbox_db.sandbox_file_processing_complete(file_id)
 
         return True
+
+    def sandbox_get_incomplete(self) -> tuple:
+        """ Returns all sandbox rows that are still in progress
+        Return:
+            Returns a tuple of rows containing name, s3_id, upload_id,
+            completion_status, and s3_base_path
+        """
+        with self._sandbox():
+            res = self._sandbox_db.sandbox_get_incomplete()
+
+        if not res or len(res) < 1:
+            return ()
+
+        return tuple(res)

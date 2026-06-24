@@ -1,0 +1,35 @@
+{
+  "name": "SPARCd",
+  "short_name": "SPARCd",
+  "description": "Scientific Photo Analysis for Research & Conservation database",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0C234B",
+  "theme_color": "#0C234B",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

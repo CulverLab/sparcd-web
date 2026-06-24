@@ -103,7 +103,7 @@ class SPDSQLite:
             # We disable thread checking since we're using thread-safe Sqlite
             self._conn = sqlite3.connect(database_path, check_same_thread=False)
             self._conn.execute('PRAGMA journal_mode=WAL')
-            self._conn.execute('PRAGMA busy_timeout=5000')
+            self._conn.execute('PRAGMA busy_timeout=10000')
 
     def reconnect(self) -> None:
         """Attempts a reconnection if we're not connected
