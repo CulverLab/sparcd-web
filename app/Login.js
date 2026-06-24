@@ -13,6 +13,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import LoginIcon from '@mui/icons-material/Login';
 import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
@@ -29,9 +30,10 @@ import { SizeContext } from './serverInfo';
   * @param {boolean} [prevRemember] Flag indicating the remember-me flag was set
   * @param {function} onLogin The login function to call when the user clicks the login button
   * @param {function} onRememberChange Called when the remember checkbox changes
+  * @param {boolean} [isOnline] Flag indicating if the network is available
   * @returns {object} The rendered UI
   */
-export default function Login({prevUrl, prevUser, prevRemember, onLogin, onRememberChange}) {
+export default function Login({prevUrl, prevUser, prevRemember, onLogin, onRememberChange, isOnline}) {
   const theme = useTheme();
   const uiSizes = React.useContext(SizeContext);
   const valuesValid = React.useContext(LoginValidContext);
@@ -104,6 +106,7 @@ export default function Login({prevUrl, prevUser, prevRemember, onLogin, onRemem
    * @function
    */
   function callLoginFunc() {
+    if (!isOnline) return;
     const url = urlRef.current?.value;
     const user = usernameRef.current?.value;
     const password = passwordRef.current?.value;
@@ -128,6 +131,11 @@ export default function Login({prevUrl, prevUser, prevRemember, onLogin, onRemem
               noValidate
               autoComplete='off'
             >
+              { !isOnline &&
+                <Typography variant="body2" sx={{color:'error.main', textAlign:'center', paddingBottom:'8px'}}>
+                  No network connection — please wait for connectivity to return
+                </Typography>
+              }
               <TextField required 
                     id='url-entry'
                     inputRef={urlRef}
@@ -137,6 +145,7 @@ export default function Login({prevUrl, prevUser, prevRemember, onLogin, onRemem
                     error={valuesValid.url === false}
                     sx={{m:5}}
                     type={'url'}
+                    disabled={!isOnline}
                     inputProps={{style: {fontSize:12}}}
                     slotProps={{
                       inputLabel: {
@@ -152,6 +161,7 @@ export default function Login({prevUrl, prevUser, prevRemember, onLogin, onRemem
                     size='small'
                     error={valuesValid.user === false}
                     sx={{m:5}}
+                    disabled={!isOnline}
                     inputProps={{style: {fontSize:12}}}
                     slotProps={{
                       inputLabel: {
@@ -167,6 +177,7 @@ export default function Login({prevUrl, prevUser, prevRemember, onLogin, onRemem
                     size='small'
                     error={valuesValid.password === false}
                     sx={{m:5}}
+                    disabled={!isOnline}
                     inputProps={{style: {fontSize:12}}}
                     onKeyDown={((ev) => {if (ev.key === 'Enter') { ev.preventDefault(); callLoginFunc(ev); } })}
                     slotProps={{
@@ -203,6 +214,7 @@ export default function Login({prevUrl, prevUser, prevRemember, onLogin, onRemem
               <Button size='small' color='login_button'
                       sx={{bgcolor: 'background.default', '&:hover':{backgroundColor:'#AEAEAE'}}} endIcon={<LoginIcon />} 
                       onClick={callLoginFunc}
+                      disabled={!isOnline}
               >
                 Login
               </Button>
@@ -222,10 +234,12 @@ Login.propTypes = {
   prevRemember: PropTypes.bool,
   onLogin: PropTypes.func.isRequired,
   onRememberChange: PropTypes.func.isRequired,
+  isOnline: PropTypes.bool,
 };
 
 Login.defaultProps = {
   prevUrl: '',
   prevUser: '',
   prevRemember: false,
+  isOnline: true,
 };

@@ -82,7 +82,7 @@ export default function Home() {
   // TODO: end of above
   const [editing, setEditing] = React.useState(false);
   const [isNarrow, setIsNarrow] = React.useState(null);
-  const [isOnline, setIsOnline] = React.useState(true);   // Flagging if we're online or not
+  const [isOnline, setIsOnline] = React.useState(true);
   const [lastToken, setLastToken] = React.useState(null);
   const [loadingCollections, setLoadingCollections] = React.useState(false);
   const [loadingLocations, setLoadingLocations] = React.useState(false);
@@ -110,7 +110,6 @@ export default function Home() {
   const [userMessages, setUserMessages] =  React.useState({count:null, messages:null});
   const [userNames, setUserNames] =  React.useState({names:null, loading:false});       // Names of users on the system
   const [userSettings, setUserSettings] =  React.useState(DEFAULT_USER_SETTINGS);
-
 
   /**
    * Handles the idle events
@@ -174,6 +173,8 @@ export default function Home() {
 
   // Used for online/offline detection
   React.useEffect(() => {
+    setIsOnline(navigator.onLine);
+
     const handleOnline  = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
@@ -1289,7 +1290,7 @@ export default function Home() {
               {!loggedIn || createNewInstance === true || repairInstance === true ? 
                 <LoginValidContext.Provider value={loginValid}>
                   <Login prevUrl={dbURL} prevUser={dbUser} prevRemember={dbRemember} onLogin={handleLogin}
-                         onRememberChange={handleRememberChanged} />
+                         onRememberChange={handleRememberChanged} isOnline={isOnline} />
                 </LoginValidContext.Provider>
                 :
                   <ActionsRouter 
@@ -1318,7 +1319,7 @@ export default function Home() {
                     No network connection
                   </Typography>
                   <Typography variant="body2">
-                    Uploads will resume automatically when connectivity returns
+                    Any pending uploads will resume automatically when connectivity returns
                   </Typography>
                 </Grid>
               </Box>
