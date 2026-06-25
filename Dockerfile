@@ -77,6 +77,7 @@ COPY --from=frontend-build /buildsite/out ./
 
 # Copy the source code over
 COPY --exclude=__pycache__ --exclude=.DS_Store ./server/ ./
+COPY --exclude=__pycache__ --exclude=.DS_Store ./scripts/ ./scripts/
 
 RUN mkdir templates && \
     mv index.html templates/ && \
