@@ -323,8 +323,9 @@ export default function EditUser({data, onUpdate, onConfirmPassword, onClose}) {
                       },
                     }}
                     />
-               <Button size='small' color='login_button'
-                      sx={{bgcolor: 'background.default', '&:hover':{backgroundColor:'#AEAEAE'}}} endIcon={<LoginIcon />} 
+               <Button size='small' variant='contained' color='login_button'
+                      sx={{boxShadow:'none', '&:hover':{boxShadow:'none'}}}
+                      endIcon={<LoginIcon />} 
                       onClick={handlePasswordConfirm}
               >
                 Confirm

@@ -83,10 +83,10 @@ const CollectionUploadTile = React.memo(function CollectionUploadTile({upload, a
   return (
     <Card id={"collection-upload-item-"+upload.name} variant="outlined" 
           data-active={active ? '' : undefined}
-          sx={{minWidth:'100%', backgroundColor:'#D3DEE6', borderRadius:'10px', 
-                '&:hover':{backgroundColor:'rgba(0, 0, 0, 0.25)'},
-                '&[data-active]': {borderColor:'rgba(155, 175, 202, 0.85)',backgroundColor:'#BAC6CD'},
-                '&[data-active]:hover': { backgroundColor:'rgba(0, 0, 0, 0.25)' },
+          sx={{minWidth:'100%', backgroundColor:'#f6f7f8', color:'text.primary', borderColor:'#7f8c96', borderRadius:'6px',
+                '&:hover':{backgroundColor:'#eeeeee'},
+                '&[data-active]': {borderColor:'#4f6274', backgroundColor:'#e8ecef'},
+                '&[data-active]:hover': { backgroundColor:'#e0e4e7' },
               }}
     >
       <CardHeader sx={{ pb: 0 }}
@@ -95,7 +95,7 @@ const CollectionUploadTile = React.memo(function CollectionUploadTile({upload, a
       <CardContent sx={{ pt: 0 }}>
         <Accordion expanded={expanded}
                    onChange={onExpandChange}
-                   sx={{backgroundColor:'#BFCBE1'}}>
+                   sx={{backgroundColor:'#f1f3f5', color:'text.primary'}}>
           <AccordionSummary
             id={'summary-'+upload.name}
             expandIcon={<ExpandMoreIcon />}
@@ -105,7 +105,7 @@ const CollectionUploadTile = React.memo(function CollectionUploadTile({upload, a
               Advanced details
             </Typography>
           </AccordionSummary>
-          <AccordionDetails id={`upload-details-content-${upload.name}`} sx={{backgroundColor:'#C8D2E4'}}>
+          <AccordionDetails id={`upload-details-content-${upload.name}`} sx={{backgroundColor:'#f7f8f9', color:'text.primary'}}>
             <Grid container id={'collection-upload-'+upload.name} direction="column" alignItems="start" justifyContent="start">
               <Grid sx={{padding:'5px 0', width:'100%'}}>
                 <Grid container direction="row" alignItems="start" justifyContent="space-between">

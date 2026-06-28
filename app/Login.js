@@ -211,8 +211,9 @@ export default function Login({prevUrl, prevUser, prevRemember, onLogin, onRemem
                     </FormGroup>
 
             <div style={{...theme.palette.login_dialog_login_button_wrap}}>
-              <Button size='small' color='login_button'
-                      sx={{bgcolor: 'background.default', '&:hover':{backgroundColor:'#AEAEAE'}}} endIcon={<LoginIcon />} 
+              <Button size='small' variant='contained' color='login_button'
+                      sx={{boxShadow:'none', '&:hover':{boxShadow:'none'}}}
+                      endIcon={<LoginIcon />} 
                       onClick={callLoginFunc}
                       disabled={!isOnline}
               >

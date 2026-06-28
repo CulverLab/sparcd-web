@@ -8,7 +8,6 @@ import CardContent from '@mui/material/CardContent';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
-import { useTheme } from '@mui/material/styles';
 
 import PropTypes from 'prop-types';
 
@@ -23,8 +22,6 @@ import PropTypes from 'prop-types';
  * @return {object} The UI to render
  */
 export default function ImageTile({name, type, timestamp, species, onClick}) {
-  const theme = useTheme();
-
   if (!species) {
     species = [];
   }
@@ -63,11 +60,40 @@ export default function ImageTile({name, type, timestamp, species, onClick}) {
   }
 
   const haveSpecies = species && species.length > 0;
+  const speciesCount = species.filter((curSpecies) => curSpecies.count > 0).length;
   return (
     <Card id={name} onClick={onClick} variant={haveSpecies?"soft":"outlined"}
-          sx={{minWidth:'200px', '&:hover':{backgroundColor:theme.palette.action.active} }}>
+          sx={{minWidth:'200px',
+               color:'text.primary',
+               backgroundColor: haveSpecies ? '#f1fbf3' : 'background.paper',
+               border:'1px solid',
+               borderColor: haveSpecies ? '#4f8f5b' : 'divider',
+               '&:hover':{
+                 backgroundColor: haveSpecies ? '#e7f6ea' : '#f5f5f5',
+                 color:'text.primary',
+               },
+               '&:hover .MuiTypography-root':{
+                 color:'text.primary',
+               },
+          }}>
       <CardActionArea data-active={haveSpecies ? '' : undefined}
-        sx={{height: '100%', '&[data-active]': {backgroundColor:'rgb(0, 0, 0, 0.35)'} }}
+        sx={{height: '100%',
+             color:'inherit',
+             '& .MuiCardActionArea-focusHighlight': {
+               backgroundColor:'#1565c0',
+             },
+             '&[data-active]': {
+               backgroundColor:'#f1fbf3',
+               color:'text.primary',
+             },
+             '&[data-active]:hover': {
+               backgroundColor:'#e7f6ea',
+               color:'text.primary',
+             },
+             '&[data-active] .MuiTypography-root': {
+               color:'text.primary',
+             },
+        }}
       >
         <CardContent>
           <Grid container spacing={1} alignItems="center" sx={{width:'100%'}}>
@@ -75,11 +101,20 @@ export default function ImageTile({name, type, timestamp, species, onClick}) {
               <Typography variant="body1" sx={{textTransform:'uppercase'}}>
                 {name}
               </Typography>
-              {haveSpecies ? <CheckCircleOutlinedIcon fontSize="small" sx={{color:"#68AB68", marginLeft:'auto'}}/> : null}
+              {haveSpecies ?
+                <Box sx={{display:'flex', alignItems:'center', gap:'4px', marginLeft:'auto',
+                          color:'#256b35', backgroundColor:'#e2f4e5', border:'1px solid #5fa66b',
+                          borderRadius:'999px', padding:'1px 7px'}}>
+                  <CheckCircleOutlinedIcon fontSize="small" sx={{color:'inherit'}}/>
+                  <Typography variant="body3" sx={{color:'inherit', fontWeight:600}}>
+                    Tagged
+                  </Typography>
+                </Box>
+                : null}
             </Grid>
-            {generateImageSvg(haveSpecies ? 'grey':undefined, haveSpecies ? '#68AB68':undefined)}
+            {generateImageSvg(haveSpecies ? '#dbe9dd':undefined, haveSpecies ? '#5fa66b':undefined)}
             <Grid container direction='row' alignItems='center' justifyContent='space-between' sx={{width:'100%'}} >
-              <Typography variant="body1" sx={{border:'1px solid black', borderRadius:'7px', backgroundColor:haveSpecies ? 'dimgrey' : 'silver', padding:'2px 5px' }}>
+              <Typography variant="body1" sx={{border:'1px solid', borderColor:'divider', borderRadius:'7px', backgroundColor:haveSpecies ? '#d8eadf' : '#edf3f7', color:'text.primary', padding:'2px 5px' }}>
                 {type}
               </Typography>
               <Typography variant="body1" sx={{marginLeft:'auto'}} >
@@ -97,6 +132,11 @@ export default function ImageTile({name, type, timestamp, species, onClick}) {
                         </Typography>
                       </Box>
                 )
+              }
+              {haveSpecies && speciesCount === 0 &&
+                <Typography variant="body3" sx={{color:'text.secondary'}}>
+                  Tagged
+                </Typography>
               }
               </Grid>
             </Grid>

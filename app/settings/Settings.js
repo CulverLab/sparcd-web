@@ -374,9 +374,11 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
   return (
     <Grid id='settings-wrapper' ref={settingsWrapperRef}
          sx={{position:'absolute', top:(workingRect.y+20)+'px', right:'20px', zIndex:2000,
-             border:'1px solid grey', backgroundColor:'silver', boxShadow:'2px 3px 3px #bbbbbb'}}
+             border:'1px solid', borderColor:'divider', borderRadius:'4px', backgroundColor:'background.paper',
+             boxShadow:'0 6px 18px rgba(15, 23, 42, 0.22)',
+             overflow:'hidden'}}
     >
-      <Card id="settings-content">
+      <Card id="settings-content" sx={{boxShadow:'none', borderRadius:0}}>
         <CardHeader title="Settings"
                     subheader={<span style={{fontSize:"smaller"}}><span>Customize settings for </span><span style={{fontWeight:'bold'}}>{userName}</span></span>} />
         <CardContent sx={{paddingTop:'0px', paddingBottom:'0px'}}>
@@ -541,8 +543,9 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
                       },
                     }}
                     />
-               <Button size='small' color='login_button'
-                      sx={{bgcolor: 'background.default', '&:hover':{backgroundColor:'#AEAEAE'}}} endIcon={<LoginIcon />} 
+               <Button size='small' variant='contained' color='login_button'
+                      sx={{boxShadow:'none', '&:hover':{boxShadow:'none'}}}
+                      endIcon={<LoginIcon />} 
                       onClick={handleLoginConfirmation}
               >
                 Login

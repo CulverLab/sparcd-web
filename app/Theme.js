@@ -1,7 +1,20 @@
 /** @module theme */
 
 import { createTheme } from '@mui/material/styles';
-import { grey } from '@mui/material/colors';
+
+const appColors = {
+  page: '#f4f7fa',
+  surface: '#ffffff',
+  surfaceMuted: '#edf3f7',
+  surfaceTint: '#dcebf3',
+  surfaceTintAlt: '#cbd7e2',
+  border: '#6f7d89',
+  borderSubtle: '#aeb9c3',
+  text: '#17212b',
+  textMuted: '#4b5d6d',
+  darkOverlay: 'rgba(10, 18, 28, 0.72)',
+  darkPanel: 'rgba(14, 23, 33, 0.92)',
+};
 
 /** The working theme */
 let theme = createTheme({
@@ -12,9 +25,14 @@ let theme = createTheme({
   },
   palette: {
     background: {
-      default: grey[500],
-      paper: grey[500],
+      default: appColors.page,
+      paper: appColors.surface,
     },
+    text: {
+      primary: appColors.text,
+      secondary: appColors.textMuted,
+    },
+    divider: appColors.borderSubtle,
     main: {
       position: 'relative',
       display: 'flex',
@@ -22,8 +40,9 @@ let theme = createTheme({
       justifyContent: 'space-between',
       alignItems: 'flex-start',
       minHeight: '100vh',
-      backgroundColor: '#EFEFEF',
+      backgroundColor: appColors.page,
       background: 'linear-gradient(135deg, #3b5a7d 0%, #9bbdd9 50%, #7a9bc4 100%)',
+      color: appColors.text,
     },
     title_bar: {
       width: '100vw',
@@ -32,9 +51,10 @@ let theme = createTheme({
       flexDirection: 'row',
       justifyContent: 'left',
       alignItems: 'center',
-      borderBottom: '1px solid black',
-      boxShadow: '2px 3px 3px #bbbbbb',
-      backgroundColor: 'white',
+      borderBottom: `1px solid ${appColors.border}`,
+      boxShadow: '0 2px 5px rgba(23, 33, 43, 0.18)',
+      backgroundColor: appColors.surface,
+      color: appColors.text,
     },
     footer_bar: {
       width: '100vw',
@@ -43,8 +63,9 @@ let theme = createTheme({
       justifyContent: 'space-between',
       alignItems: 'center',
       padding: '5px 5px 5px 5px',
-      borderTop: '1px solid gray',
-      backgroundColor: 'white',
+      borderTop: `1px solid ${appColors.border}`,
+      backgroundColor: appColors.surface,
+      color: appColors.text,
     },
     footer_wrapper: {
       display: 'flex',
@@ -66,10 +87,10 @@ let theme = createTheme({
       maxWidth: '33%',
     },
     footer_outside_link: {
-      color: 'blue',
+      color: '#124f8f',
       fontSize: '6pt',
       fontWeight: 'bold',
-      border: '1px solid black',
+      border: `1px solid ${appColors.border}`,
       borderRadius: '3px',
       padding: '0px 2px',
     },
@@ -86,9 +107,10 @@ let theme = createTheme({
       gridColumn: 2,
       gridRow: 2,
       width: '338px',
-      border: '2px solid white',
+      border: `2px solid ${appColors.surface}`,
       borderRadius: '20px',
-      backgroundColor: 'rgba(200, 200, 200, 0.50)',
+      backgroundColor: 'rgba(244, 247, 250, 0.88)',
+      color: appColors.text,
     },
     login_dialog: {
     },
@@ -103,20 +125,21 @@ let theme = createTheme({
       left: 0,
       width: '100vw',
       height: '100vh',
-      backgroundColor: 'rgb(0,0,0,0.5)',
+      backgroundColor: appColors.darkOverlay,
       zIndex: 11111,
     },
     login_checking: {
-      backgroundColor: 'rgb(0,0,0,0.8)',
-      border: '1px solid grey',
+      backgroundColor: appColors.darkPanel,
+      border: `1px solid ${appColors.borderSubtle}`,
       borderRadius: '15px',
       padding: '25px 10px',
+      color: appColors.surface,
     },
     login_button: {
-      main: '#EFEFEF',
-      light: '#FFFFFF',
-      dark: '#E0E0E0',
-      contrastText: '#000000',
+      main: '#1565c0',
+      light: '#2d7dd2',
+      dark: '#0d47a1',
+      contrastText: appColors.surface,
     },
     login_dialog_login_button_wrap: {
       marginRight: '10px',
@@ -133,14 +156,15 @@ let theme = createTheme({
       left: '0px',
     },
     landing_card: {
-      backgroundColor: 'rgba(255, 255, 255, 0.78)',
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
       borderRadius: '15px',
       minHeight: '15vh',
       minWidth: '46vw',
       maxWidth: '46vw',
+      color: appColors.text,
     },
     landing_upload: {
-      border: '1px solid black',
+      border: `1px solid ${appColors.border}`,
       maxHeight: '24vh',
       overflow: 'auto',
       padding: '0em 1em 0em 1em'
@@ -157,7 +181,7 @@ let theme = createTheme({
       textAlign: 'center'
     },
     landing_collections: {
-      border: '1px solid black',
+      border: `1px solid ${appColors.border}`,
       maxHeight: '20vh',
       overflow: 'auto',
       padding: '0em 1em 0em 1em'
@@ -176,31 +200,32 @@ let theme = createTheme({
     landing_page_map_image_wrapper: {
       maxHeight:'180px',
       minWidth: '180px',
-      border:'1px solid grey',
+      border:`1px solid ${appColors.border}`,
       borderRadius:'10px',
       overflow:'clip',
     },
     folder_upload: {
-      background: 'rgb(240, 240, 255)',
+      background: appColors.surfaceTint,
       padding: '1em 2em 1em 2em',
       borderRadius: '15px',
-      backgroundColor: 'rgb(212, 230, 241, 0.95)',
+      backgroundColor: appColors.surfaceTint,
+      color: appColors.text,
     },
     left_sidebar: {
       height: '100%',
       width: '150px',
       maxWidth: '150px',
       minWidth: '150px',
-      background: 'white',
-      borderRight: '1px solid black',
+      background: appColors.surface,
+      borderRight: `1px solid ${appColors.border}`,
       margin: '0px 0px 0px 0px'
     },
     top_sidebar: {
       height: '50px',
       maxWidth: '50px',
       minWidth: '50px',
-      background: 'white',
-      borderBottom: '1px solid black',
+      background: appColors.surface,
+      borderBottom: `1px solid ${appColors.border}`,
       margin: '0px 0px 0px 0px'
     },
     left_sidebar_item: {
@@ -241,8 +266,8 @@ let theme = createTheme({
       width: '200px',
       maxWidth: '200px',
       minWidth: '200px',
-      background: 'white',
-      borderRight: '1px solid black',
+      background: appColors.surface,
+      borderRight: `1px solid ${appColors.border}`,
       margin: '0px 0px 0px 0px'
     },
     species_top_sidebar: {
@@ -250,23 +275,26 @@ let theme = createTheme({
       height: '175px',
       maxHeight: '175px',
       minHeight: '175px',
-      background: 'white',
-      borderRight: '1px solid black',
+      background: appColors.surface,
+      borderRight: `1px solid ${appColors.border}`,
       margin: '0px 0px 0px 0px'
     },
     species_sidebar_item: {
       background: '#E0F0E0',
       border: '1px solid black',
+      borderRadius: 0,
     },
     species_sidebar_item_media: {
       minHeight: '150px',
       maxHeight: '150px',
-      width: '200px'
+      width: '200px',
+      borderRadius: 0,
     },
     species_sidebar_item_media_small: {
       minHeight: '100px',
       maxHeight: '100px',
-      width: '100px'
+      width: '100px',
+      borderRadius: 0,
     },
     screen_disable: {
       position: 'absolute',
@@ -274,7 +302,7 @@ let theme = createTheme({
       top: '0px',
       width: '100vw',
       height: '100vh',
-      backgroundColor: 'rgba(128, 128, 128, 0.65)'
+      backgroundColor: 'rgba(75, 93, 109, 0.65)'
     },
     screen_overlay: {
       position: 'absolute',
@@ -289,7 +317,7 @@ let theme = createTheme({
       top: '0px',
       width: '100vw',
       height: '100vh',
-      backgroundColor:'rgb(0,0,0,0.5)',
+      backgroundColor: appColors.darkOverlay,
     },
     have_messages: {
       '&:after': {
