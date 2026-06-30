@@ -1,4 +1,6 @@
-
+# syntax=docker/dockerfile:1.7-labs
+# Parser directive above must remain on line 1. The 1.7-labs frontend
+# enables the COPY --exclude flag used when copying ./server/ below.
 
 # Build our Java app
 FROM node:current-alpine AS java-build
@@ -18,14 +20,17 @@ FROM node:current-alpine AS frontend-build
 
 WORKDIR /buildsite
 
-# Install needed tools (won't have an impact if everything is all set)
-RUN apk add --no-cache npm nodejs && \
-    npm update -g npm
+# Install pnpm. Keep this version in sync with the "packageManager" field in
+# package.json so local and container builds resolve the same dependency tree.
+RUN npm install -g pnpm@10.20.0
 
-# Install the package dependencies
+# Install dependencies. The lockfile is intentionally not committed to source
+# control (per project policy), so pnpm resolves and writes pnpm-lock.yaml
+# fresh during the build. The generated lockfile is copied into the final
+# image (see below) so it can be inspected for debugging a specific build.
 COPY ./package.json ./
 
-RUN npm install
+RUN pnpm install
 
 # Copy other files where we want them
 COPY ./next.config.js ./
@@ -33,7 +38,7 @@ COPY ./public ./public
 COPY ./app ./app
 
 # Build the node packages
-RUN npm run build
+RUN pnpm run build
 
 
 # Build the final image
@@ -75,13 +80,21 @@ COPY --from=java-build /javasite/target/ExifWriter-1.0-jar-with-dependencies.jar
 # Copy over the built website
 COPY --from=frontend-build /buildsite/out ./
 
+# Copy the lockfile that pnpm generated during the frontend build so the
+# exact versions of every transitive dependency that went into this image
+# are inspectable for debugging.
+COPY --from=frontend-build /buildsite/pnpm-lock.yaml ./pnpm-lock.yaml
+
 # Copy the source code over
 COPY --exclude=__pycache__ --exclude=.DS_Store ./server/ ./
 COPY --exclude=__pycache__ --exclude=.DS_Store ./scripts/ ./scripts/
 
+# Set up runtime state. `rm -f *.sqlite` uses -f so the build does not fail
+# when the source tree has no checked-in .sqlite file (the *.sqlite glob is
+# in .gitignore, so a clean clone won't have one).
 RUN mkdir templates && \
     mv index.html templates/ && \
-    rm *.sqlite    && \
+    rm -f *.sqlite && \
     python3 create_db.py $PWD sparcd.sqlite && \
     rm create_db.py && \
     rm -f requirements.txt .DS_Store

@@ -1,0 +1,33 @@
+# Mirrors most of .gitignore but is consumed by Docker's build context
+# loader. Keeping host-only state out of the context avoids two problems:
+#   1. BuildKit fails to checksum broken/host-rooted symlinks (e.g. a
+#      Python venv's interpreter symlink points at /opt/homebrew/...)
+#   2. Sending node_modules / .git / build outputs to the daemon makes
+#      builds slow and bloats layer caches.
+
+# Git
+.git
+.gitignore
+
+# OS / editor
+.DS_Store
+**/.DS_Store
+.vscode
+.idea
+
+# Python (local dev artifacts)
+**/__pycache__
+**/*.pyc
+**/venv
+**/.venv
+
+# Node (regenerated inside the container by pnpm install)
+node_modules
+.next
+out
+
+# Logs
+*.log
+
+# Local notes / scratch (not part of the project)
+design-brief.md
