@@ -109,7 +109,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
   const disableUploadCheckRef = React.useRef(false); // Used to lock out multiple clicks
   const folderCancelRef = React.useRef(false); // Folder cancel button
   const folderSelectRef = React.useRef(false); // Folder upload control
-  const folderUploadRef = React.useRef(false); // Folder upload button
   const [collectionSelection, setCollectionSelection] = React.useState(null);
   const [comment, setComment] = React.useState(null);
   const [continueUploadInfo, setContinueUploadInfo] = React.useState(null); // Used when continuing a previous upload
@@ -195,9 +194,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const cancelUpload = React.useCallback(() => {
     // Enable buttons
-    if (folderUploadRef.current) {
-      folderUploadRef.current.disabled = false;
-    }
     if (folderCancelRef.current) {
       folderCancelRef.current.disabled = false;
     }
@@ -211,9 +207,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    * @param {object} respData The response data from the call
    */
   const havePrevUploadSuccess = React.useCallback((respData, path, files) => {
-      if (folderUploadRef.current) {
-        folderUploadRef.current.disabled = false;
-      }
       if (folderCancelRef.current) {
         folderCancelRef.current.disabled = false;
       }
@@ -246,9 +239,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    * @param {object} files The list of files to upload
    */
   const haveUploadRecoverySuccess = React.useCallback((respData, files) => {
-      if (folderUploadRef.current) {
-        folderUploadRef.current.disabled = false;
-      }
       if (folderCancelRef.current) {
         folderCancelRef.current.disabled = false;
       }
@@ -280,9 +270,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
    */
   const filesUpload = React.useCallback((event) => {
     // Disable buttons
-    if (folderUploadRef.current) {
-      folderUploadRef.current.disabled = true;
-    }
     if (folderCancelRef.current) {
       folderCancelRef.current.disabled = true;
     }
@@ -293,9 +280,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
     // Return if there's nothing to do
     if (!folderSelectRef.current || !folderSelectRef.current.files || !folderSelectRef.current.files.length) {
       addMessage(Level.Information, 'Please choose a folder with files to upload');
-      if (folderUploadRef.current) {
-        folderUploadRef.current.disabled = false;
-      }
       if (folderCancelRef.current) {
         folderCancelRef.current.disabled = false;
       }
@@ -334,9 +318,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       addMessage(Level.Information, `No acceptable ${type} files were found. Please choose another folder`)
       console.log('No files left to upload: start count:', allFiles.length, ' unknown:',haveUnknown, ' too large:', tooLarge);
       // Enable buttons
-      if (folderUploadRef.current) {
-        folderUploadRef.current.disabled = false;
-      }
       if (folderCancelRef.current) {
         folderCancelRef.current.disabled = false;
       }
@@ -354,9 +335,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       console.log('ERROR: Missing relative path');
       console.log(allowedFiles[0]);
       // Enable buttons
-      if (folderUploadRef.current) {
-        folderUploadRef.current.disabled = false;
-      }
       if (folderCancelRef.current) {
         folderCancelRef.current.disabled = false;
       }
@@ -368,9 +346,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       const success = Server.checkPreviousUpload(serverURL, uploadToken, relativePath, tokenExpiredFunc, 
                         (respData) => {havePrevUploadSuccess(respData, relativePath, allowedFiles)},     // Success
                         (err) => {  // Failure
-                          if (folderUploadRef.current) {
-                            folderUploadRef.current.disabled = false;
-                          }
                           if (folderCancelRef.current) {
                             folderCancelRef.current.disabled = false;
                           }
@@ -413,9 +388,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                                     }
                                   }, 
                                   (err) => {      // Failure
-                                    if (folderUploadRef.current) {
-                                      folderUploadRef.current.disabled = false;
-                                    }
                                     if (folderCancelRef.current) {
                                       folderCancelRef.current.disabled = false;
                                     }
@@ -920,6 +892,15 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
   }
 
   /**
+   * Handles when the upload folder is changed
+   * @param {object} event The triggering event
+   */
+  const handleFolderSelChange = React.useCallback((event) => {
+    selectionChanged(event);
+    filesUpload(event);
+  }, [filesUpload, selectionChanged]);
+
+  /**
    * Renders the UI based upon how many images have been uploaded
    * @function
    * @return {object} The UI to render
@@ -956,8 +937,6 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
       if (!uploadingFiles && continueUploadInfo === null) {
         return (
           <React.Fragment>
-            <Button id="folder_upload" ref={folderUploadRef} sx={{flex:1}} size="small" onClick={filesUpload}
-                    disabled={filesSelected === 0}>Upload</Button>
             <Button id="folder_cancel" ref={folderCancelRef} sx={{flex:1}} size="small" onClick={cancelUpload}>Cancel</Button>
           </React.Fragment>
         );
@@ -1048,7 +1027,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                                           <Button variant="contained" component="label">
                                           Select Folder
                                           <input id="folder_select" hidden ref={folderSelectRef} type="file" name="file" webkitdirectory="" 
-                                                  directory="" onChange={selectionChanged}
+                                                  directory="" onChange={(event) => {console.log('HACK:FODLERSEL');handleFolderSelChange(event);} }
                                           />
                                         </Button>
                                       </Stack>
