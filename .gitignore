@@ -42,6 +42,9 @@ build/Release
 node_modules/
 jspm_packages/
 
+# pnpm lockfile (intentionally not committed; generated during docker build)
+pnpm-lock.yaml
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
@@ -131,6 +134,10 @@ dist
 
 # python
 __pycache__
+
+# python virtualenvs (local dev)
+venv/
+.venv/
 
 # flask
 flask_session
