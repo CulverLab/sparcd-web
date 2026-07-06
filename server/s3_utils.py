@@ -335,12 +335,12 @@ def move_upload(s3_info: S3Info, source_bucket: str, dest_bucket: str, source_pa
         return False
 
     # Remove the source files
-    try:
-        __files_remove(minio, source_bucket, source_path)
-    except S3Error as ex:
-        print('ERROR: move_upload: Caught S3 exception while deleteing: ' \
-                                                    f'{source_bucket}:{source_path}', flush=True)
-        print(ex, flush=True)
-        return False
+    #try:
+    #    __files_remove(minio, source_bucket, source_path)
+    #except S3Error as ex:
+    #    print('ERROR: move_upload: Caught S3 exception while deleteing: ' \
+    #                                                f'{source_bucket}:{source_path}', flush=True)
+    #    print(ex, flush=True)
+    #    return False
 
     return True

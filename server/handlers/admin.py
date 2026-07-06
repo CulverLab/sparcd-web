@@ -188,6 +188,9 @@ def __get_authorized_collection(collections: tuple, user_info: UserInfo, collect
         check_had_upload: set to True to have the upload looked for in the collection
     Return:
     """
+    if collection_id.startswith(SPARCD_PREFIX):
+        collection_id = collection_id[len(SPARCD_PREFIX):]
+
     check_coll = [one_coll for one_coll in collections if one_coll['id'] == collection_id]
     if not check_coll:
         return None
@@ -852,6 +855,11 @@ def handle_move_upload(db:SPARCdDatabase, user_info: UserInfo, s3_info: S3Info,
     if dst_coll:
         dst_bucket = dst_coll['bucket']
     else:
+        # If we have a sparcd collection and end up here, something is wrong an we should bail
+        if params.dst_coll_id.startswith(SPARCD_PREFIX):
+            print('ERROR: handle_move_upload: Unable to find collection, or bad collection ID, ' \
+                                                    f'with ID: {params.dst_coll_id}', flush=True)
+            return False
         dst_bucket = params.dst_coll_id
 
     # Build up the upload starting path
