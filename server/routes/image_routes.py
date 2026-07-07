@@ -232,7 +232,12 @@ def images_all_edited(*, db, user_info, s3_info, **_):
     if not params:
         return 'Not Found', 406
 
-    updated, kept_urls = himage.handle_images_all_edited(db, user_info, s3_info, params)
+    res = himage.handle_images_all_edited(db, user_info, s3_info, params)
+    if isinstance(res, tuple):
+        updated, kept_urls = res
+    else:
+        # Return formatted return value
+        return jsonify(res)
 
     if updated is None or kept_urls is None:
         return 'Not Found', 406

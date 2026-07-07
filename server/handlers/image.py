@@ -275,7 +275,7 @@ def handle_image_edit_complete(db: SPARCdDatabase, user_info: UserInfo, s3_info:
 
 
 def handle_images_all_edited(db: SPARCdDatabase, user_info: UserInfo, s3_info: S3Info,
-                                                params: ImageAllEditedParams) -> Optional[tuple]:
+                                            params: ImageAllEditedParams) -> Union[tuple|dict]:
     """ Implementation for completing changes after all images have been edited
     Arguments:
         db: the database instance
