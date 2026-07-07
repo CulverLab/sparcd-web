@@ -99,7 +99,7 @@ class S3UploadConnection:
         """
         with temp_s3_file(suffix='.csv') as temp_path:
             with open(temp_path, 'w', newline='', encoding='utf-8') as ofile:
-                csv_writer = csv.writer(ofile)
+                csv_writer = csv.writer(ofile, quoting=csv.QUOTE_NONNUMERIC)
                 for one_row in data:
                     csv_writer.writerow(one_row)
 

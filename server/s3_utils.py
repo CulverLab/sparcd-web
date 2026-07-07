@@ -1,9 +1,11 @@
 """ Utilities to help with S3 access """
 
+import csv
+from io import StringIO
 import json
 import os
 import tempfile
-from typing import Callable, Union
+from typing import Callable, Optional, Union
 from urllib.parse import urlparse
 
 from cryptography.fernet import InvalidToken
@@ -17,8 +19,11 @@ from sparcd_file_utils import load_timed_info, save_timed_info
 from spd_types.s3info import S3Info
 from s3.s3_admin import S3AdminConnection
 from s3.s3_access_helpers import (find_settings_bucket, make_s3_path, COLLECTIONS_FOLDER,
-                                    SPARCD_PREFIX, S3_UPLOADS_PATH_PART)
+                                    DEPLOYMENT_CSV_FILE_NAME, MEDIA_CSV_FILE_NAME,
+                                    OBSERVATIONS_CSV_FILE_NAME, SPARCD_PREFIX, S3_UPLOADS_PATH_PART)
 from s3.s3_connect import s3_connect
+
+from camtrap.v016 import camtrap
 
 
 def __check_bucket_read(minio: Minio, bucket: str) -> Union[bool, None]:
@@ -50,6 +55,39 @@ def __check_bucket_read(minio: Minio, bucket: str) -> Union[bool, None]:
     return True
 
 
+def __change_old_colls(reader: csv.reader, coll_id: str,
+                                                    deployment_id_index: int) -> Optional[tuple]:
+    """ Iterates through the rows and update the collection IDs
+    Arguments:
+        reader: the CSV reader to read rows from
+        coll_id: the new collection ID
+    Return:
+        Returns the updated rows if something has changed and None if nothing has changed
+    """
+    have_changes = False
+    new_rows = []
+    for csv_info in reader:
+        # Test for the collection ID
+        if not coll_id in csv_info[deployment_id_index]:
+            # Get the old collection ID
+            parts = csv_info[deployment_id_index].split(':')
+            old_coll_id = parts[0]
+            new_cols = []
+
+            have_changes = True
+            for _, one_col in enumerate(csv_info):
+                if old_coll_id in one_col:
+                    new_cols.append(one_col.replace(old_coll_id, coll_id))
+                else:
+                    new_cols.append(one_col)
+            new_rows.append(new_cols)
+        else:
+            # Nothing to change
+            new_rows.append(csv_info)
+
+    return new_rows if have_changes else None
+
+
 def __files_copy(minio: Minio, source_bucket: str, source_path: str, dest_bucket: str,
                                                                 get_dest_path: Callable) -> None:
     """ Copies the files recursively from the source to the destination
@@ -69,6 +107,90 @@ def __files_copy(minio: Minio, source_bucket: str, source_path: str, dest_bucket
         minio.copy_object(dest_bucket, get_dest_path(cur_obj.object_name),
                             CopySource(source_bucket, cur_obj.object_name)
                             )
+
+
+def __update_camtrap_coll_csv(minio: Minio, bucket: str, csv_path: str, coll_id: str,
+                                                                deployment_id_index: int) -> bool:
+    """ Check the CAMTRAP deployment
+    Arguments:
+        minio: the S3 client to access
+        bucket: the bucket to work in
+        csv_path: the path to the CSV file
+        coll_id: the new collection ID
+        deployment_id_index: the index of the deployment ID to use to get the old collection ID
+    Return:
+        Returns True if the CSV file is successfully changed or no changes are needed, and None if
+        the CSV file can't be found or its contents are invalid
+    """
+    temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+    os.close(temp_file[0])
+
+    try:
+        try:
+            minio.fget_object(bucket, csv_path, temp_file[1])
+        except S3Error as ex:
+            if ex.code != 'NoSuchKey':
+                raise ex
+            return None
+
+        # Load the data
+        data = None
+        with open(temp_file[1], 'r', encoding='utf-8') as ifile:
+            data = ifile.read()
+
+        # Check the CSV for mis-matched collection information
+        reader = csv.reader(StringIO(data))
+        try:
+            new_rows = __change_old_colls(reader, coll_id, deployment_id_index)
+        except csv.Error as ex:
+            print(f'ERROR: Invalid CAMTRAP csv file {bucket} {csv_path}', flush=True)
+            print(ex, flush=True)
+            return None
+
+        # Save and upload to S3 if we changed something
+        if new_rows:
+            with open(temp_file[1], 'w', newline='', encoding='utf-8') as ofile:
+                writer = csv.writer(ofile, quoting=csv.QUOTE_NONNUMERIC)
+                writer.writerows(new_rows)
+
+            minio.fput_object(bucket, csv_path, temp_file[1], content_type="text/csv")
+
+    finally:
+        if os.path.exists(temp_file[1]):
+            os.unlink(temp_file[1])
+
+    return True
+
+
+def __update_camtrap_collection(minio: Minio, dest_bucket: str, dest_path: str) -> None:
+    """ Copies the files recursively from the source to the destination
+    Arguments:
+        minio: the s3 client to access
+        dest_bucket: the destination bucket
+        dest_path: the top-level destination path
+    """
+    if not dest_bucket.startswith(SPARCD_PREFIX):
+        print('ERROR: update_camtrap_collection: Invalid destination bucket specified ' \
+                                                                    f'{dest_bucket}', flush=True)
+        return False
+
+    # Setup for out changes
+    new_coll_id = dest_bucket[len(SPARCD_PREFIX):]
+
+    # Update the CSV files
+    csv_path = make_s3_path((dest_path, DEPLOYMENT_CSV_FILE_NAME))
+    _ = __update_camtrap_coll_csv(minio, dest_bucket, csv_path, new_coll_id,
+                                                    camtrap.CAMTRAP_DEPLOYMENT_ID_IDX)
+
+    csv_path = make_s3_path((dest_path, MEDIA_CSV_FILE_NAME))
+    _ = __update_camtrap_coll_csv(minio, dest_bucket, csv_path, new_coll_id,
+                                                    camtrap.CAMTRAP_MEDIA_DEPLOYMENT_ID_IDX)
+
+    csv_path = make_s3_path((dest_path, OBSERVATIONS_CSV_FILE_NAME))
+    _ = __update_camtrap_coll_csv(minio, dest_bucket, csv_path, new_coll_id,
+                                                    camtrap.CAMTRAP_OBSERVATION_DEPLOYMENT_ID_IDX)
+
+    return True
 
 
 def __files_remove(minio: Minio, bucket: str, path: str) -> bool:
@@ -334,13 +456,17 @@ def move_upload(s3_info: S3Info, source_bucket: str, dest_bucket: str, source_pa
         print(ex, flush=True)
         return False
 
+    # Update the CAMTRAP files with the new collection ID if we copied to another SPARCD collection
+    if dest_bucket.startswith(SPARCD_PREFIX):
+        _ = __update_camtrap_collection(minio, dest_bucket, get_dest_path(source_path))
+
     # Remove the source files
-    #try:
-    #    __files_remove(minio, source_bucket, source_path)
-    #except S3Error as ex:
-    #    print('ERROR: move_upload: Caught S3 exception while deleteing: ' \
-    #                                                f'{source_bucket}:{source_path}', flush=True)
-    #    print(ex, flush=True)
-    #    return False
+    try:
+        __files_remove(minio, source_bucket, source_path)
+    except S3Error as ex:
+        print('ERROR: move_upload: Caught S3 exception while deleteing: ' \
+                                                    f'{source_bucket}:{source_path}', flush=True)
+        print(ex, flush=True)
+        return False
 
     return True
