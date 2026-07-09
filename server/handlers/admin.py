@@ -236,7 +236,7 @@ def __handle_move_upload_result(db: SPARCdDatabase, s3_id: str, user: str,
     db.message_add(s3_id,
                     user,
                     user,
-                    'Move upload {params.upload_key} results', 
+                    f'Move upload {params.upload_key} results',
                     mail_message,
                     "normal")
 
