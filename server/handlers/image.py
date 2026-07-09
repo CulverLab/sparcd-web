@@ -321,7 +321,7 @@ def handle_images_all_edited(db: SPARCdDatabase, user_info: UserInfo, s3_info: S
     updated, kept_urls = __update_metadata_and_collection(db, s3_info, s3_bucket,
                                                           s3_path, params)
 
-    return bool(updated), kept_urls
+    return tuple([bool(updated), kept_urls])
 
 
 def handle_species_keybind(db: SPARCdDatabase, user_info: UserInfo, s3_info: S3Info,

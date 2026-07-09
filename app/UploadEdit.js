@@ -337,7 +337,8 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
       console.log('Warning: Unable to find species',speciesName,'for updating count in image',imageName);
       return;
     }
-    curUpload.images[curImageIdx].species[curSpeciesIdx].count = speciesCount;
+//    curUpload.images[curImageIdx].species[curSpeciesIdx].count = speciesCount;
+    curUpload.images[curImageIdx].species = curUpload.images[curImageIdx].species.map((item, idx) => {if (idx === curSpeciesIdx) item.count = speciesCount; return item;});
 
     const curKeySpeciesIdx = speciesItems.findIndex((item) => item.scientificName === curUpload.images[curImageIdx].species[curSpeciesIdx].scientificName);
     if (curKeySpeciesIdx <= -1) {

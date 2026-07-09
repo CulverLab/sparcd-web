@@ -11,7 +11,7 @@
  *   - Queuing or replaying FormData/File requests across sessions
  */
 
-const CACHE_NAME = 'sparcd-shell-v1';
+const CACHE_NAME = 'sparcd-shell-v2';
 
 // Static assets that form the app shell - these are cached on install
 // Next.js hashes JS/CSS filenames on build so we cache by pattern at runtime
@@ -57,7 +57,12 @@ function isApiRequest(url) {
  * aggressively because the filename changes whenever the content changes.
  */
 function isHashedStaticAsset(url) {
-  return new URL(url).pathname.startsWith('/_next/static/');
+  if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js');
+  }
+  //const u = new URL(url);
+  //if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') return false;
+  //return u.pathname.startsWith('/_next/static/');
 }
 
 // ─── Install ────────────────────────────────────────────────────────────────

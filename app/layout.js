@@ -26,12 +26,19 @@ export default function RootLayout({ children }) {
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
+              if (${process.env.NODE_ENV === 'production'} && 'serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js')
                     .catch(function(err) {
                       console.error('Service worker registration failed:', err);
                     });
+                  navigator.serviceWorker.addEventListener('message', function(event) {
+                    if (event.data && event.data.type === 'SW_UPDATED') {
+                      // TODO: hook this into your UI - e.g. show a toast/banner
+                      // prompting the user to refresh for the latest version
+                      console.log('New app version available - refresh to update.');
+                    }
+                  });
                 });
               }
             `,
