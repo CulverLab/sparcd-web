@@ -1027,7 +1027,7 @@ export default function FolderUpload({loadingCollections, type, recovery, onComp
                                           <Button variant="contained" component="label">
                                           Select Folder
                                           <input id="folder_select" hidden ref={folderSelectRef} type="file" name="file" webkitdirectory="" 
-                                                  directory="" onChange={(event) => {console.log('HACK:FODLERSEL');handleFolderSelChange(event);} }
+                                                  directory="" onChange={(event) => handleFolderSelChange(event}
                                           />
                                         </Button>
                                       </Stack>

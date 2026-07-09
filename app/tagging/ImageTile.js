@@ -62,7 +62,7 @@ export default function ImageTile({name, type, timestamp, species, onClick}) {
     );
   }
 
-  const haveSpecies = species && species.length > 0;
+  const haveSpecies = species && species.length > 0 && species.some((item) => item.count > 0);
   return (
     <Card id={name} onClick={onClick} variant={haveSpecies?"soft":"outlined"}
           sx={{minWidth:'200px', '&:hover':{backgroundColor:theme.palette.action.active} }}>

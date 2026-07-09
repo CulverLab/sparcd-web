@@ -505,7 +505,7 @@ const ImageEdit = React.forwardRef(({url, type, name, parentId, maxWidth, maxHei
           { curSpecies && 
             <Grid id="image-edit-species" size={{ xs:6, sm:6, md:6 }} sx={{position:'relative', marginRight:'auto', pointerEvents:"auto"}}>
               {curSpecies.map((curItem) =>
-                curItem.count && 
+                curItem.count <= 0 ? null :  
                         <ImageEditSpecies key={name+curItem.name}
                                           name={curItem.name?curItem.name:curItem.scientificName}
                                           count={curItem.count}
