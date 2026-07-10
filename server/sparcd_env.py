@@ -9,8 +9,6 @@ import os
 
 # Environment variable name for allowed origins
 ENV_ALLOWED_ORIGINS = 'SPARCD_ALLOWED_ORIGINS'
-# Environment variable name for allowed origins for API
-ENV_API_ALLOWED_ORIGINS = 'SPARCD_API_ALLOWED_ORIGINS'
 # Environment variable name for database
 ENV_NAME_DB = 'SPARCD_DB'
 # Environment variable name for sandbox database
@@ -32,9 +30,6 @@ ENV_DEFAULT_TIMEZONE_OFFSET = 'SPARCD_DEFAULT_TIMEZONE_OFFSET'
 # The allowed origins
 DEFAULT_ALLOWED_ORIGINS = 'http://localhost:3000'
 ALLOWED_ORIGINS = os.environ.get(ENV_ALLOWED_ORIGINS, DEFAULT_ALLOWED_ORIGINS)
-
-DEFAULT_API_ALLOWED_ORIGINS = "*"
-API_ALLOWED_ORIGINS = os.environ.get(ENV_API_ALLOWED_ORIGINS, DEFAULT_API_ALLOWED_ORIGINS)
 
 # Working database storage path
 DEFAULT_DB_PATH = os.environ.get(ENV_NAME_DB, None)
