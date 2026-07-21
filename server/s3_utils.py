@@ -20,7 +20,8 @@ from spd_types.s3info import S3Info
 from s3.s3_admin import S3AdminConnection
 from s3.s3_access_helpers import (find_settings_bucket, make_s3_path, COLLECTIONS_FOLDER,
                                     DEPLOYMENT_CSV_FILE_NAME, MEDIA_CSV_FILE_NAME,
-                                    OBSERVATIONS_CSV_FILE_NAME, SPARCD_PREFIX, S3_UPLOADS_PATH_PART)
+                                    OBSERVATIONS_CSV_FILE_NAME, SPARCD_PREFIX, S3_UPLOADS_PATH_PART,
+                                    S3_UPLOAD_META_JSON_FILE_NAME)
 from s3.s3_connect import s3_connect
 
 from camtrap.v016 import camtrap
@@ -109,6 +110,63 @@ def __files_copy(minio: Minio, source_bucket: str, source_path: str, dest_bucket
                             )
 
 
+def __update_upload_metadata(minio: Minio, bucket: str, file_path: str, coll_id: str) -> bool:
+    """ Updates the upload's metadata with the correct collection ID
+    Arguments:
+        minio: the S3 client to access
+        bucket: the bucket to work in
+        file_path: the path to the metadata file
+        coll_id: the new collection ID
+    Return:
+        Returns True if the metadata file is successfully changed or no changes are needed, and None
+        if the metadata file can't be found or its contents are invalid
+    """
+    temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+    os.close(temp_file[0])
+
+    try:
+        try:
+            minio.fget_object(bucket, file_path, temp_file[1])
+        except S3Error as ex:
+            if ex.code != 'NoSuchKey':
+                raise ex
+            return None
+
+        # Load the data
+        data = None
+        try:
+            with open(temp_file[1], 'r', encoding='utf-8') as ifile:
+                data = json.loads(ifile.read())
+        except json.JSONDecodeError as ex:
+            print(f'ERROR: Invalid Upload Metadata file {bucket} {file_path}', flush=True)
+            print(ex, flush=True)
+            return None
+
+        # Check the JSON for mis-matched collection information
+        have_changes = False
+        if not coll_id in data['bucket']:
+            data['bucket'] = SPARCD_PREFIX + coll_id
+            have_changes = True
+        if not coll_id in data['uploadPath']:
+            parts = data['uploadPath'].split('/')
+            parts[1] = coll_id
+            data['uploadPath'] = '/'.join(parts)
+            have_changes = True
+
+        # Save and upload to S3 if we changed something
+        if have_changes is True:
+            with open(temp_file[1], 'w', encoding='utf-8') as ofile:
+                json.dump(data, ofile, indent=2)
+
+            minio.fput_object(bucket, file_path, temp_file[1], content_type="application/json")
+
+    finally:
+        if os.path.exists(temp_file[1]):
+            os.unlink(temp_file[1])
+
+    return True
+
+
 def __update_camtrap_coll_csv(minio: Minio, bucket: str, csv_path: str, coll_id: str,
                                                                 deployment_id_index: int) -> bool:
     """ Check the CAMTRAP deployment
@@ -162,8 +220,8 @@ def __update_camtrap_coll_csv(minio: Minio, bucket: str, csv_path: str, coll_id:
     return True
 
 
-def __update_camtrap_collection(minio: Minio, dest_bucket: str, dest_path: str) -> None:
-    """ Copies the files recursively from the source to the destination
+def __update_moved_upload(minio: Minio, dest_bucket: str, dest_path: str) -> None:
+    """ Updates the moved data from the upload to reflect its new collection location
     Arguments:
         minio: the s3 client to access
         dest_bucket: the destination bucket
@@ -177,17 +235,21 @@ def __update_camtrap_collection(minio: Minio, dest_bucket: str, dest_path: str) 
     # Setup for out changes
     new_coll_id = dest_bucket[len(SPARCD_PREFIX):]
 
+    # Update the Metadata file
+    file_path = make_s3_path((dest_path, S3_UPLOAD_META_JSON_FILE_NAME))
+    _ = __update_upload_metadata(minio, dest_bucket, file_path, new_coll_id)
+
     # Update the CSV files
-    csv_path = make_s3_path((dest_path, DEPLOYMENT_CSV_FILE_NAME))
-    _ = __update_camtrap_coll_csv(minio, dest_bucket, csv_path, new_coll_id,
+    file_path = make_s3_path((dest_path, DEPLOYMENT_CSV_FILE_NAME))
+    _ = __update_camtrap_coll_csv(minio, dest_bucket, file_path, new_coll_id,
                                                     camtrap.CAMTRAP_DEPLOYMENT_ID_IDX)
 
-    csv_path = make_s3_path((dest_path, MEDIA_CSV_FILE_NAME))
-    _ = __update_camtrap_coll_csv(minio, dest_bucket, csv_path, new_coll_id,
+    file_path = make_s3_path((dest_path, MEDIA_CSV_FILE_NAME))
+    _ = __update_camtrap_coll_csv(minio, dest_bucket, file_path, new_coll_id,
                                                     camtrap.CAMTRAP_MEDIA_DEPLOYMENT_ID_IDX)
 
-    csv_path = make_s3_path((dest_path, OBSERVATIONS_CSV_FILE_NAME))
-    _ = __update_camtrap_coll_csv(minio, dest_bucket, csv_path, new_coll_id,
+    file_path = make_s3_path((dest_path, OBSERVATIONS_CSV_FILE_NAME))
+    _ = __update_camtrap_coll_csv(minio, dest_bucket, file_path, new_coll_id,
                                                     camtrap.CAMTRAP_OBSERVATION_DEPLOYMENT_ID_IDX)
 
     return True
@@ -458,7 +520,7 @@ def move_upload(s3_info: S3Info, source_bucket: str, dest_bucket: str, source_pa
 
     # Update the CAMTRAP files with the new collection ID if we copied to another SPARCD collection
     if dest_bucket.startswith(SPARCD_PREFIX):
-        _ = __update_camtrap_collection(minio, dest_bucket, get_dest_path(source_path))
+        _ = __update_moved_upload(minio, dest_bucket, get_dest_path(source_path))
 
     # Remove the source files
     try:
