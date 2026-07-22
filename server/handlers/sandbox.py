@@ -117,6 +117,33 @@ class UploadCounts:
     num_total: int
 
 
+def __calculate_files_with_species(obs_info: dict) -> int:
+    """ Calculates the number of files with observations
+    Arguments:
+        obs_info: the observation information to review
+    Return:
+        Returns the number of files that have one or more observed species
+    """
+    if not obs_info:
+        return 0
+
+    # Loop through the file names
+    files_species = 0
+    for key, data in obs_info.items():
+        have_species = False
+        if data:
+            for one_row in data:
+                if one_row and len(one_row) > camtrap.CAMTRAP_OBSERVATION_COUNT_IDX:
+                    if one_row[camtrap.CAMTRAP_OBSERVATION_COUNT_IDX] and \
+                                one_row[camtrap.CAMTRAP_OBSERVATION_SCIENTIFIC_NAME_IDX] :
+                        have_species = True
+
+        if have_species is True:
+            files_species += 1
+
+    return files_species
+
+
 def __compare_one_file(s3_info: S3Info, s3_bucket: str, s3_path: str,
                       file_obj: FileStorage) -> FileCompareResult:
     """ Downloads a single S3 file and compares its checksum to the uploaded one
@@ -713,7 +740,8 @@ def handle_sandbox_completed(db: SPARCdDatabase,
     # Always recalculate from the observations CSV — handles retry after crash
     # between status 2 and 3 where metadata update may not have completed
     obs_info = ctu.load_camtrap_observations(target.s3_info, target.s3_bucket, target.s3_path)
-    num_files_with_species = sum(1 for val in obs_info.values() if val) if obs_info else 0
+    #num_files_with_species = sum(1 for val in obs_info.values() if val) if obs_info else 0
+    num_files_with_species = __calculate_files_with_species(obs_info)
 
     # Clean up any temporary files
     for one_filename in [MEDIA_CSV_FILE_NAME, OBSERVATIONS_CSV_FILE_NAME]:
