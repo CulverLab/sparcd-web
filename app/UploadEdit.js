@@ -403,7 +403,9 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
    * Handles the user scrolling past the end of the images, so we load more
    * @function
    */
-  const onMoreImages = React.useCallback(() => {
+  const onMoreImages = React.useCallback((currentCount) => {
+      const baseCount = currentCount !== undefined ? currentCount : maxTilesDisplay;
+
     if (curUpload && curUpload.images && maxTilesDisplay < curUpload.images.length) {
       // Figure out how many tiles across we are
       let rowTilesCount = 4;
@@ -419,7 +421,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
         }
       }
 
-      const newCount = maxTilesDisplay  + 40 + ((maxTilesDisplay + 40) % rowTilesCount);
+      const newCount = baseCount  + 40 + ((baseCount + 40) % rowTilesCount);
       setMaxTilesDisplay(newCount);
       return newCount;
     }
@@ -811,7 +813,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup, uploa
       let curMaxDisplay = maxTilesDisplay;
       const imageIndex = curUpload.images.findIndex((item) => item.name === foundImage.name);
       while (curMaxDisplay < imageIndex && curMaxDisplay < curUpload.images.length - 1) {
-        curMaxDisplay = onMoreImages();
+        curMaxDisplay = onMoreImages(curMaxDisplay);
       }
 
       window.setTimeout(() => handleImageSearch(searchTerm, iterCount + 1), 500);
